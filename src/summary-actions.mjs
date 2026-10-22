@@ -1,6 +1,7 @@
 import {ID,ATTRIBUTES,COMBAT,SKILLS} from './config.mjs';
 import {esc,set} from './ui.mjs';
 import {readFields} from './interactions.mjs';
+import {combatBaseStatus} from './progression.mjs';
 import {CONDITIONS} from './conditions.mjs';
 import {houseRules,allocationProposal,saveAllocation,grantAttributeXP,conditionRecords,saveCondition,derivedSummary,statPrecision,damageActor,processConditionPhase} from './automation.mjs';
 const fields=(root,prefix)=>Object.fromEntries(Object.entries(readFields(root,prefix)).map(([k,v])=>[k.slice(prefix.length),v]));
@@ -12,7 +13,19 @@ export function refreshBudget(root) {
   const budget=root?.querySelector('.sns-allocation');if(!budget)return;
   const granted=Number(budget.dataset.budgetGranted),spent=[...budget.querySelectorAll('[data-attribute-point]')].reduce((s,i)=>s+Number(i.value||0),0),remaining=Math.round((granted-spent)*1000)/1000;
   budget.querySelector('[data-allocation-spent]').textContent=String(spent);budget.querySelector('[data-allocation-remaining]').textContent=String(remaining);
-  const status=budget.querySelector('[data-allocation-status]');status.textContent=remaining<0?'A distribuição excede os pontos disponíveis.':remaining===0?'Todos os pontos foram distribuídos.':'Há pontos disponíveis. Confira também os mínimos e máximos antes de salvar.';
+  const minimum=Number(budget.dataset.allocationMinimum),nc=Number(budget.dataset.allocationNc),pending=[];
+  for(const input of budget.querySelectorAll('[data-attribute-point]')) {
+    const key=input.dataset.attributePoint,value=Number(input.value||0),missing=Math.max(0,minimum-value),hint=budget.querySelector(`[data-attribute-minimum="${key}"]`);
+    input.closest('.sns-allocation-entry').dataset.minimumPending=String(missing>0);
+    hint.textContent=missing?`Mínimo ${minimum} · faltam ${missing} ponto(s)`:`Mínimo ${minimum} · atingido`;
+    if(missing)pending.push({key,value,missing});
+  }
+  const notice=budget.querySelector('[data-minimum-notice]'),needed=pending.reduce((sum,p)=>sum+p.missing,0);
+  notice.dataset.pending=String(needed>0);
+  notice.textContent=needed?`Mínimo pendente no NC ${nc}: ${pending.map(p=>`${ATTRIBUTES[p.key]} ${p.value} → ${minimum}`).join('; ')}. Faltam ${needed} ponto(s) para atingir os mínimos. Priorize esses atributos antes de investir acima do mínimo.`:'Todos os atributos atingem o mínimo deste NC.';
+  const bases=Object.fromEntries([...budget.querySelectorAll('[data-combat-base]')].map(input=>[input.dataset.combatBase,input.value])),baseStatus=combatBaseStatus(bases),baseNotice=budget.querySelector('[data-combat-base-status]');
+  baseNotice.textContent=baseStatus.message;baseNotice.dataset.pending=String(!baseStatus.valid);
+  const status=budget.querySelector('[data-allocation-status]');status.textContent=remaining<0?`Atributos: ${Math.abs(remaining)} ponto(s) acima do total concedido.`:remaining===0?'Todos os pontos de atributos foram distribuídos.':`Restam ${remaining} ponto(s) de atributos para distribuir. Confira também os mínimos e máximos antes de salvar.`;
 }
 async function emit(actor,title,body,flags={}) {return ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:`<div class="sns-app"><article class="sns-record"><header><strong>${esc(title)}</strong></header>${body}</article></div>`,flags:{[ID]:flags}});}
 export function currentTurnKey(actor){return actor.getFlag(ID,'currentTurnKey')??'fora-de-combate';}

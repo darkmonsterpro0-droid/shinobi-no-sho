@@ -1,5 +1,5 @@
 export const ID = "shinobi-no-sho";
-export const VERSION = "0.2.0";
+export const VERSION = "0.2.1";
 export const ATTRIBUTES = {for:"Força",des:"Destreza",agi:"Agilidade",per:"Percepção",int:"Inteligência",vig:"Vigor",esp:"Espírito"};
 export const COMBAT = {cc:"Combate Corporal",cd:"Combate à Distância",esq:"Esquiva",lm:"Ler Movimento"};
 export const SKILLS = {

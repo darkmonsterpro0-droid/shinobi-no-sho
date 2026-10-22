@@ -16,7 +16,7 @@ As fórmulas comuns aplicam-se a personagens com cálculos ativos. Criaturas e m
 | Iniciativa | 1d8 + AGI + precisão de Prontidão; modificadores de condição aplicáveis |
 | Esquiva normal | Defesa fixa 9 + precisão; Básico p.256 |
 
-Na criação, todos os pontos de atributos devem ser distribuídos. Na evolução, o saldo pode ser guardado; investimentos novos priorizam atributos abaixo do mínimo. A evolução não diminui atributos já comprados. Alterar as bases após a criação depende do mestre. A janela abre ao criar uma ficha nativa e ao elevar o NC; também pode ser aberta pelo botão do NC ou **Distribuir / subir NC**.
+Na criação, todos os pontos de atributos devem ser distribuídos. A janela destaca atributos abaixo do mínimo e informa os pontos necessários, atualizando durante a edição. Bases de combate têm aviso próprio de pontos faltantes/excedentes em relação à soma 12, além do limite de 2 pontos transferidos. Na evolução, o saldo pode ser guardado; investimentos novos priorizam atributos abaixo do mínimo. A evolução não diminui atributos já comprados. Nesta mesa, as bases só podem ser distribuídas durante a criação. Depois ficam somente para consulta, inclusive para o mestre, conforme decisão do usuário em 22/10/2026. A janela abre ao criar uma ficha nativa e ao elevar o NC; também pode ser aberta pelo botão do NC ou **Distribuir / subir NC**.
 
 A escolha entre avanço por nível inteiro e EXP pertence às **Regras da casa**. No primeiro modo, subir cada NC concede 6 pontos de atributos. No segundo, subir o NC muda os limites e o mestre concede EXP separadamente, inclusive frações. Trocar o modo não corrige pontos anteriores retroativamente. Há histórico de concessões e distribuições na ficha.
 

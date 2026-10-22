@@ -1,6 +1,6 @@
-# Validação até a versão 0.2.0
+# Validação até a versão 0.2.1
 
-Data: 21/10/2026. Alvo: Foundry VTT 14. Interface em português brasileiro, resumo calculado e condições.
+Atualizado em 22/10/2026. Alvo: Foundry VTT 14. Interface em português brasileiro, resumo calculado e condições.
 
 ## Evidência executada
 
@@ -27,6 +27,12 @@ Data: 21/10/2026. Alvo: Foundry VTT 14. Interface em português brasileiro, resu
 - Sangrando é testado com múltiplos níveis e uma tentativa de Vigor por turno. Há testes para estabilização apesar da inconsciência de Morrendo, recuperação de Estável, sufocamento inconsciente, camuflagem e sentidos.
 - 15 verificações de fluxos da prévia aprovadas: incluem evolução para NC5 sem cura, concessão de EXP fracionária, sangramento por turno, resistência e recusa da segunda tentativa no mesmo turno. A recusa é um erro esperado e conferido; nenhum erro de JavaScript não tratado foi registrado.
 - Nove telas densas conferidas em 320 e 420 pixels, incluindo distribuição, condições, regras da casa e testes. Capturas inspecionadas visualmente. Não houve teste nativo dentro do Foundry nesta etapa.
+
+## Correções da 0.2.1
+
+- Na evolução de NC4 para NC5, o navegador confere o aviso de Inteligência 0 → 1 e sua resolução ao investir o ponto necessário.
+- Na criação, alterar as bases produz mensagens próprias de excesso, falta e distribuição completa durante a edição. Na evolução, os campos são somente para leitura.
+- Os serviços rejeitam alteração das bases após a criação, inclusive com usuário mestre e chamadas diretas de atualização.
 
 ## Limite atual
 

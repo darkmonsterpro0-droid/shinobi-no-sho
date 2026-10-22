@@ -45,7 +45,7 @@ export function allocationProposal(actor,values={}) {
 export async function saveAllocation(actor,values,{initializeResources=false}={}) {
   own(actor);const proposal=allocationProposal(actor,values),{nc,current,initial,source,granted,attributes,bases}=proposal;
   if(nc!==current&&!initial)gm();
-  if(!initial&&!game.user.isGM&&Object.keys(COMBAT).some(k=>Number(bases[k])!==Number(source.automation.bases[k])))throw Error('Depois da criação, somente o mestre pode autorizar alterações das bases de combate.');
+  if(!initial&&Object.keys(COMBAT).some(k=>Number(bases[k])!==Number(source.automation.bases[k])))throw Error('As bases de combate só podem ser distribuídas na criação da ficha.');
   const check=validateAllocation({nc,attributes,granted,previous:initial?null:source.attributes,creation:initial,bases});if(!check.valid)throw Error(check.errors.join(' '));
   const history=[...(source.automation?.history??[]),{at:new Date().toISOString(),user:game.user.id,from:current,to:nc,granted,spent:spentAttributes(attributes),attributes:clone(attributes),mode:houseRules().advancement}];
   const update={'system.campaign.level':nc,'system.campaign.draft':false,'system.attributes':attributes,'system.automation.enabled':true,'system.automation.attributeGranted':granted,'system.automation.bases':bases,'system.automation.history':history};
@@ -117,6 +117,7 @@ export function createActorClass(Base) {
       const result=await super._preUpdate(data,options,user);if(result===false)return false;
       if(!this.system.automation?.enabled||this.type!=='character')return;
       const expanded=foundry.utils.expandObject(data),change=expanded.system??{};
+      if(!this.system.campaign.draft&&change.automation?.bases&&Object.keys(COMBAT).some(k=>change.automation.bases[k]!==undefined&&Number(change.automation.bases[k])!==Number(this.system.automation.bases[k])))throw Error('As bases de combate só podem ser distribuídas na criação da ficha.');
       if(!options.snsAllocation&&(change.attributes||change.automation?.attributeGranted!==undefined))throw Error('Use a janela de distribuição/evolução para alterar atributos ou EXP.');
       if(!options.snsAllocation&&change.campaign?.level!==undefined){if(!game.user.isGM)throw Error('Somente o mestre altera o NC após a criação.');const nc=Number(change.campaign.level);progression(nc);data['system.automation.attributeGranted']=levelGrant(this.toObject().system,nc,houseRules().advancement);options.snsOpenAllocation=true;}
       if(change.resources?.vitality?.max!==undefined||change.resources?.chakra?.max!==undefined||change.combat||change.movement?.distance!==undefined)throw Error('Este valor é calculado a partir dos atributos e do NC.');

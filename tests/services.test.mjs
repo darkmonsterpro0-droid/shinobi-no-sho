@@ -18,6 +18,7 @@ class Actor {
 function actor(){const a=new Actor();a.effects[Symbol.iterator]=function*(){yield* this.values();};return a;}
 test('allocation persists once, preserves damaged resources, and rejects overspend and player level grants',async()=>{
  const a=actor();await saveAllocation(a,{nc:5,attributes:{...attrs,int:1,for:4},bases:a.system.automation.bases});assert.equal(a.system.automation.attributeGranted,18);assert.equal(a.system.resources.vitality.value,20);assert.equal(derivedSummary(a).vitality,41);
+ await assert.rejects(()=>saveAllocation(a,{nc:5,attributes:a.system.attributes,bases:{cc:5,cd:1,esq:3,lm:3}}),/somente|criação/);
  await saveAllocation(a,{nc:5,attributes:{...a.system.attributes,des:3},bases:a.system.automation.bases});assert.equal(a.system.automation.attributeGranted,18);
  await assert.rejects(()=>saveAllocation(a,{nc:5,attributes:{for:5,des:5,agi:5,per:5,int:5,vig:5,esp:5},bases:a.system.automation.bases}));
  game.user.isGM=false;await assert.rejects(()=>saveAllocation(a,{nc:6,attributes:a.system.attributes,bases:a.system.automation.bases}));game.user.isGM=true;
@@ -47,6 +48,7 @@ test('automatic dying bleed can be stabilized and derived icons never feed thems
 test('native update guards reject changing derived fields and opening evolution does not cure',async()=>{
  class Base extends Actor {async _preUpdate(){}prepareDerivedData(){}getRollData(){return {};}}
  const S=createActorClass(Base),a=new S();await assert.rejects(()=>a._preUpdate({'system.resources.chakra.max':99},{},'gm'));await assert.rejects(()=>a._preUpdate({'system.attributes.for':9},{},'gm'));
+ await assert.rejects(()=>a._preUpdate({'system.automation.bases.cc':4},{snsAllocation:true},'gm'),/criação/);
  const patch={'system.campaign.level':5},options={};await a._preUpdate(patch,options,'gm');assert.equal(patch['system.automation.attributeGranted'],18);assert.equal(options.snsOpenAllocation,true);assert.equal(a.system.resources.vitality.value,20);
 });
 test('ordinary resource recovery uses caps, clears fatigue, and refuses resurrection',async()=>{

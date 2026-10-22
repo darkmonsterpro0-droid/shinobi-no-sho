@@ -24,7 +24,7 @@ export function bindSurface(root,adapter) {
     const value=el.type==="checkbox"?el.checked:el.type==="number"?(el.value===""?null:Number(el.value)):el.value;
     run(()=>adapter.change(el.name,value,el));
   },options);
-  root.addEventListener('input',e=>{if(e.target.matches('[data-sns-search]'))filterSurface(root);},options);
+  root.addEventListener('input',e=>{if(e.target.matches('[data-sns-search]'))filterSurface(root);if(e.target.matches('[data-attribute-point], [data-combat-base]')&&adapter.change)run(()=>adapter.change(e.target.name,e.target.value===''?null:Number(e.target.value),e.target));},options);
   root.addEventListener('keydown',e=>{
     const current=e.target.closest('[role=tab]');if(!current)return;
     const tabs=[...root.querySelectorAll('[role=tab]')];let index=tabs.indexOf(current);

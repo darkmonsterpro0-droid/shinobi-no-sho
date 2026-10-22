@@ -18,3 +18,12 @@
 .sns-app .sns-roll-explanation {font-size:12px;line-height:1.5;padding:13px;border:1px solid var(--sns-line);background:var(--sns-card);border-radius:4px;margin-top:15px;}
 .sns-app .sns-allocation>.sns-hint {display:block;margin-bottom:12px;}
 @container(max-width:560px){.sns-app .sns-condition-cards {grid-template-columns:minmax(0,1fr);}.sns-app .sns-attribute-allocation {grid-template-columns:repeat(2,minmax(0,1fr));}}
+
+.sns-app .sns-allocation-entry {min-width:0;}
+.sns-app .sns-allocation-entry>small {display:block;font-size:11px;line-height:1.4;margin-top:5px;color:var(--sns-muted);}
+.sns-app .sns-allocation-entry[data-minimum-pending=true] input {border:2px solid var(--sns-red);}
+.sns-app .sns-minimum-notice {font-size:12px;line-height:1.6;padding:12px;border:1px solid var(--sns-line);border-radius:4px;margin:0 0 16px;}
+.sns-app .sns-minimum-notice[data-pending=true] {border-left:4px solid var(--sns-red);background:var(--sns-card);font-weight:600;}
+
+.sns-app .sns-base-status {font-size:12px;line-height:1.5;margin-top:12px;}
+.sns-app .sns-base-status[data-pending=true] {border-left:4px solid var(--sns-red);padding:10px;background:var(--sns-card);font-weight:600;}

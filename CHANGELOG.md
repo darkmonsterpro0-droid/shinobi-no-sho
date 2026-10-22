@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.2.1 — 2026-10-22
+
+- Destaca atributos abaixo do mínimo ao elevar o NC, com valores atuais, mínimo exigido e pontos necessários. O aviso acompanha a edição dos campos.
+- Informa separadamente pontos de atributos restantes/excedentes e o saldo das bases de combate em relação à soma 12, incluindo transferência excessiva.
+- Bases de combate só podem ser distribuídas na criação, inclusive para o mestre, conforme decisão da mesa. Na evolução, ficam somente para consulta; a gravação também rejeita redistribuições.
+- Verifica avisos de mínimo/saldo e bloqueio das bases na prévia e nos serviços.
+
 ## 0.2.0 — 2026-10-21
 
 - Adiciona resumo calculado, bases de combate, deslocamento, vida e chakra máximos, iniciativa e testes com condições.

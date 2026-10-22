@@ -7,6 +7,13 @@ export function progression(nc) {
   return {nc,attributes:6*nc-12,skills:4*nc-8,powers:nc===20?40:2*nc-4,min:minimums[nc-4],max:nc};
 }
 export function spentAttributes(attributes={}) {return ATTRIBUTE_KEYS.reduce((sum,key)=>sum+numeric(attributes[key]),0);}
+export function combatBaseStatus(bases={}) {
+  const values=Object.keys(COMBAT).map(key=>Number(bases[key])),total=values.reduce((a,b)=>a+b,0),moved=values.reduce((a,b)=>a+Math.max(0,b-3),0);
+  if(values.some(n=>!Number.isInteger(n)||n<1||n>5))return {valid:false,message:'Bases de combate: cada valor deve ser um inteiro entre 1 e 5.'};
+  if(total!==12)return {valid:false,message:`Bases de combate: ${total} / 12 pontos. ${total<12?`Faltam ${12-total} ponto(s) para distribuir.`:`Há ${total-12} ponto(s) excedente(s); retire essa quantidade.`}`};
+  if(moved>2)return {valid:false,message:`Bases de combate: 12 / 12 pontos, mas foram transferidos ${moved}. Transfira no máximo 2 pontos.`};
+  return {valid:true,message:`Bases de combate: 12 / 12 pontos. Distribuição completa; ${moved} de 2 pontos transferidos.`};
+}
 export function validateAllocation({nc,attributes={},granted,previous=null,creation=false,bases={cc:3,cd:3,esq:3,lm:3}}) {
   const p=progression(nc),errors=[];granted=Number(granted??p.attributes);
   if(!Number.isFinite(granted)||granted<0)errors.push('Informe um total válido de pontos concedidos.');
@@ -17,11 +24,10 @@ export function validateAllocation({nc,attributes={},granted,previous=null,creat
     if(previous&&numeric(n)<numeric(previous[key]))errors.push(`${ATTRIBUTES[key]} não pode diminuir durante a evolução.`);
   }
   const spent=spentAttributes(attributes),remaining=Math.round((granted-spent)*1000)/1000;
-  if(remaining<0)errors.push('A distribuição excede os pontos concedidos.');
-  if(creation&&remaining!==0)errors.push('Na criação, distribua todos os pontos de atributos.');
+  if(remaining<0)errors.push(`Atributos: ${Math.abs(remaining)} ponto(s) acima do total concedido.`);
+  if(creation&&remaining>0)errors.push(`Na criação, faltam distribuir ${remaining} ponto(s) de atributos.`);
   if(previous&&ATTRIBUTE_KEYS.some(k=>numeric(attributes[k])<p.min)&&ATTRIBUTE_KEYS.some(k=>numeric(attributes[k])>Math.max(numeric(previous[k]),p.min)))errors.push('Eleve primeiro os atributos abaixo do mínimo do NC antes de investir acima dele (Básico p. 33).');
-  const bs=Object.keys(COMBAT).map(k=>Number(bases[k]));
-  if(bs.some(n=>!Number.isInteger(n)||n<1||n>5)||bs.reduce((a,b)=>a+b,0)!==12||bs.reduce((a,b)=>a+Math.max(0,b-3),0)>2)errors.push('As bases começam em 3: transfira no máximo 2 pontos, preservando a soma 12 (Básico p. 35).');
+  const baseStatus=combatBaseStatus(bases);if(!baseStatus.valid)errors.push(baseStatus.message);
   return {...p,granted,spent,remaining,errors,valid:!errors.length};
 }
 export function levelGrant(system,target,mode='level') {

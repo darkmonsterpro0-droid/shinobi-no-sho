@@ -1,6 +1,6 @@
 # Shinobi no Sho — Foundry VTT 14
 
-**Versão 0.2.0 · resumo, evolução e condições · português brasileiro**
+**Versão 0.2.1 · resumo, evolução e condições · português brasileiro**
 
 Fichas em marfim e grafite, com resumo calculado, distribuição de atributos por NC e condições do Livro Básico. O mestre escolhe o avanço por EXP ou nível inteiro nas Regras da casa.
 
@@ -85,7 +85,7 @@ A prévia abre em `http://127.0.0.1:4173` e usa os mesmos componentes de layout.
 Para preparar uma atualização, sempre use **um número maior e ainda não publicado**:
 
 ```sh
-node scripts/release.mjs --version 0.2.1 --repo darkmonsterpro0-droid/shinobi-no-sho
+node scripts/release.mjs --version 0.2.2 --repo darkmonsterpro0-droid/shinobi-no-sho
 node --test tests/*.test.mjs
 node scripts/release.mjs --check --repo darkmonsterpro0-droid/shinobi-no-sho
 ```

@@ -12,3 +12,5 @@
 - A identidade visual aprovada é marfim/grafite/vermelho, bordas discretas de pergaminho, tipografia legível e estrutura das quatro pranchas de conceito. Manter teclado, foco visível e janela estreita.
 
 - Sangrando: uma tentativa de Vigor 18 por turno, independentemente dos níveis; Medicina 16 usa uma ação padrão por tentativa. Confuso 5–6 mantém reações defensivas. Decisões expressas do usuário.
+
+- Decisão de 22/10/2026: bases de combate editáveis somente na criação, inclusive para o mestre. Na evolução, consultar sem redistribuir.
