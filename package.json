@@ -1,0 +1,16 @@
+{
+  "name": "shinobi-no-sho",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Sistema manual Shinobi no Sho para Foundry VTT 14",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "preview": "node scripts/preview-server.mjs",
+    "release:prepare": "node scripts/release.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT"
+}

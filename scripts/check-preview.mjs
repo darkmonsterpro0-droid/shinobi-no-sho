@@ -1,0 +1,40 @@
+const {chromium}=await import(process.env.PLAYWRIGHT_MODULE??'playwright');
+import {fileURLToPath} from 'node:url';
+import {readFile,mkdir,writeFile} from 'node:fs/promises';import path from 'node:path';
+import assert from 'node:assert/strict';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+process.chdir(root);
+const browser=await chromium.launch({headless:true,...(process.env.BROWSER_EXECUTABLE?{executablePath:process.env.BROWSER_EXECUTABLE}:{}),args:['--no-sandbox','--disable-gpu']});
+const context=await browser.newContext({viewport:{width:1460,height:1050}});
+await context.route('https://sns.local/**',async route=>{
+  let url=new URL(route.request().url()).pathname;
+  if(url.startsWith('/systems/shinobi-no-sho/'))url=url.slice('/systems/shinobi-no-sho'.length);
+  if(url==='/')url='/preview/index.html';
+  try{const filename=path.resolve(root,'.'+url);if(!filename.startsWith(root+path.sep))throw Error('path');const body=await readFile(filename);const types={'.mjs':'text/javascript','.css':'text/css','.html':'text/html','.svg':'image/svg+xml'};await route.fulfill({status:200,contentType:types[path.extname(filename)]??'application/octet-stream',body});}catch{await route.fulfill({status:404,body:''});}
+});
+const page=await context.newPage();const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.error(e.message);});page.setDefaultTimeout(5000);
+await page.goto('https://sns.local/');await page.waitForSelector('.sns-identity');
+await mkdir(path.join(root,'test-results/screenshots'),{recursive:true});
+const results=[];
+const go=async kind=>{await page.goto('https://sns.local/#'+kind);await page.waitForFunction(k=>document.querySelector('#surface').dataset.view===k,kind);};
+const field=name=>page.locator(`#surface [name="${name}"]`);
+const edit=async(name,value)=>{await field(name).fill(value);await field(name).press('Tab');};
+await edit('system.resources.chakra.value','23');await edit('system.resources.chakra.max','40');await edit('system.attributes.for','5');
+await page.reload();assert.equal(await field('system.attributes.for').inputValue(),'5');assert.equal(await field('system.resources.chakra.value').inputValue(),'23');results.push('Manual values persist after reload');
+await page.screenshot({path:'test-results/screenshots/01-summary.png',fullPage:true});
+await page.locator('#surface [role=tab][data-tab=summary]').focus();await page.keyboard.press('ArrowRight');await page.waitForURL('**/#combat');await page.waitForTimeout(100);assert.equal(await page.locator(':focus').getAttribute('data-tab'),'combat');results.push('Arrow keyboard navigation preserves focus');
+for(const kind of ['summary','combat','techniques','skills','social','equipment','advancement','history','library','power','aptitude','technique','item','test','declare','defense','result','conditions','settings','sources','resources','appearance','create']){
+  await go(kind);const missing=await page.locator('#surface').evaluate(root=>[...root.querySelectorAll('input,select,textarea,button')].filter(e=>!e.getAttribute('aria-label')&&!e.labels?.length&&!e.textContent.trim()).map(e=>e.outerHTML));assert.deepEqual(missing,[],kind+' labels');
+  if(['skills','social','technique','settings','create'].includes(kind))await page.screenshot({path:`test-results/screenshots/${kind}.png`,fullPage:true});
+}results.push('23 areas render with named controls');
+await go('technique');await edit('name','Técnica de teste visual');await go('techniques');const search=page.locator('#surface [data-sns-search]');await search.fill('inexistente');assert.equal(await page.locator('#surface [data-search]:visible').count(),0);await search.fill('tecnica de teste');assert.ok(await page.locator('#surface [data-search]:visible').count()>0);results.push('Search ignores accents and filters entries');
+await go('conditions');await page.locator('#surface [data-sns=condition]').first().click();await page.waitForURL('**/#condition');await edit('entry.name','Ferido — anotação');await edit('entry.duration','2 turnos');await page.locator('[data-sns=save-entry]').click();await page.waitForURL('**/#conditions');await page.getByRole('button',{name:'Editar condição Ferido — anotação'}).waitFor();results.push('Conditions save and return to listing');
+await go('resources');await page.locator('[data-sns=special]').first().click();await page.waitForURL('**/#special');await edit('entry.name','Reserva da mesa');await edit('entry.value','8');await edit('entry.max','10');await page.locator('[data-sns=save-entry]').click();await page.waitForURL('**/#resources');await page.getByText('Reserva da mesa',{exact:true}).waitFor();results.push('Specific resources save manually');
+await go('declare');await edit('record.title','Declaração visual');await edit('record.cost','5 chakra');await page.locator('[data-sns=post-record]').click();await page.waitForURL('**/#combat');await go('summary');assert.equal(await field('system.resources.chakra.value').inputValue(),'23');results.push('Declaring a cost does not consume chakra');
+await page.locator('#surface [data-sns=theme]').click();assert.equal(await page.locator('#surface').getAttribute('data-theme'),'dark');await page.screenshot({path:'test-results/screenshots/dark.png',fullPage:true});
+await page.selectOption('#actor-type','puppet');await page.waitForTimeout(100);await page.screenshot({path:'test-results/screenshots/puppet.png',fullPage:true});await page.selectOption('#actor-type','creature');await page.waitForTimeout(100);await page.screenshot({path:'test-results/screenshots/creature.png',fullPage:true});await page.selectOption('#actor-type','character');
+await go('settings');await edit('profile.name','Perfil visual');await page.locator('[data-sns=review-profile]').click();await page.waitForURL('**/#impact');await page.locator('[data-sns=apply-profile]').click();await page.waitForURL('**/#settings');await field('profile.name').waitFor();assert.equal(await field('profile.name').inputValue(),'Perfil visual');results.push('World profile saves through impact review');
+await go('create');await edit('draft.name','Personagem criado na prévia');await page.locator('[data-sns=wizard-step][data-step="1"]').last().click();await edit('draft.system.attributes.for','4');await page.locator('[data-sns=wizard-step][data-step="2"]').last().click();await edit('draft.system.skills.acrobacia.value','6');await page.locator('[data-sns=wizard-step][data-step="3"]').last().click();await edit('draft.system.advancement.notes','Escolhas da mesa');await page.locator('[data-sns=wizard-step][data-step="4"]').last().click();await page.locator('[data-sns=finish-wizard]').last().click();await page.waitForURL('**/#summary');await field('name').waitFor();assert.equal(await field('name').inputValue(),'Personagem criado na prévia');assert.equal(await field('system.attributes.for').inputValue(),'4');assert.equal(await field('system.resources.chakra.value').inputValue(),'');results.push('Five-step character creation preserves entries and grants no derived resources');
+for(const width of [420,320]){await page.setViewportSize({width,height:950});for(const kind of ['summary','skills','technique','settings','create']){await go(kind);const overflow=await page.locator('#surface').evaluate(el=>({width:el.clientWidth,scroll:el.scrollWidth}));assert.ok(overflow.scroll<=overflow.width+1,`${width}px ${kind}: ${JSON.stringify(overflow)}`);}await go('summary');await page.screenshot({path:`test-results/screenshots/narrow-${width}.png`,fullPage:true});}results.push('Five dense layouts fit 320px and 420px viewports');
+assert.deepEqual(errors,[]);await writeFile('test-results/visual-results.json',JSON.stringify({results,errors},null,2));console.log(JSON.stringify({results,errors},null,2));
+await browser.close();
