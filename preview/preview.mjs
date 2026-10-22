@@ -1,6 +1,7 @@
 import {actorView,itemView,panelView,filterSurface,esc,set} from '../src/ui.mjs';
 import {bindSurface,readFields} from '../src/interactions.mjs';
-import {TABS,ICONS,ID,ITEM_TYPES,SKILLS,defaultProfile} from '../src/config.mjs';
+import {TABS,ICONS,ID,VERSION,ITEM_TYPES,SKILLS,defaultProfile} from '../src/config.mjs';
+document.querySelector("#preview-version").textContent=`PRÉVIA DA VERSÃO ${VERSION}`;
 const storageKey='shinobi-no-sho.preview.v1';
 const fresh=()=>({theme:'light',reduceMotion:false,profile:defaultProfile(),actor:{id:'preview',uuid:'Actor.preview',type:'character',name:'Aoi · exemplo editável',img:ICONS.character,items:[],system:{identity:{village:'',rank:'',clan:'',concept:''},campaign:{level:null,draft:true},attributes:{},combat:{},skills:Object.fromEntries(Object.keys(SKILLS).map(k=>[k,{value:null,trained:false,notes:''}])),resources:{vitality:{value:null,max:null},chakra:{value:null,max:null}},movement:{distance:null,type:''},actions:{},social:{},advancement:{},links:{kind:'Invocação'},structure:{absorption:{}},conditions:[],special:[],bonds:[],history:'',notes:''}},items:[],records:[]});
 let data;try{data=JSON.parse(localStorage.getItem(storageKey))??fresh();}catch{data=fresh();}

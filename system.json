@@ -2,9 +2,10 @@
   "id": "shinobi-no-sho",
   "title": "Shinobi no Sho",
   "description": "Fichas e ferramentas manuais para Shinobi no Sho. Interface em português para Foundry VTT 14. Versão inicial sem automação de regras.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "compatibility": {
     "minimum": "14",
+    "verified": "14.367",
     "maximum": "14"
   },
   "authors": [
@@ -49,7 +50,7 @@
   "packs": [],
   "url": "https://github.com/darkmonsterpro0-droid/shinobi-no-sho",
   "manifest": "https://github.com/darkmonsterpro0-droid/shinobi-no-sho/releases/latest/download/system.json",
-  "download": "https://github.com/darkmonsterpro0-droid/shinobi-no-sho/releases/download/v0.1.0/shinobi-no-sho-v0.1.0.zip",
+  "download": "https://github.com/darkmonsterpro0-droid/shinobi-no-sho/releases/download/v0.1.1/shinobi-no-sho-v0.1.1.zip",
   "bugs": "https://github.com/darkmonsterpro0-droid/shinobi-no-sho/issues",
   "changelog": "https://github.com/darkmonsterpro0-droid/shinobi-no-sho/blob/main/CHANGELOG.md"
 }

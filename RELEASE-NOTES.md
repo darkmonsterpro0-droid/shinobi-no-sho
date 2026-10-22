@@ -1,11 +1,11 @@
-Primeira versão visual e manual de **Shinobi no Sho para Foundry VTT 14**.
+Correção 0.1.1 da declaração de compatibilidade para **Foundry VTT 14.367**.
 
-Fichas de personagem, criatura e marionete, oito abas, cinco tipos de item, criação guiada, biblioteca, registros manuais no chat, condições, vínculos, reservas e configurações do mestre. Interface marfim/grafite/vermelho, com tema escuro e janela estreita.
+O manifesto anterior não tinha `compatibility.verified`, causando o indicador de compatibilidade desconhecida. A nova versão inclui esse campo e mantém os limites na geração 14. Sem alteração das regras ou das fichas.
 
-Sem automação de regras, rolagens, custos ou danos. Conteúdo é cadastrado manualmente; os PDFs e seus textos não estão incluídos.
-
-Instalação: em **Sistemas de Jogo → Instalar Sistema**, use:
+Em **Sistemas de Jogo**, atualize Shinobi no Sho para **0.1.1**. Se a atualização não aparecer, use **Instalar Sistema** com o mesmo manifesto:
 
 https://github.com/darkmonsterpro0-droid/shinobi-no-sho/releases/latest/download/system.json
 
-Esta é uma versão inicial. Veja `docs/VALIDACAO.md` para distinguir os testes feitos na prévia e os testes de integração com Foundry.
+Depois, recarregue a configuração do Foundry e abra novamente a criação de mundo.
+
+Os registros reais confirmam instalação do pacote no Foundry 14.367. A seleção do sistema na criação de mundo após esta correção e os fluxos dentro do mundo ainda aguardam confirmação. Veja docs/VALIDACAO.md.

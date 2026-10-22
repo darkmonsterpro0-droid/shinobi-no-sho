@@ -8,7 +8,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const actor={id:'example',name:'<img src=x onerror=alert(1)>',type:'character',img:'javascript:alert(1)',system:{attributes:{},combat:{},resources:{},skills:{},campaign:{},identity:{},conditions:[],special:[],bonds:[]},items:[]};
 test('manifest, package and code share version and immutable download URL',async()=>{
   const f=JSON.parse(await readFile(path.join(root,'system.json'),'utf8')),p=JSON.parse(await readFile(path.join(root,'package.json'),'utf8'));
-  assert.equal(f.version,VERSION);assert.equal(p.version,VERSION);assert.equal(f.id,'shinobi-no-sho');assert.equal(f.compatibility.minimum,'14');assert.equal(f.compatibility.maximum,'14');assert.equal(f.compatibility.verified,undefined);
+  assert.equal(f.version,VERSION);assert.equal(p.version,VERSION);assert.equal(f.id,'shinobi-no-sho');assert.equal(f.compatibility.minimum,'14');assert.equal(f.compatibility.maximum,'14');assert.equal(f.compatibility.verified,'14.367');
   assert.deepEqual(f.documentTypes.Actor,{character:{},creature:{},puppet:{}});assert.deepEqual(Object.keys(f.documentTypes.Item).sort(),Object.keys(ITEM_TYPES).sort());
   assert.equal(f.download,releaseMetadata(VERSION,'darkmonsterpro0-droid/shinobi-no-sho').download);assert.equal(f.manifest,releaseMetadata(VERSION,'darkmonsterpro0-droid/shinobi-no-sho').manifest);
   for(const file of [...f.esmodules,...f.styles,...f.languages.map(l=>l.path)])assert.ok((await readFile(path.join(root,file))).length);

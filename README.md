@@ -1,6 +1,6 @@
 # Shinobi no Sho — Foundry VTT 14
 
-**Versão 0.1.0 · fichas manuais · português brasileiro**
+**Versão 0.1.1 · fichas manuais · português brasileiro**
 
 Primeira versão com foco na interface: marfim, grafite, vermelho discreto e leitura clara, seguindo os conceitos visuais preparados para o projeto. Valores e decisões permanecem sob controle da mesa.
 
@@ -83,7 +83,7 @@ node scripts/publish.mjs
 
 O publicador exige uma árvore de trabalho limpa, confere que o commit está no GitHub, executa os testes, confere as versões, cria a tag correspondente e publica `system.json` e ZIP. Recusa sobrescrever versões existentes. Cada download é fixado à sua tag; o manifesto estável acompanha a última release. Não é necessário configurar GitHub Actions.
 
-Veja [AGENTS.md](AGENTS.md) para as instruções permanentes e [docs/VALIDACAO.md](docs/VALIDACAO.md) para a evidência e limites dos testes. A compatibilidade alvo é v14; `verified` só será preenchido após validação numa instalação real dessa versão.
+Veja [AGENTS.md](AGENTS.md) para as instruções permanentes e [docs/VALIDACAO.md](docs/VALIDACAO.md) para a evidência e limites dos testes. A compatibilidade declarada é Foundry 14.367, com limites na geração 14. Instalação confirmada no servidor do usuário; fluxos dentro de um mundo ainda aguardam confirmação.
 
 ## Créditos
 

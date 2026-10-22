@@ -1,4 +1,4 @@
-# Validação da versão 0.1.0
+# Validação das versões 0.1.0 e 0.1.1
 
 Data: 21/10/2026. Alvo: Foundry VTT 14. Interface manual em português brasileiro.
 
@@ -15,7 +15,9 @@ Data: 21/10/2026. Alvo: Foundry VTT 14. Interface manual em português brasileir
 
 ## Limite atual
 
-Não foi localizada uma instalação executável do Foundry 14 neste ambiente. Portanto, **a instalação e os fluxos dentro de um mundo real do Foundry 14 ainda não foram verificados**. `compatibility.verified` permanece ausente. A prévia não substitui esse teste.
+Na 0.1.0, `compatibility.verified` estava ausente e o Foundry mostrava compatibilidade desconhecida. Na 0.1.1, foi declarada a build `14.367`, correspondente à instalação do usuário. Os registros reais do servidor confirmam Foundry 14 build 367 e instalação do sistema concluída; a captura do usuário confirma o cartão do sistema instalado.
+
+Essa evidência cobre reconhecimento e instalação do pacote. **A criação do mundo com a correção e os fluxos das fichas dentro dele ainda aguardam confirmação.** A declaração no manifesto não representa teste integral de todos os recursos. A prévia não substitui esse teste.
 
 O adaptador segue as APIs documentadas de [ApplicationV2](https://foundryvtt.com/api/v14/classes/foundry.applications.api.ApplicationV2.html), [ActorSheetV2](https://foundryvtt.com/api/v14/classes/foundry.applications.sheets.ActorSheetV2.html), [DocumentSheetConfig](https://foundryvtt.com/api/v14/classes/foundry.applications.apps.DocumentSheetConfig.html) e [FilePicker](https://foundryvtt.com/api/v14/classes/foundry.applications.apps.FilePicker.html). Arrastar itens, seletor de arquivos, criação persistente de documentos, barras de token e permissões em múltiplos clientes precisam da verificação nativa.
 
@@ -45,4 +47,4 @@ node scripts/check-preview.mjs
 5. Abrir uma sessão de jogador: conferir propriedade, leitura de fichas, perfil restrito ao mestre e destinatários das mensagens privadas.
 6. Publicar os quatro registros manuais e conferir que nenhum valor, ação ou condição mudou automaticamente.
 7. Redimensionar as janelas, trocar tema, navegar pelo teclado e verificar barras de token.
-8. Registrar a versão exata testada antes de preencher `verified` numa nova release.
+8. Registrar a versão exata e os fluxos efetivamente testados ao atualizar a declaração `verified`.
