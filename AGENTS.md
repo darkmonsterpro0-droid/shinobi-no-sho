@@ -16,3 +16,8 @@
 - Decisão de 22/10/2026: bases de combate editáveis somente na criação, inclusive para o mestre. Na evolução, consultar sem redistribuir.
 
 - Decisões de 22/10/2026: painel de condições com um botão Ativar/Desativar por condição; retirar checklist de contexto dos testes, deixando circunstâncias para a mesa e modificador manual. Aba Mestre deve ficar oculta para jogadores. Recursos atuais não podem exceder os máximos.
+
+- Decisões confirmadas em 22/10/2026: variante da mesa de 4 pontos de poder proporcional à tabela publicada: 8 no NC 4 e 80 no NC 20, inclusive o salto final excepcional. Ações sociais com mais de um atributo usam escolha visível junto ao botão e rolam diretamente, sem janela intermediária.
+- O usuário autorizou publicar a implementação atual como 0.3.0 em 22/10/2026. Consultar docs/DESENVOLVIMENTO-0.3.md; catálogo não equivale a automação integral de aptidões. Preservar as limitações nas notas; não declarar o pedido original inteiro concluído.
+
+- Decisões de 22/10/2026: Chute Duplo recebe +2 apenas na parcela do primeiro golpe, depois da divisão. Domínio da Água usa reserva individual de cada personagem. Clone 2 segue a quantidade total ativa: até dois clones usam −3 nos testes; ao criar o terceiro, todos passam a falhar automaticamente em combate, até seis. Não há versões distintas misturadas: a população controla o efeito em todas as cópias. Decisão esclarecida pelo usuário.

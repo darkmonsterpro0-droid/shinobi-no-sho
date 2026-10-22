@@ -25,7 +25,7 @@ test('all panel workflows render without requiring rule calculations',()=>{
 });
 test('only declared game attributes and combat values are present; concentration uses Intelligence',()=>{
   assert.equal(Object.keys(ATTRIBUTES).length,7);assert.deepEqual(Object.keys(COMBAT),['cc','cd','esq','lm']);assert.equal(SKILLS.concentracao[1],'int');
-  const s=defaultProfile();assert.ok(s.decisions.find(d=>d.id==='amaterasu').description.includes('9 m'));assert.ok(s.decisions.find(d=>d.id==='rede').description.includes('16'));assert.equal(s.decisions.find(d=>d.id==='fracassos').status,'Pendente');
+  const s=defaultProfile();assert.ok(s.decisions.find(d=>d.id==='amaterasu').description.includes('9 m'));assert.ok(s.decisions.find(d=>d.id==='rede').description.includes('16'));assert.equal(s.decisions.find(d=>d.id==='fracassos').status,'Definido');
 });
 test('unsafe images and object mutation paths are rejected',()=>{
   assert.equal(safeImage('javascript:alert(1)','fallback'),'fallback');assert.equal(safeImage('data:image/svg+xml,<svg onload=alert(1)>','fallback'),'fallback');assert.equal(safeImage('https://example.com/a.png'),'https://example.com/a.png');

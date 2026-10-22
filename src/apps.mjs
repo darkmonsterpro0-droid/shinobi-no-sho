@@ -1,3 +1,8 @@
+import {TECHNIQUE_ACTIONS,techniqueAction} from './technique-actions.mjs';
+import {CLONE_ACTIONS,cloneAction} from './clone-actions.mjs';
+import {APTITUDE_USE_ACTIONS,aptitudeUseAction} from './aptitude-use.mjs';
+import {CATALOG_ACTIONS,catalogAction} from './catalog.mjs';
+import {BUILD_ACTIONS,buildAction} from './build-actions.mjs';
 import {SUMMARY_ACTIONS,automationAction,refreshBudget} from './summary-actions.mjs';
 import {allocationProposal,houseRules,getActorView,conditionRecords,saveCondition,creationSystem,statPrecision,restRecovery} from './automation.mjs';
 import {CONDITIONS} from './conditions.mjs';
@@ -11,7 +16,7 @@ const profile=()=>deepCopy(game.settings.get(ID,"profile"));
 const own=doc=>!!doc?.isOwner;
 const permittedActors=()=>game.actors.filter(a=>a.visible).map(a=>({uuid:a.uuid,name:a.name}));
 const asActor=doc=>(doc?.constructor?.documentName==="Actor"||doc?.documentName==="Actor")?doc:doc?.actor??((doc?.parent?.constructor?.documentName==="Actor"||doc?.parent?.documentName==="Actor")?doc.parent:null);
-const titles={library:"Biblioteca",settings:"Regras da mesa",sources:"Fontes e decisões",resources:"Recursos e vínculos",conditions:"Condições",condition:"Condição",special:"Recurso específico",bond:"Vínculo específico",test:"Registrar teste",declare:"Declarar técnica",defense:"Escolher defesa",result:"Conferir resultado",create:"Criar personagem",impact:"Revisar perfil",allocation:"Atributos e evolução",house:"Regras da casa",xp:"Conceder EXP",roll:"Teste do resumo",recovery:"Recuperação e chakra",appearance:"Aparência e acessibilidade",decision:"Decisão da mesa"};
+const titles={"technique-modifiers":"Aptidões da técnica","aptitude-use":"Usar aptidão",catalog:"Catálogo do livro","weapon-use":"Usar arma",library:"Biblioteca",settings:"Regras da mesa",sources:"Fontes",resources:"Recursos e vínculos",conditions:"Condições",condition:"Condição",special:"Recurso específico",bond:"Vínculo específico",test:"Registrar teste",declare:"Declarar técnica",defense:"Escolher defesa",result:"Conferir resultado",create:"Criar personagem",impact:"Revisar perfil",allocation:"Atributos e evolução",house:"Regras da casa",xp:"Conceder EXP",roll:"Teste do resumo",recovery:"Recuperação e chakra",appearance:"Aparência e acessibilidade",decision:"Decisão da mesa"};
 const mutating=new Set(["new-item","remove-item","favorite-item","condition","special","bond","save-entry","delete-entry","portrait"]);
 const gmOnly=new Set(["review-profile","apply-profile","decision"]);
 function assertOwner(doc) {if(!own(doc))throw Error("Você não possui permissão para editar esta ficha.");}
@@ -46,6 +51,7 @@ export function createApplications() {
     }
     async _preClose(options) {this._unbindSNS?.();return super._preClose(options);}
     async _snsChange(key,value,el) {
+      if(key.startsWith("ui.")){this._snsChoices??={};this._snsChoices[key]=value;return;}
       if(!this.document)return;
       if(!(key==='name'||key.startsWith('system.')))return;
       assertOwner(this.document);
@@ -58,7 +64,7 @@ export function createApplications() {
   };
   class ShinobiActorSheet extends mixin(ActorSheetV2) {
     _snsTab="summary";
-    async _prepareContext(options) {const base=await super._prepareContext(options);return {...base,theme:game.settings.get(ID,"theme"),body:actorView(sourceData(this.document),this._snsTab,{profile:profile(),actors:permittedActors(),isGM:game.user.isGM,houseRules:houseRules()})};}
+    async _prepareContext(options) {const base=await super._prepareContext(options);return {...base,theme:game.settings.get(ID,"theme"),body:actorView(sourceData(this.document),this._snsTab,{profile:profile(),actors:permittedActors(),isGM:game.user.isGM,houseRules:houseRules(),testChoices:this._snsChoices??{}})};}
   }
   class ShinobiItemSheet extends mixin(ItemSheetV2) {
     static DEFAULT_OPTIONS={position:{width:760,height:780}};
@@ -75,6 +81,7 @@ export function createApplications() {
       return {...base,theme:env.theme,body:panelView(this.kind,env)};
     }
     async _snsChange(key,value,root) {
+      if(this.kind==='aptitude-use'&&key.startsWith('clone.')){Object.assign(this.values,readFields(root,'clone.'));if(key==='clone.version'){this._focusField=key;await this.render({force:true});}return;}
       if(key.startsWith('draft.')){set(this.draft,key.slice(6),value);if(key==='draft.system.campaign.level'){await this.render({force:true});return;}refreshBudget(root);}
       if(key.startsWith('allocation.')){set(this.values,key.slice(11),value);if(key==='allocation.nc'){this._focusField=key;await this.render({force:true});return;}refreshBudget(root);}
       if(this.kind==='condition'&&key==='entry.key'){for(const [k,v]of Object.entries(readFields(root,'entry.')))set(this.values,k.slice(6),v);this.values.name=CONDITIONS[value]?.name??this.values.name;this.values.source=CONDITIONS[value]?.source??this.values.source;await this.render({force:true});}
@@ -85,6 +92,11 @@ export function createApplications() {
   function show(kind,config={}) {return new ShinobiPanel(kind,config).render({force:true});}
   async function dispatch(app,op,data,root,button) {
     const doc=app.document;const actor=app._actor??asActor(doc);
+    if(CLONE_ACTIONS.has(op))return cloneAction(app,op,data,root,{actor,show});
+    if(TECHNIQUE_ACTIONS.has(op))return techniqueAction(app,op,data,root,{actor,show});
+    if(APTITUDE_USE_ACTIONS.has(op))return aptitudeUseAction(app,op,data,root,{actor,show});
+    if(CATALOG_ACTIONS.has(op))return catalogAction(app,op,data,root,{actor,show});
+    if(BUILD_ACTIONS.has(op))return buildAction(app,op,data,root,{actor});
     if(SUMMARY_ACTIONS.has(op))return automationAction(app,op,data,root,{actor,show});
     if(doc&&mutating.has(op))assertOwner(doc);
     if(actor&&mutating.has(op))assertOwner(actor);

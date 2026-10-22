@@ -1,5 +1,17 @@
 # Histórico de versões
 
+## 0.3.0 — 2026-10-22
+
+- Reorganiza a ficha: remove Combate e Evolução; separa Poderes e Aptidões na mesma aba. Retira favoritos e controles adiados para os futuros HUDs. Fontes mostra somente os livros.
+- Adiciona seleção de patente, incluindo Nukenin, e busca de clãs/hijutsus por parte do nome. Exibe deslocamento padrão e voo.
+- Contabiliza pontos de perícias, Yin/Yang, poderes e aptidões; valida limites e compras. O mestre configura progressão de 2, 3 ou 4 pontos de poder e regras opcionais.
+- Perícias rolam 2d8 ou simulam 4/8/16 conforme os requisitos publicados; ações sociais rolam diretamente com escolha de atributo junto ao botão.
+- Adiciona catálogos de armas comuns e aptidões do Básico/Guia, armazenados no personagem. Implementa ataques, consumo de munição, recarga, manobras, evolução de aptidões, usos por cena/dia e modificadores de técnicas em fluxos específicos.
+- Adiciona repetição de testes para Perícia Inata, Resistência Maior e Diligente; a segunda rolagem é obrigatória. Resistências pendentes aguardam aceitar ou repetir antes de resolver a condição.
+- Clone 2 usa a quantidade total ativa: até duas cópias com −3 nos testes; da terceira à sexta, todas falham automaticamente em combate. Gerador de clones comuns e divisão/devolução de chakra de Kage Bunshin.
+- Chute Duplo recebe +2 somente na parcela do primeiro golpe; Domínio da Água usa uma reserva individual, conforme decisões da mesa.
+- 72 testes de código e 24 verificações locais de navegador aprovados. O escopo nativo do Foundry continua pendente. Automação de aptidões/armas não é integral; limitações descritas nas notas e no registro de desenvolvimento.
+
 ## 0.2.3 — 2026-10-22
 
 - Remove o botão de editar ao lado de cada condição no resumo. O botão Gerenciar continua abrindo o painel de ativação/desativação.

@@ -1,10 +1,14 @@
+import {advanceAptitudePhase,runtimeBonuses,activeAptitudes,runtimeState,periodKey} from './aptitude-runtime.mjs';
+import {cloneTestEffect} from './clone-rules.mjs';
+import {skillBase,pointBudgets,validateBuildChange,RESTRICTED_SKILLS} from './build-rules.mjs';
+import {aptitudeBonuses,aptitudeOwned,evolutionStatus} from './aptitudes.mjs';
 import {ID,ATTRIBUTES,COMBAT,SKILLS} from './config.mjs';
 import {progression,basicSummary,validateAllocation,levelGrant,creationSystem,spentAttributes} from './progression.mjs';
 import {CONDITIONS,conditionKey,conditionHistory,resolveConditions,conditionContext,conditionTurn,lethalDamage} from './conditions.mjs';
 const clone=value=>foundry.utils.deepClone(value);
 const own=actor=>{if(!actor?.isOwner)throw Error('Você não possui permissão para alterar este personagem.');};
 const gm=()=>{if(!game.user.isGM)throw Error('Somente o mestre concede NC e EXP.');};
-export function houseRules(){return {advancement:'level',...game.settings.get(ID,'houseRules')};}
+export function houseRules(){return {advancement:'level',powerRate:2,...game.settings.get(ID,'houseRules')};}
 export function clampResourceChanges(actor,change={}) {
   const s=actor.toObject().system,candidate={...s,campaign:{...s.campaign,...change.campaign},attributes:{...s.attributes,...change.attributes},automation:{...s.automation,...change.automation}};
   const base=actor.type==='character'&&candidate.automation?.enabled?basicSummary(candidate):null,result=[];
@@ -18,8 +22,11 @@ export function restRecovery(actor) {
   const d=derivedSummary(actor),s=actor.system,vit=s.resources.vitality.value,chakra=s.resources.chakra.value;
   if(d.state.keys.includes('morto'))throw Error('Recuperação comum não ressuscita.');
   if([vit,chakra,d.vitality,d.chakra,s.attributes.vig,s.attributes.esp].some(n=>n===null||n===undefined||!Number.isFinite(Number(n))))throw Error('Preencha vida, chakra, máximos, Vigor e Espírito antes de descansar.');
-  const vitality=Math.min(d.vitality,vit+10+2*s.attributes.vig),energy=Math.min(d.chakra,chakra+5+2*s.attributes.esp);
-  return {vitality,chakra:energy,vitalityGain:Math.max(0,vitality-vit),chakraGain:Math.max(0,energy-chakra),vitalityRecovery:10+2*s.attributes.vig,chakraRecovery:5+2*s.attributes.esp};
+  const multiplier=aptitudeBonuses(s,[...(actor.items??[])],houseRules()).restMultiplier;
+  const vr=(10+2*s.attributes.vig)*multiplier,cr=(5+2*s.attributes.esp)*multiplier;
+  const kageActive=(game.actors?.contents??[]).some(c=>{const m=c.getFlag?.(ID,'clone');return m?.origin===actor.uuid&&m.type==='kage-bunshin'&&!m.dismissed;});
+  const vitality=Math.min(d.vitality,vit+vr),energy=kageActive?chakra:Math.min(d.chakra,chakra+cr);
+  return {vitality,chakra:energy,vitalityGain:Math.max(0,vitality-vit),chakraGain:Math.max(0,energy-chakra),vitalityRecovery:vr,chakraRecovery:cr,chakraBlocked:kageActive};
 }
 export async function toggleCondition(actor,key,id) {
   own(actor);const records=conditionRecords(actor,{includeInactive:true}),matches=records.filter(r=>key?r.key===key:r.id===id),active=matches.some(r=>!r.disabled);
@@ -41,11 +48,15 @@ export function conditionRecords(actor,{includeAutomatic=false,includeInactive=f
 export function derivedSummary(actor,records=conditionRecords(actor)) {
   const s=actor.system,automatic=actor.type==='character'&&s.automation?.enabled;
   let base=null,error='';try{if(automatic)base=basicSummary(s);}catch(e){error=e.message;}
-  const combat=base?.combat??Object.fromEntries(Object.keys(COMBAT).map(k=>[k,s.combat?.[k]??0]));
+  const bonus=aptitudeBonuses(s,[...(actor.items??[])],houseRules()),runtime=runtimeBonuses(actor);
+  const combat={...(base?.combat??Object.fromEntries(Object.keys(COMBAT).map(k=>[k,s.combat?.[k]??0])))};
+  combat.esq+=bonus.esq+runtime.dodge;combat.lm+=bonus.lm;
   const vitality=base?.vitality??s.resources?.vitality?.max,chakra=base?.chakra??s.resources?.chakra?.max;
-  const resources={vitality:s.resources?.vitality?.value??null,chakra:s.resources?.chakra?.value??null,chakraMax:chakra??0,forcedDrain:s.automation?.forcedDrain,puppet:actor.type==='puppet'};
-  const state=resolveConditions(records,resources),normalMovement=base?.movement??actor._source?.system?.movement?.distance??s.movement?.distance??0;
-  return {automatic,base,combat,vitality,chakra,resources,state,normalMovement,movement:state.immobile?0:state.slow?Math.ceil(normalMovement/2):normalMovement,error};
+  const cloneMeta=actor.getFlag?.(ID,'clone');
+  const resources={vitality:s.resources?.vitality?.value??null,chakra:s.resources?.chakra?.value??null,chakraMax:chakra??0,forcedDrain:s.automation?.forcedDrain,puppet:actor.type==='puppet',hasChakraReserve:!(cloneMeta&&chakra===0)};
+  const state=resolveConditions(records,resources),normalMovement=(bonus.movement??base?.movement??actor._source?.system?.movement?.distance??s.movement?.distance??0)+runtime.movement;
+  const dodgeBonus=state.immobile||state.keys.includes('desprevenido')?0:bonus.esq+runtime.dodge;combat.esq+=dodgeBonus-bonus.esq-runtime.dodge;
+  return {automatic,base,combat,dodgeBonus,vitality,chakra,resources,state,normalMovement,movement:state.immobile?0:state.slow?Math.ceil(normalMovement/2):normalMovement,error};
 }
 export function applyDerived(actor) {
   const d=derivedSummary(actor);if(d.base){Object.assign(actor.system.combat,d.combat);actor.system.resources.vitality.max=d.vitality;actor.system.resources.chakra.max=d.chakra;actor.system.advancement.attributesSpent=d.base.attributeSpent;actor.system.advancement.attributesAvailable=d.base.attributeGranted-d.base.attributeSpent;}
@@ -54,9 +65,12 @@ export function applyDerived(actor) {
 }
 export function getActorView(actor) {
   const d=actor.toObject();d.id=actor.id;d.items=actor.items?.map(i=>({...i.toObject(),id:i.id}))??[];
+  for(const i of d.items)if(i.type==='aptitude'&&i.system.catalogKey)i.evolution=evolutionStatus(i,d.system,d.items,houseRules());
   const derived=derivedSummary(actor);d.system.conditions=conditionRecords(actor,{includeAutomatic:true});
+  d.system.combat=derived.combat;d.clone=actor.getFlag?.(ID,'clone');if(d.clone){d.clone={...d.clone};const active=(game.actors?.contents??[]).filter(c=>c.getFlag?.(ID,'clone')?.origin===d.clone.origin&&!c.getFlag(ID,'clone').dismissed).length||1;d.clone.automaticCombatFailure=cloneTestEffect(d.clone,'cc',{activeCount:active}).automaticFailure;d.clone.version=active>2?2:1;}d.clones=(game.actors?.contents??[]).filter(c=>c.getFlag?.(ID,'clone')?.origin===actor.uuid&&!c.getFlag(ID,'clone').dismissed).map(c=>({uuid:c.uuid,name:c.name,version:c.getFlag(ID,'clone').version}));
   if(derived.base){d.system.combat=derived.combat;d.system.resources.vitality.max=derived.vitality;d.system.resources.chakra.max=derived.chakra;d.system.advancement.attributesSpent=derived.base.attributeSpent;d.system.advancement.attributesAvailable=derived.base.attributeGranted-derived.base.attributeSpent;}
-  d.system.movement.distance=derived.movement;d.summary=derived;d.conditionControls=conditionRecords(actor,{includeInactive:true});return d;
+  if(d.system.automation?.enabled)for(const key of Object.keys(SKILLS))d.system.skills[key]={...d.system.skills[key],value:RESTRICTED_SKILLS.includes(key)&&Number(d.system.skills[key]?.points??0)<1?0:skillBase(d.system,key)+(aptitudeBonuses(d.system,d.items,houseRules()).skills[key]??0)};
+  d.system.movement.distance=derived.movement;d.summary=derived;d.aptitudeStates=activeAptitudes(actor);const water=runtimeState(actor).water;d.aptitudeWater=water?.stamp===periodKey(actor,'scene')?Number(water.value??0):0;d.conditionControls=conditionRecords(actor,{includeInactive:true});return d;
 }
 export function allocationProposal(actor,values={}) {
   const source=actor.toObject().system,current=Number(source.campaign?.level??4),nc=Number(values.nc??current),p=progression(nc),initial=!source.automation?.enabled||source.campaign?.draft;
@@ -65,7 +79,7 @@ export function allocationProposal(actor,values={}) {
 }
 export async function saveAllocation(actor,values,{initializeResources=false}={}) {
   own(actor);const proposal=allocationProposal(actor,values),{nc,current,initial,source,granted,attributes,bases}=proposal;
-  if(nc!==current&&!initial)gm();
+  if(!initial)gm();
   if(!initial&&Object.keys(COMBAT).some(k=>Number(bases[k])!==Number(source.automation.bases[k])))throw Error('As bases de combate só podem ser distribuídas na criação da ficha.');
   const check=validateAllocation({nc,attributes,granted,previous:initial?null:source.attributes,creation:initial,bases});if(!check.valid)throw Error(check.errors.join(' '));
   const history=[...(source.automation?.history??[]),{at:new Date().toISOString(),user:game.user.id,from:current,to:nc,granted,spent:spentAttributes(attributes),attributes:clone(attributes),mode:houseRules().advancement}];
@@ -97,9 +111,13 @@ export function statPrecision(actor,stat,context={}) {
   const summary=derivedSummary(actor),s=actor.system;let precision=0;
   if(stat in ATTRIBUTES)precision=Number(s.attributes[stat]??0);
   else if(stat in COMBAT)precision=summary.combat[stat];
-  else if(stat in SKILLS){const skill=s.skills[stat]??{},points=Number(skill.points??0);precision=Number(skill.value??(Math.ceil(Number(s.attributes[SKILLS[stat][1]]??0)/2)+points));if(['lidar','mecanismos','medicina','ocultismo','veneficio'].includes(stat)&&points<1)throw Error(`${SKILLS[stat][0]} exige ao menos 1 ponto investido para este uso (Básico p. 36).`);}
+  else if(stat in SKILLS){const skill=s.skills[stat]??{},points=Number(skill.points??0);precision=s.automation?.enabled?skillBase(s,stat):Number(skill.value??skillBase(s,stat));if(['lidar','mecanismos','medicina','ocultismo','veneficio'].includes(stat)&&points<1)throw Error(`${SKILLS[stat][0]} exige ao menos 1 ponto investido para este uso (Básico p. 36).`);}
   else throw Error('Característica desconhecida.');
+  if(stat in SKILLS){precision+=aptitudeBonuses(s,[...(actor.items??[])],houseRules()).skills[stat]??0;if(stat==="veneficio"&&!aptitudeOwned([...(actor.items??[])],"quimico"))throw Error("Venefício exige a aptidão Químico.");}
   const effect=conditionContext(conditionRecords(actor),{...context,stat},summary.resources);
+  const runtime=runtimeBonuses(actor,{...context,stat});if(context.kind==='attack')precision+=runtime.attack;else if(context.kind==='defense'&&!(stat==='esq'&&effect.loseDodgeBonus))precision+=runtime.defense;effect.penalty=Math.max(-3,effect.penalty+(context.kind==='attack'?runtime.attackPenalty:0));
+  if(stat==='esq'&&effect.loseDodgeBonus)precision-=summary.dodgeBonus;
+  const meta=actor.getFlag?.(ID,'clone');if(meta){const count=(game.actors?.contents??[]).filter(c=>c.getFlag?.(ID,'clone')?.origin===meta.origin&&!c.getFlag(ID,'clone').dismissed).length||1,ce=cloneTestEffect(meta,stat,{activeCount:count,kind:context.kind});effect.uncappedPenalty=ce.penalty;effect.penalty+=ce.penalty;if(ce.automaticFailure||!ce.allowed){effect.allowed=false;effect.reasons.push(ce.automaticFailure?'Há mais de dois clones ativos: todos falham automaticamente em testes de combate.':'Este clone foi desfeito.');}}
   return {base:precision,precision:precision+effect.penalty+effect.bonus,...effect};
 }
 export async function damageActor(actor,amount,{reason='Dano'}={}) {
@@ -114,6 +132,7 @@ async function completePendingPhase(actor,pending) {
   if(result.damage)for(const r of records.filter(r=>r.key==='estavel'&&!r.automatic))await saveCondition(actor,r,{remove:true});
   for(const u of result.updates){const r=records.find(r=>r.id===u.id);if(r&&!r.automatic&&!result.expired.includes(r.id))await saveCondition(actor,{...r,...u});}
   for(const id of result.expired){const r=records.find(r=>r.id===id);if(r&&!r.automatic)await saveCondition(actor,r,{remove:true});}
+  await advanceAptitudePhase(actor,pending.key,pending.phase??(pending.key.endsWith(':end')?'end':'start'));
   const ledger=actor.getFlag(ID,'processedPhases')??[];
   await actor.update({[`flags.${ID}.processedPhases`]:ledger.includes(pending.key)?ledger:[...ledger,pending.key],[`flags.${ID}.pendingPhase`]:null});
 }
@@ -123,7 +142,7 @@ export async function processConditionPhase(actor,key,phase='start') {
     own(actor);const pending=actor.getFlag(ID,'pendingPhase');if(pending){await completePendingPhase(actor,pending);if(pending.key===key)return pending.result;}
     const ledger=actor.getFlag(ID,'processedPhases')??[];if(ledger.includes(key))return null;
     const records=conditionRecords(actor,{includeAutomatic:true}),result=conditionTurn(records,phase,Number(actor.system.campaign.level)||4);
-    const update={[`flags.${ID}.pendingPhase`]:{key,result}};
+    const update={[`flags.${ID}.pendingPhase`]:{key,result,phase}};
     if(result.damage&&actor.system.resources.vitality.value!==null)update['system.resources.vitality.value']=lethalDamage(actor.system.resources.vitality.value,result.damage);
     await actor.update(update);
     await completePendingPhase(actor,{key,result});
@@ -133,10 +152,11 @@ export async function processConditionPhase(actor,key,phase='start') {
 export function createActorClass(Base) {
   return class ShinobiActor extends Base {
     prepareDerivedData(){super.prepareDerivedData();applyDerived(this);}
-    getRollData(){const data=super.getRollData();const agi=Number(this.system.attributes.agi??0),prontidao=statPrecision(this,'prontidao',{kind:'initiative',reaction:true});return {...data,sns:{...data.sns,initiative:agi+prontidao.precision}};}
+    getRollData(){const data=super.getRollData();const agi=Number(this.system.attributes.agi??0),prontidao=statPrecision(this,'prontidao',{kind:'initiative',reaction:true});return {...data,sns:{...data.sns,initiative:agi+prontidao.precision+aptitudeBonuses(this.system,[...(this.items??[])],houseRules()).initiative}};}
     async _preUpdate(data,options,user) {
       const result=await super._preUpdate(data,options,user);if(result===false)return false;
       const expanded=foundry.utils.expandObject(data),change=expanded.system??{};
+      if(change.skills||change.social){const errors=validateBuildChange(this.system,change,[...(this.items??[])],houseRules());if(errors.length)throw Error(errors.join(' '));}
       for(const cap of clampResourceChanges(this,change)){const path=`system.resources.${cap.key}.value`;if(Object.hasOwn(data,path))data[path]=cap.value;else {data.system??={};data.system.resources??={};data.system.resources[cap.key]??={};data.system.resources[cap.key].value=cap.value;}globalThis.ui?.notifications?.info?.(`${cap.label} limitada ao máximo de ${cap.max}.`);}
       if(!this.system.automation?.enabled||this.type!=='character')return;
       if(!this.system.campaign.draft&&change.automation?.bases&&Object.keys(COMBAT).some(k=>change.automation.bases[k]!==undefined&&Number(change.automation.bases[k])!==Number(this.system.automation.bases[k])))throw Error('As bases de combate só podem ser distribuídas na criação da ficha.');

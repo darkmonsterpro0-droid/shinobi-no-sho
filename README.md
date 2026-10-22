@@ -1,6 +1,6 @@
 # Shinobi no Sho — Foundry VTT 14
 
-**Versão 0.2.3 · resumo, evolução e condições · português brasileiro**
+**Versão 0.3.0 · ficha, rolagens e automações em desenvolvimento · português brasileiro**
 
 Fichas em marfim e grafite, com resumo calculado, distribuição de atributos por NC e condições do Livro Básico. A aba Mestre reúne livros, versões de regras, anotações e acesso ao avanço por EXP ou nível inteiro. Ela aparece somente para o mestre.
 
@@ -27,9 +27,9 @@ Também é possível baixar o ZIP em [Releases](https://github.com/darkmonsterpr
 ## O que esta versão faz
 
 - Edita e salva fichas de personagem, criatura vinculada e marionete.
-- Organiza resumo, combate, técnicas, perícias, social, equipamento, evolução e história.
+- Organiza Resumo, Poderes e Aptidões, Perícias, Social, Equipamento e História. Combate e Evolução foram retiradas para os HUDs futuros.
 - Permite criar poderes, aptidões, técnicas, equipamentos e dispositivos, com fonte e notas.
-- Oferece busca, favoritos e biblioteca pessoal na ficha. Poderes, aptidões, técnicas, equipamentos e dispositivos criados ali ficam no personagem e não no diretório de Itens.
+- Oferece busca e biblioteca pessoal na ficha. Poderes, aptidões, técnicas, equipamentos e dispositivos criados ali ficam no personagem e não no diretório de Itens.
 - A Biblioteca Shinobi do diretório de Itens é compartilhada e cria modelos do mundo explicitamente. Itens antigos do mundo são preservados; podem ser arrastados para a ficha pelo recurso nativo do Foundry.
 - Calcula CC, CD, Esquiva, Ler Movimento, deslocamento, vitalidade e chakra máximos a partir de atributos e NC.
 - Distribui atributos na criação e evolução, valida mínimos, máximos, orçamento e transferência das bases de combate.
@@ -42,7 +42,7 @@ Também é possível baixar o ZIP em [Releases](https://github.com/darkmonsterpr
 - Guarda livros, variantes e decisões no perfil do mestre; permite revisar o impacto documental antes de salvar.
 - Possui temas marfim e grafite e fichas que se reorganizam em janelas estreitas.
 
-Os campos editáveis salvam ao sair deles. Em personagens com cálculos ativos, os valores derivados ficam somente para leitura. Perícias preservam a precisão manual; quando ela está em branco, testes de resistência usam a base e os pontos investidos. Os usos restritos de Lidar com Animais, Mecanismos, Medicina, Ocultismo e Venefício exigem ao menos um ponto.
+Os campos editáveis salvam ao sair deles. Em personagens com cálculos ativos, os valores derivados ficam somente para leitura. Personagens com cálculos ativos derivam as precisões de perícia do atributo e dos pontos investidos; fichas manuais preservam seus valores. Os usos restritos de Lidar com Animais, Mecanismos, Medicina, Ocultismo e Venefício exigem ao menos um ponto.
 
 ## Criar e evoluir
 
@@ -56,9 +56,13 @@ Veja [Automações e fontes](docs/AUTOMACOES.md) para condições, testes, exce�
 
 ## O que fica manual
 
-Compras e requisitos de poderes/aptidões, bônus específicos de clãs e técnicas, efeitos sociais, dano de ataques, alvos, distâncias no mapa, consumo de ações e custos de técnicas continuam sob controle da mesa. Os registros antigos de combate continuam manuais. Use os botões **Testar/Defesa** do resumo para os novos testes com condições. Situações como flanqueamento, sentidos usados e alcance de áreas são resolvidas pela mesa, com ajuste no campo Modificador da mesa.
+A versão automatiza partes das compras, armas e aptidões, incluindo contadores, validações, ataques, repetição de testes e clones comuns. As perícias e ações sociais têm rolagens diretas. As ações sociais usam as fórmulas revisadas. O mestre pode escolher progressão de 2, 3 ou 4 pontos de poder.
 
-Não há compêndios transcritos dos livros. Cadastre o conteúdo utilizado pela sua mesa. Alterar o perfil não converte fichas nem aplica revisões automaticamente. Módulos externos não são exigidos e ainda não possuem adaptadores próprios.
+A automação ainda não é integral: Clone Verdadeiro/Perfeito, Rashoumon, Kousen/explosivos e algumas combinações de armas/aptidões continuam pendentes. Modificadores de técnicas recebem os parâmetros originais informados pela mesa; ações, alvos, circunstâncias narrativas e aplicação de dano continuam sob seu controle. Algumas opções do mestre apenas registram autorização para fluxos futuros. Armas especiais e aptidões restritas de hijutsu não fazem parte deste lote.
+
+**Clone 2:** até duas cópias ativas usam −3 nos testes; com três a seis, todas falham automaticamente em combate. O gerador vincula as cópias à origem e controla os custos de criação e divisão/devolução de chakra de Kage Bunshin.
+
+Veja [notas da versão](RELEASE-NOTES.md) e [pendências detalhadas](docs/DESENVOLVIMENTO-0.3.md). Não há transcrição integral dos livros. Alterar o perfil não converte fichas automaticamente. Módulos externos não são exigidos e ainda não possuem adaptadores próprios.
 
 ## Acesso e atalhos
 
@@ -87,7 +91,7 @@ A prévia abre em `http://127.0.0.1:4173` e usa os mesmos componentes de layout.
 Para preparar uma atualização, sempre use **um número maior e ainda não publicado**:
 
 ```sh
-node scripts/release.mjs --version 0.2.4 --repo darkmonsterpro0-droid/shinobi-no-sho
+node scripts/release.mjs --version 0.3.1 --repo darkmonsterpro0-droid/shinobi-no-sho
 node --test tests/*.test.mjs
 node scripts/release.mjs --check --repo darkmonsterpro0-droid/shinobi-no-sho
 ```

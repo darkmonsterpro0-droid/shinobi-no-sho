@@ -83,3 +83,9 @@ node scripts/check-preview.mjs
 8. Publicar os quatro registros manuais e conferir que continuam como anotações.
 9. Redimensionar as janelas, trocar tema, navegar pelo teclado e verificar barras de token.
 10. Registrar a versão exata e os fluxos efetivamente testados ao atualizar a declaração `verified`.
+
+## Publicação 0.3.0 — 2026-10-22
+
+72 testes de código e 24 verificações de navegador local cobrem as alterações desta versão, incluindo quantidade total de clones, alterações retroativas de precisão, divisão/devolução de chakra de Kage, contadores, rolagens e janelas estreitas. A inspeção visual da prévia foi realizada. Os testes de iniciativa simulam a API do Foundry; não são uma execução nativa do rastreador.
+
+A ferramenta de controle do aplicativo falhou ao iniciar e nenhum navegador conectado continha sessão do Foundry. Criação de Actors e itens embutidos, repetições no chat, permissões, reconexão e dois clientes precisam de conferência em mundo de teste. `verified` permanece 14.367 com o escopo de evidência anterior. A publicação da implementação atual foi autorizada pelo usuário, sem apresentar o lote inteiro como concluído.

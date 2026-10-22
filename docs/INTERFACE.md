@@ -2,9 +2,9 @@
 
 A composição revisada na 0.1.2 mantém a composição para se aproximar das pranchas aprovadas: marfim e grafite, acentos vermelhos, retrato à esquerda, identificação e recursos em destaque, navegação horizontal e conteúdo em cartões. O retrato padrão em tinta sobre papel foi gerado para o projeto. Os ícones vetoriais são originais. Retratos pessoais continuam substituíveis pelo seletor de imagem do Foundry.
 
-Os jogadores veem oito abas: resumo, combate, técnicas, perícias, social, equipamento, evolução e história. Mestres veem também a aba Mestre. Criaturas vinculadas e marionetes apresentam também seus campos de origem, controle, reserva pagadora e estrutura, conforme o tipo. Esses vínculos são anotações.
+Na versão 0.3.0, os jogadores veem seis abas: Resumo, Poderes e Aptidões, Perícias, Social, Equipamento e História. Mestres veem também a aba Mestre. Criaturas vinculadas e marionetes apresentam também seus campos de origem, controle, reserva pagadora e estrutura, conforme o tipo. Esses vínculos são anotações.
 
-As demais janelas incluem editores dos cinco tipos de itens, biblioteca, condições e duração, cadastro de condição, recursos específicos, vínculos, registros manuais de teste/declaração/defesa/resultado, regras da mesa, revisão de impacto, fontes e decisões, cadastro de decisão, aparência e assistente de personagem com cinco etapas.
+As demais janelas incluem editores dos cinco tipos de itens, biblioteca, condições e duração, cadastro de condição, recursos específicos, vínculos, registros manuais de teste/declaração/defesa/resultado, regras da mesa, revisão de impacto, fontes (somente livros), cadastro de decisão, aparência e assistente de personagem com cinco etapas.
 
 As capturas abaixo são da prévia funcional da interface, fora do Foundry. Os ícones de ações são substitutos simples na prévia; no Foundry é usada a fonte de ícones do programa.
 
@@ -61,3 +61,15 @@ Orçamento, investimentos, saldo e limites aparecem juntos. O NC pode ser escolh
 ## Aba exclusiva do mestre
 
 ![Mestre](images/gm.png)
+
+## Clones comuns
+
+O painel informa a quantidade total ativa. A partir da terceira cópia, todos os clones passam a falhar automaticamente em combate; não há seletor de versão. Captura da prévia local:
+
+![Quantidade de clones](images/clone-population.png)
+
+## Ações sociais diretas
+
+A escolha de atributo/aspecto aparece junto ao botão de rolagem.
+
+![Escolhas sociais](images/social-choices.png)

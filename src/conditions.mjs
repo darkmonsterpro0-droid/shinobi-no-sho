@@ -34,17 +34,17 @@ export const CONDITIONS=Object.fromEntries([
 ].map(([key,name,page,description])=>[key,{key,name,page,description,source:`Livro Básico p. ${page}`,icon:`systems/shinobi-no-sho/assets/conditions/${key}.svg`} ]));
 export function conditionKey(record) {return record.key||Object.keys(CONDITIONS).find(k=>CONDITIONS[k].name.toLocaleLowerCase('pt-BR')===String(record.name).toLocaleLowerCase('pt-BR'))||'';}
 const num=n=>Number.isFinite(Number(n))?Number(n):0;
-export function resolveConditions(records=[],{vitality=null,chakra=null,chakraMax=0,forcedDrain=false,puppet=false}={}) {
+export function resolveConditions(records=[],{vitality=null,chakra=null,chakraMax=0,forcedDrain=false,puppet=false,hasChakraReserve=true}={}) {
   const active=records.filter(r=>!r.disabled&&!(conditionKey(r)==='estavel'&&vitality!==null&&(vitality> -11||vitality< -20))).map(r=>({...r,key:conditionKey(r),level:Math.max(1,num(r.level)||1)}));
   const keys=new Set(active.map(r=>r.key));const auto=[];
   const add=(key,why)=>{if(!keys.has(key)){keys.add(key);auto.push({id:`auto-${key}`,key,name:CONDITIONS[key]?.name??key,source:why,automatic:true,level:1});}};
-  if(!puppet&&chakra!==null&&chakra<=0)add('exausto','Chakra esgotado · Básico p. 260');
-  if(!puppet&&forcedDrain&&chakra!==null&&chakra<=-Math.ceil(chakraMax/2)&&chakraMax>0)add('morto','Drenagem forçada de chakra · Básico p. 260');
-  const fatigue=active.filter(r=>r.key==='fatigado').reduce((s,r)=>s+r.level,0),exhaust=active.filter(r=>r.key==='exausto').reduce((s,r)=>s+r.level,0)+(!puppet&&chakra!==null&&chakra<=0?1:0);
+  if(!puppet&&hasChakraReserve&&chakra!==null&&chakra<=0)add('exausto','Chakra esgotado · Básico p. 260');
+  if(!puppet&&hasChakraReserve&&forcedDrain&&chakra!==null&&chakra<=-Math.ceil(chakraMax/2)&&chakraMax>0)add('morto','Drenagem forçada de chakra · Básico p. 260');
+  const fatigue=active.filter(r=>r.key==='fatigado').reduce((s,r)=>s+r.level,0),exhaust=active.filter(r=>r.key==='exausto').reduce((s,r)=>s+r.level,0)+(!puppet&&hasChakraReserve&&chakra!==null&&chakra<=0?1:0);
   if(fatigue>=2)add('exausto','Acúmulo de fadiga · Básico p. 277');
   if(fatigue>=3||exhaust>=2||(exhaust>=1&&fatigue>=1))add('inconsciente','Acúmulo de fadiga/exaustão · Básico p. 277');
   if(!puppet&&vitality!==null) {
-    if(vitality<=-21||(forcedDrain&&chakra<=-Math.ceil(chakraMax/2)&&chakraMax>0))add('morto','Vitalidade / drenagem forçada · Básico pp. 259–260');
+    if(vitality<=-21||(hasChakraReserve&&forcedDrain&&chakra<=-Math.ceil(chakraMax/2)&&chakraMax>0))add('morto','Vitalidade / drenagem forçada · Básico pp. 259–260');
     else if(vitality<=-11){if(!keys.has('estavel'))add('morrendo','Vitalidade entre −11 e −20 · Básico p. 259');}
     else if(vitality<0)add('inconsciente','Vitalidade entre −1 e −10 · Básico p. 259');
     else if(vitality===0)add('fora-combate','Vitalidade zero: consciente, fora de combate · Básico p. 259');

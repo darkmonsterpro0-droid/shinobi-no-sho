@@ -1,3 +1,4 @@
+import {rerollOption} from './reroll-options.mjs';
 import {ID,ATTRIBUTES,COMBAT,SKILLS} from './config.mjs';
 import {esc,set} from './ui.mjs';
 import {readFields} from './interactions.mjs';
@@ -71,7 +72,7 @@ export async function settleResistance(actor,record,success) {
 export async function automationAction(app,op,data,root,{actor,show}) {
   if(op==='house'){gm();return show('house',{actor});}
   if(op==='save-house'){gm();const rule=fields(root,'house.');if(!['level','xp'].includes(rule.advancement))throw Error('Regra de avanço inválida.');await game.settings.set(ID,'houseRules',{...houseRules(),...rule});await app.close();return;}
-  if(op==='allocation'){owner(actor);return show('allocation',{actor,values:allocationProposal(actor)});}
+  if(op==='allocation'){owner(actor);if(actor.system.automation?.enabled&&!actor.system.campaign.draft)gm();return show('allocation',{actor,values:allocationProposal(actor)});}
   if(op==='save-allocation'){owner(actor);await saveAllocation(actor,allocationValues(root,app.values),{initializeResources:app.panelConfig?.newActor});await app.close();return;}
   if(op==='xp'){gm();owner(actor);if(houseRules().advancement!=='xp')throw Error('Escolha EXP em Regras da casa para conceder pontos separadamente.');return show('xp',{actor});}
   if(op==='grant-xp'){gm();owner(actor);const v=fields(root,'xp.');await grantAttributeXP(actor,v.amount);await app.close();return show('allocation',{actor,values:allocationProposal(actor)});}
@@ -124,9 +125,10 @@ export async function automationAction(app,op,data,root,{actor,show}) {
     const difficulty=record?.key==='sangrando'?(v.stat==='medicina'?16:18):v.difficulty;
     if(record?.key==='sangrando'&&v.stat==='vig')await claimBleedingAttempt(actor);
     const roll=await new foundry.dice.Roll(`2d8 + (${precision})`).evaluate(),natural=roll.total-precision,success=natural>=15||natural>3&&(difficulty==null||roll.total>=Number(difficulty));
-    await roll.toMessage({speaker:ChatMessage.getSpeaker({actor:performer}),flavor:`<strong>${esc(label)}${record?' · '+esc(record.name):''}</strong><p>${esc(explanation)}</p>${difficulty!==null&&difficulty!==undefined?`<p>Dificuldade ${esc(difficulty)}: ${success?'sucesso':'falha'}.</p>`:''}${check.camouflage?'<p>Camuflagem total: verificar 1d8 após confirmar o acerto; crítico dispensa o teste (Básico p. 273).</p>':''}`,flags:{[ID]:{kind:'summary-test',stat:v.stat,natural,precision,difficulty,condition:record?.id}}});
+    const testKind=record&&v.stat!=='medicina'?'resistance':v.kind,repeat=rerollOption([...performer.items??[]],{kind:testKind,stat:v.stat,natural},houseRules()),pendingResistance=record&&repeat?{actorUuid:actor.uuid,conditionId:record.id}:null;
+    await roll.toMessage({speaker:ChatMessage.getSpeaker({actor:performer}),flavor:`<strong>${esc(label)}${record?' · '+esc(record.name):''}</strong><p>${esc(explanation)}</p>${difficulty!==null&&difficulty!==undefined?`<p>Dificuldade ${esc(difficulty)}: ${success?'sucesso':'falha'}.</p>`:''}${check.camouflage?'<p>Camuflagem total: verificar 1d8 após confirmar o acerto; crítico dispensa o teste (Básico p. 273).</p>':''}`,flags:{[ID]:{kind:'summary-test',testKind,actorUuid:performer.uuid,stat:v.stat,natural,precision,difficulty,condition:record?.id,success,pendingResistance}}});
     if(check.camouflage&&v.kind==='attack'&&natural<15&&natural>3){if(difficulty!==null&&difficulty!==undefined){if(success)await checkCamouflage(performer);}else await emit(performer,'Camuflagem total pendente',`<p>Após confirmar o acerto não crítico contra a defesa do alvo:</p><button type="button" data-sns-camouflage data-actor-uuid="${esc(performer.uuid)}">Confirmar acerto e verificar camuflagem</button>`,{kind:'pending-camouflage'});}
-    if(record)await settleResistance(actor,record,success);await app.close();return;
+    if(record&&!pendingResistance)await settleResistance(actor,record,success);await app.close();return;
   }
   if(op==='resolve-confusion'){owner(actor);const record=conditionRecords(actor).find(r=>r.id===data.id);if(!record)throw Error('Condição não encontrada.');return resolveConfusion(actor,record);}
   if(op==='remove-condition'){owner(actor);const record=conditionRecords(actor).find(r=>r.id===data.id);if(record)await saveCondition(actor,record,{remove:true});await app.render({force:true});return;}
