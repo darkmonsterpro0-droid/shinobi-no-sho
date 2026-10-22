@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## 0.2.3 — 2026-10-22
+
+- Remove o botão de editar ao lado de cada condição no resumo. O botão Gerenciar continua abrindo o painel de ativação/desativação.
+
 ## 0.2.2 — 2026-10-22
 
 - Limita vida e chakra atuais aos máximos ao salvar, inclusive em atualizações de documentos; corrige excessos existentes na sincronização conduzida pelo mestre. Preserva valores negativos válidos.
