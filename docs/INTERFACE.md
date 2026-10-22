@@ -2,7 +2,7 @@
 
 A composição revisada na 0.1.2 mantém a composição para se aproximar das pranchas aprovadas: marfim e grafite, acentos vermelhos, retrato à esquerda, identificação e recursos em destaque, navegação horizontal e conteúdo em cartões. O retrato padrão em tinta sobre papel foi gerado para o projeto. Os ícones vetoriais são originais. Retratos pessoais continuam substituíveis pelo seletor de imagem do Foundry.
 
-As fichas possuem oito abas: resumo, combate, técnicas, perícias, social, equipamento, evolução e história. Criaturas vinculadas e marionetes apresentam também seus campos de origem, controle, reserva pagadora e estrutura, conforme o tipo. Esses vínculos são anotações.
+Os jogadores veem oito abas: resumo, combate, técnicas, perícias, social, equipamento, evolução e história. Mestres veem também a aba Mestre. Criaturas vinculadas e marionetes apresentam também seus campos de origem, controle, reserva pagadora e estrutura, conforme o tipo. Esses vínculos são anotações.
 
 As demais janelas incluem editores dos cinco tipos de itens, biblioteca, condições e duração, cadastro de condição, recursos específicos, vínculos, registros manuais de teste/declaração/defesa/resultado, regras da mesa, revisão de impacto, fontes e decisões, cadastro de decisão, aparência e assistente de personagem com cinco etapas.
 
@@ -53,3 +53,11 @@ Orçamento, investimentos, saldo e limites aparecem juntos. O NC pode ser escolh
 ## Condições com efeitos
 
 ![Condições](images/automated-conditions.png)
+
+## Descanso completo
+
+![Descanso](images/rest.png)
+
+## Aba exclusiva do mestre
+
+![Mestre](images/gm.png)

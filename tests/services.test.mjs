@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {ID} from '../src/config.mjs';import {set} from '../src/ui.mjs';
-import {saveAllocation,grantAttributeXP,saveCondition,conditionRecords,derivedSummary,applyDerived,processConditionPhase,syncAutomaticStatuses,createActorClass} from '../src/automation.mjs';
+import {saveAllocation,grantAttributeXP,saveCondition,conditionRecords,derivedSummary,applyDerived,processConditionPhase,syncAutomaticStatuses,createActorClass,clampResourceChanges,toggleCondition} from '../src/automation.mjs';
 import {claimBleedingAttempt,settleResistance,automationAction} from '../src/summary-actions.mjs';
 let rule='level',serial=0;const messages=[];
 globalThis.game={user:{id:'gm',isGM:true},settings:{get:()=>({advancement:rule})}};
@@ -54,5 +54,18 @@ test('native update guards reject changing derived fields and opening evolution 
 test('ordinary resource recovery uses caps, clears fatigue, and refuses resurrection',async()=>{
  const a=actor();await saveCondition(a,{key:'fatigado'});const app={close:async()=>{}};const fields={operation:'rest',amount:0,fullRest:true};const root={querySelectorAll:()=>Object.entries(fields).map(([k,v])=>({name:'resource.'+k,type:typeof v==='boolean'?'checkbox':typeof v==='number'?'number':'text',value:String(v),checked:v}))};
  await automationAction(app,'apply-resource',{},root,{actor:a});assert.equal(a.system.resources.vitality.value,34);assert.equal(a.system.resources.chakra.value,12);assert.ok(!conditionRecords(a).length);
+ await saveCondition(a,{key:'fatigado',duration:'2 dias'});fields.fullRest=false;await assert.rejects(()=>automationAction(app,'apply-resource',{},root,{actor:a}),/oito horas/);fields.fullRest=true;await automationAction(app,'apply-resource',{},root,{actor:a});assert.ok(conditionRecords(a).some(r=>r.key==='fatigado'&&r.duration==='2 dias'));
  await a.update({'system.resources.vitality.value':-21});await assert.rejects(()=>automationAction(app,'apply-resource',{},root,{actor:a}),/ressuscita/);
+});
+
+test('resource updates cap both resources for automated and manual actors, preserving negative values',async()=>{
+ const a=actor(),caps=clampResourceChanges(a,{resources:{vitality:{value:59},chakra:{value:20}}});assert.deepEqual(caps.map(c=>c.value),[36,13]);assert.deepEqual(clampResourceChanges(a,{resources:{vitality:{value:-15},chakra:{value:-2}}}),[]);
+ class Base extends Actor {async _preUpdate(){}}
+ const S=createActorClass(Base),b=new S(),flat={'system.resources.vitality.value':59},nested={system:{resources:{chakra:{value:20}}}};await b._preUpdate(flat,{},'gm');await b._preUpdate(nested,{},'gm');assert.equal(flat['system.resources.vitality.value'],36);assert.equal(nested.system.resources.chakra.value,13);
+ b.system.automation.enabled=false;b._source.system.automation.enabled=false;const manual={'system.resources.vitality.value':60};await b._preUpdate(manual,{},'gm');assert.equal(manual['system.resources.vitality.value'],36);
+ await a.update({'system.resources.vitality.value':59,'system.resources.chakra.value':20});await syncAutomaticStatuses(a);assert.equal(a.system.resources.vitality.value,36);assert.equal(a.system.resources.chakra.value,13);
+});
+test('condition toggles preserve source levels and use disabled effects instead of deleting',async()=>{
+ const a=actor();await saveCondition(a,{key:'sangrando',level:3,source:'Fonte original'});await toggleCondition(a,'sangrando');assert.equal(conditionRecords(a).length,0);assert.equal(a.effects.size,1);await toggleCondition(a,'sangrando');assert.equal(conditionRecords(a)[0].level,3);assert.equal(conditionRecords(a)[0].source,'Fonte original');
+ await toggleCondition(a,'debilitado');assert.ok(conditionRecords(a).some(r=>r.key==='debilitado'));await toggleCondition(a,'debilitado');assert.ok(!conditionRecords(a).some(r=>r.key==='debilitado'));
 });

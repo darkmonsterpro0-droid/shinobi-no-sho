@@ -1,5 +1,5 @@
 import {SUMMARY_ACTIONS,automationAction,refreshBudget} from './summary-actions.mjs';
-import {allocationProposal,houseRules,getActorView,conditionRecords,saveCondition,creationSystem,statPrecision} from './automation.mjs';
+import {allocationProposal,houseRules,getActorView,conditionRecords,saveCondition,creationSystem,statPrecision,restRecovery} from './automation.mjs';
 import {CONDITIONS} from './conditions.mjs';
 import {progression,validateAllocation} from './progression.mjs';
 import {ID,ICONS,ITEM_TYPES,defaultProfile} from "./config.mjs";
@@ -11,7 +11,7 @@ const profile=()=>deepCopy(game.settings.get(ID,"profile"));
 const own=doc=>!!doc?.isOwner;
 const permittedActors=()=>game.actors.filter(a=>a.visible).map(a=>({uuid:a.uuid,name:a.name}));
 const asActor=doc=>(doc?.constructor?.documentName==="Actor"||doc?.documentName==="Actor")?doc:doc?.actor??((doc?.parent?.constructor?.documentName==="Actor"||doc?.parent?.documentName==="Actor")?doc.parent:null);
-const titles={library:"Biblioteca",settings:"Regras da mesa",sources:"Fontes e decisões",resources:"Recursos e vínculos",conditions:"Condições e duração",condition:"Condição",special:"Recurso específico",bond:"Vínculo específico",test:"Registrar teste",declare:"Declarar técnica",defense:"Escolher defesa",result:"Conferir resultado",create:"Criar personagem",impact:"Revisar perfil",allocation:"Atributos e evolução",house:"Regras da casa",xp:"Conceder EXP",roll:"Teste do resumo",recovery:"Recuperação e chakra",appearance:"Aparência e acessibilidade",decision:"Decisão da mesa"};
+const titles={library:"Biblioteca",settings:"Regras da mesa",sources:"Fontes e decisões",resources:"Recursos e vínculos",conditions:"Condições",condition:"Condição",special:"Recurso específico",bond:"Vínculo específico",test:"Registrar teste",declare:"Declarar técnica",defense:"Escolher defesa",result:"Conferir resultado",create:"Criar personagem",impact:"Revisar perfil",allocation:"Atributos e evolução",house:"Regras da casa",xp:"Conceder EXP",roll:"Teste do resumo",recovery:"Recuperação e chakra",appearance:"Aparência e acessibilidade",decision:"Decisão da mesa"};
 const mutating=new Set(["new-item","remove-item","favorite-item","condition","special","bond","save-entry","delete-entry","portrait"]);
 const gmOnly=new Set(["review-profile","apply-profile","decision"]);
 function assertOwner(doc) {if(!own(doc))throw Error("Você não possui permissão para editar esta ficha.");}
@@ -51,6 +51,7 @@ export function createApplications() {
       assertOwner(this.document);
       const status=this.element.querySelector('[data-save-status]');if(status)status.textContent="Salvando…";
       await this.document.update({[key]:value});
+      if(key.startsWith("system.resources.")&&key.endsWith(".value")){const input=el?.querySelector(`[name="${key}"]`);if(input)input.value=this.document.system.resources[key.split(".")[2]].value??"";}
       if(status?.isConnected)status.textContent="Salvo";
     }
     async _snsAction(op,data,root,button) {return dispatch(this,op,data,root,button);}
@@ -65,10 +66,11 @@ export function createApplications() {
   }
   class ShinobiPanel extends mixin(ApplicationV2) {
     static DEFAULT_OPTIONS={position:{width:780,height:730}};
-    constructor(kind,config={}){super({window:{title:titles[kind]??kind},...(kind==='create'?{position:{width:730,height:650}}:{})});this.kind=kind;this._actor=config.actor??null;this.panelConfig=config;this.values=config.values??{};this.step=0;this.draft=config.draft??{name:"Novo personagem",system:{}};}
+    constructor(kind,config={}){if(kind==='settings'&&!game.user.isGM)throw Error('Somente o mestre pode abrir as configurações da mesa.');super({window:{title:titles[kind]??kind},...(kind==='create'?{position:{width:730,height:650}}:{})});this.kind=kind;this._actor=config.actor??null;this.panelConfig=config;this.values=config.values??{};this.step=0;this.draft=config.draft??{name:"Novo personagem",system:{}};}
     async _prepareContext(options) {
       const base=await super._prepareContext(options);
       const p=profile();const env={...this.panelConfig,values:this.kind==='create'?this.draft:this.values,step:this.step,actor:this._actor?sourceData(this._actor):null,profile:p,houseRules:houseRules(),performers:game.actors.filter(a=>a.isOwner).map(a=>({uuid:a.uuid,name:a.name})),items:(this._actor?this._actor.items.contents:game.items.filter(i=>i.visible)).map(sourceData),selectedId:this.selectedId,isGM:game.user.isGM,theme:game.settings.get(ID,"theme"),reduceMotion:game.settings.get(ID,"reduceMotion")};
+      if(this.kind==='recovery'&&this._actor){try{env.restPlan=restRecovery(this._actor);}catch(error){env.restError=error.message;}}
       if(this.kind==='allocation'&&this._actor){const p=allocationProposal(this._actor,this.values);this.values={...p,nc:p.nc};env.values=this.values;env.granted=p.granted;env.initial=p.initial;}
       return {...base,theme:env.theme,body:panelView(this.kind,env)};
     }
@@ -76,6 +78,7 @@ export function createApplications() {
       if(key.startsWith('draft.')){set(this.draft,key.slice(6),value);if(key==='draft.system.campaign.level'){await this.render({force:true});return;}refreshBudget(root);}
       if(key.startsWith('allocation.')){set(this.values,key.slice(11),value);if(key==='allocation.nc'){this._focusField=key;await this.render({force:true});return;}refreshBudget(root);}
       if(this.kind==='condition'&&key==='entry.key'){for(const [k,v]of Object.entries(readFields(root,'entry.')))set(this.values,k.slice(6),v);this.values.name=CONDITIONS[value]?.name??this.values.name;this.values.source=CONDITIONS[value]?.source??this.values.source;await this.render({force:true});}
+      if(this.kind==='recovery'){for(const[k,v]of Object.entries(readFields(root,'resource.')))set(this.values,k.slice(9),v);if(key==='resource.operation')await this.render({force:true});}
       if(this.kind==='roll'){for(const[k,v]of Object.entries(readFields(root,'roll.')))set(this.values,k.slice(5),v);if(key==='roll.stat'&&this.values.conditionId){this.values.difficulty=value==='medicina'?16:18;this.values.reaction=value==='vig';await this.render({force:true});}}
     }
   }
@@ -86,7 +89,7 @@ export function createApplications() {
     if(doc&&mutating.has(op))assertOwner(doc);
     if(actor&&mutating.has(op))assertOwner(actor);
     if(gmOnly.has(op))assertGM();
-    if(op==="tab") {app._snsTab=data.tab;app._focusTab=data.tab;await app.render({force:true});return;}
+    if(op==="tab") {if(data.tab==='gm')assertGM();app._snsTab=data.tab;app._focusTab=data.tab;await app.render({force:true});return;}
     if(op==="close")return app.close();
     if(op==="theme") {await game.settings.set(ID,"theme",game.settings.get(ID,"theme")==="dark"?"light":"dark");return app.render({force:true});}
     if(op==="settings"||op==="sources"||op==="library"||op==="resources"||op==="conditions")return show(op,{actor});

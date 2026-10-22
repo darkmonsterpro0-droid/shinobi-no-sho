@@ -3,11 +3,11 @@ import {esc,set} from './ui.mjs';
 import {readFields} from './interactions.mjs';
 import {combatBaseStatus} from './progression.mjs';
 import {CONDITIONS} from './conditions.mjs';
-import {houseRules,allocationProposal,saveAllocation,grantAttributeXP,conditionRecords,saveCondition,derivedSummary,statPrecision,damageActor,processConditionPhase} from './automation.mjs';
+import {houseRules,allocationProposal,saveAllocation,grantAttributeXP,conditionRecords,saveCondition,derivedSummary,statPrecision,damageActor,processConditionPhase,restRecovery,toggleCondition} from './automation.mjs';
 const fields=(root,prefix)=>Object.fromEntries(Object.entries(readFields(root,prefix)).map(([k,v])=>[k.slice(prefix.length),v]));
 const owner=actor=>{if(!actor?.isOwner)throw Error('Você não tem permissão para alterar este personagem.');};
 const gm=()=>{if(!game.user.isGM)throw Error('Somente o mestre pode alterar esta configuração.');};
-export const SUMMARY_ACTIONS=new Set(['allocation','save-allocation','xp','grant-xp','house','save-house','roll-stat','execute-summary-roll','resist-condition','resolve-confusion','remove-condition','condition-event','manual-turn','recovery','apply-resource']);
+export const SUMMARY_ACTIONS=new Set(['rest','toggle-condition','allocation','save-allocation','xp','grant-xp','house','save-house','roll-stat','execute-summary-roll','resist-condition','resolve-confusion','remove-condition','condition-event','manual-turn','recovery','apply-resource']);
 function allocationValues(root,prior={}){const v=structuredClone(prior);for(const[k,value]of Object.entries(fields(root,'allocation.')))set(v,k,value);return v;}
 export function refreshBudget(root) {
   const budget=root?.querySelector('.sns-allocation');if(!budget)return;
@@ -69,23 +69,23 @@ export async function settleResistance(actor,record,success) {
   else await saveCondition(actor,record,{remove:true});
 }
 export async function automationAction(app,op,data,root,{actor,show}) {
-  if(op==='house')return show('house',{actor});
+  if(op==='house'){gm();return show('house',{actor});}
   if(op==='save-house'){gm();const rule=fields(root,'house.');if(!['level','xp'].includes(rule.advancement))throw Error('Regra de avanço inválida.');await game.settings.set(ID,'houseRules',{...houseRules(),...rule});await app.close();return;}
   if(op==='allocation'){owner(actor);return show('allocation',{actor,values:allocationProposal(actor)});}
   if(op==='save-allocation'){owner(actor);await saveAllocation(actor,allocationValues(root,app.values),{initializeResources:app.panelConfig?.newActor});await app.close();return;}
   if(op==='xp'){gm();owner(actor);if(houseRules().advancement!=='xp')throw Error('Escolha EXP em Regras da casa para conceder pontos separadamente.');return show('xp',{actor});}
   if(op==='grant-xp'){gm();owner(actor);const v=fields(root,'xp.');await grantAttributeXP(actor,v.amount);await app.close();return show('allocation',{actor,values:allocationProposal(actor)});}
+  if(op==='toggle-condition'){owner(actor);await toggleCondition(actor,data.key,data.id);await app.render({force:true});return;}
+  if(op==='rest'){owner(actor);return show('recovery',{actor,values:{operation:'rest'}});}
   if(op==='recovery'){owner(actor);return show('recovery',{actor});}
   if(op==='apply-resource') {
     owner(actor);const v=fields(root,'resource.'),d=derivedSummary(actor),s=actor.system,n=Number(v.amount),vit=s.resources.vitality.value,chakra=s.resources.chakra.value,update={};
-    if(!Number.isFinite(n)||n<0)throw Error('Informe uma quantidade não negativa.');
+    if(v.operation!=='rest'&&(!Number.isFinite(n)||n<0))throw Error('Informe uma quantidade não negativa.');
     if(d.state.keys.includes('morto')&&['heal','chakra','rest'].includes(v.operation))throw Error('Recuperação comum não ressuscita. Aplique a técnica ou decisão específica de ressurreição.');
     if(v.operation==='damage')await damageActor(actor,n);
     else if(v.operation==='rest') {
       if(!v.fullRest)throw Error('Confirme as oito horas de descanso completo sem interrupção significativa.');
-      if(vit===null||chakra===null)throw Error('Preencha os recursos atuais antes de recuperar.');
-      update['system.resources.vitality.value']=Math.min(d.vitality,vit+10+2*s.attributes.vig);
-      update['system.resources.chakra.value']=Math.min(d.chakra,chakra+5+2*s.attributes.esp);
+      const rest=restRecovery(actor);update['system.resources.vitality.value']=rest.vitality;update['system.resources.chakra.value']=rest.chakra;
     }else if(v.operation==='heal'){if(vit===null)throw Error('Preencha a vitalidade atual.');update['system.resources.vitality.value']=Math.min(d.vitality,vit+n);}
     else if(v.operation==='chakra'){if(chakra===null)throw Error('Preencha o chakra atual.');update['system.resources.chakra.value']=Math.min(d.chakra,chakra+n);}
     else if(v.operation==='spend'){if(chakra===null||chakra<n)throw Error('Chakra insuficiente: gasto normal não pode extrair chakra abaixo de zero.');update['system.resources.chakra.value']=chakra-n;}
@@ -93,7 +93,7 @@ export async function automationAction(app,op,data,root,{actor,show}) {
     else if(v.operation!=='damage')throw Error('Operação desconhecida.');
     if(Object.keys(update).length)await actor.update(update);
     if(v.operation==='rest')for(const r of conditionRecords(actor).filter(r=>['fatigado','exausto'].includes(r.key)&&!r.remaining&&!r.duration))await saveCondition(actor,r,{remove:true});
-    await emit(actor,'Recursos atualizados',`<p>${esc({heal:'Vitalidade recuperada',damage:'Dano letal',chakra:'Chakra recuperado',spend:'Gasto de chakra',drain:'Drenagem forçada',rest:'Descanso completo'}[v.operation])}: ${v.operation==='rest'?'Básico pp. 259–260':n}.</p>`);await app.close();return;
+    await emit(actor,'Recursos atualizados',`<p>${esc({heal:'Vitalidade recuperada',damage:'Dano letal',chakra:'Chakra recuperado',spend:'Gasto de chakra',drain:'Drenagem forçada',rest:'Descanso completo'}[v.operation])}: ${v.operation==='rest'?`8 horas sem interrupção significativa. Vitalidade ${vit} → ${update['system.resources.vitality.value']}; chakra ${chakra} → ${update['system.resources.chakra.value']}. Básico pp. 259–260`:n}.</p>`);await app.close();return;
   }
   if(op==='roll-stat'){owner(actor);const stat=data.stat;return show('roll',{actor,values:{stat,kind:stat in ATTRIBUTES?'attribute':stat==='esq'||stat==='lm'?'defense':'attack'}});}
   if(op==='resist-condition') {
@@ -112,7 +112,7 @@ export async function automationAction(app,op,data,root,{actor,show}) {
       if(v.stat==='vig'&&performer.uuid!==actor.uuid)throw Error('O teste de Vigor deve ser feito pelo personagem que está sangrando.');
       v.kind=v.stat==='medicina'?'skill':'attribute';v.reaction=v.stat==='vig';
     }else if(record?.key==='sufocamento'){v.stat='vig';v.kind='attribute';v.reaction=false;}
-    const context={...v,resistingId:performer.uuid===actor.uuid?record?.id:undefined,stabilizing:record?.key==='sangrando'&&v.stat==='vig'&&derivedSummary(actor).state.keys.includes('morrendo')},check=statPrecision(performer,v.stat,context);
+    const context={...v,manualContext:true,vision:false,unseenOpponent:false,reaction:record?v.reaction:v.kind==='defense',resistingId:performer.uuid===actor.uuid?record?.id:undefined,stabilizing:record?.key==='sangrando'&&v.stat==='vig'&&derivedSummary(actor).state.keys.includes('morrendo')},check=statPrecision(performer,v.stat,context);
     if(!check.allowed)throw Error(check.reasons.join(' '));
     let extraBonus=bonus;if(v.stat==='esq'&&check.loseDodgeBonus&&extraBonus>0)extraBonus=0;
     const precision=check.precision+extraBonus,label=ATTRIBUTES[v.stat]??COMBAT[v.stat]??SKILLS[v.stat]?.[0];

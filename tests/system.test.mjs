@@ -89,3 +89,8 @@ test('personal libraries create actor entries; shared libraries explicitly creat
   assert.ok(shared.includes('data-sns="new-world-item"'));assert.ok(!shared.includes('data-sns="new-item"'));
   const skills=actorView(actor,'skills');assert.ok(!skills.includes('.trained'));assert.ok(skills.includes('system.skills.mecanismos.points'));
 });
+
+test('Mestre tab and configuration controls are hidden from players, even when selecting the tab directly',()=>{
+ const player=actorView(actor,'gm',{isGM:false});assert.ok(!player.includes('data-tab="gm"'));assert.ok(!player.includes('name="profile.notes"'));assert.ok(!player.includes('data-sns="house"'));assert.ok(!player.includes('data-sns="settings"'));
+ const master=actorView(actor,'gm',{isGM:true});assert.ok(master.includes('data-tab="gm"'));assert.ok(master.includes('name="profile.notes"'));assert.ok(master.includes('name="profile.books.basico"'));assert.ok(master.includes('data-sns="review-profile"'));
+});

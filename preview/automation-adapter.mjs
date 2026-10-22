@@ -2,7 +2,7 @@
 // it is not a Foundry world and is excluded from the installable package.
 import {ID} from '../src/config.mjs';
 import {SUMMARY_ACTIONS,automationAction,refreshBudget} from '../src/summary-actions.mjs';
-import {allocationProposal,conditionRecords,getActorView,houseRules,saveCondition} from '../src/automation.mjs';
+import {allocationProposal,conditionRecords,getActorView,houseRules,saveCondition,clampResourceChanges,restRecovery} from '../src/automation.mjs';
 import {CONDITIONS} from '../src/conditions.mjs';
 import {readFields} from '../src/interactions.mjs';
 import {set} from '../src/ui.mjs';
@@ -16,7 +16,7 @@ export function previewAutomation({state,persist,navigate,render,surface}) {
     static documentName='Actor';get system(){return raw().system;}get id(){return raw().id;}get uuid(){return raw().uuid;}get name(){return raw().name;}get type(){return raw().type;}get img(){return raw().img;}get isOwner(){return true;}get inCombat(){return false;}get _source(){return raw();}
     get items(){return collection(raw().items,i=>new Item(i));}get effects(){return collection(raw().effects??[],e=>new Effect(e));}
     toObject(){return structuredClone(raw());}getFlag(ns,key){return raw().flags?.[ns]?.[key];}
-    async update(patch){for(const [key,value]of Object.entries(patch))set(raw(),key,structuredClone(value));persist();return this;}
+    async update(patch){const changes={};for(const[k,v]of Object.entries(patch))set(changes,k,v);for(const cap of clampResourceChanges(this,changes.system??{}))patch[`system.resources.${cap.key}.value`]=cap.value;for(const [key,value]of Object.entries(patch))set(raw(),key,structuredClone(value));persist();return this;}
     async createEmbeddedDocuments(type,entries){const key=type==='ActiveEffect'?'effects':'items';raw()[key]??=[];const added=entries.map(e=>({...structuredClone(e),id:crypto.randomUUID()}));raw()[key].push(...added);persist();return added.map(e=>type==='ActiveEffect'?new Effect(e):new Item(e));}
     async deleteEmbeddedDocuments(type,ids){const key=type==='ActiveEffect'?'effects':'items';raw()[key]=(raw()[key]??[]).filter(e=>!ids.includes(e.id));persist();}
   }
@@ -33,8 +33,8 @@ export function previewAutomation({state,persist,navigate,render,surface}) {
   const show=(kind,config={})=>{values=config.values??{};navigate(kind);};
   return {
     actor,
-    env(kind){if(kind==='allocation')values=allocationProposal(actor,values);return {actor:getActorView(actor),values,houseRules:houseRules(),granted:values.granted,initial:values.initial,isGM:game.user.isGM};},
-    async change(key,value){const kind=location.hash.slice(1);if(key.startsWith('allocation.')){set(values,key.slice(11),value);if(key==='allocation.nc')render();else refreshBudget(surface);return true;}if(kind==='condition'&&key==='entry.key'){for(const[k,v]of Object.entries(readFields(surface,'entry.')))set(values,k.slice(6),v);values.key=value;values.name=CONDITIONS[value]?.name??values.name;values.source=CONDITIONS[value]?.source??values.source;render();return true;}if(kind==='roll'){for(const[k,v]of Object.entries(readFields(surface,'roll.')))set(values,k.slice(5),v);if(key==='roll.stat'&&values.conditionId){values.difficulty=value==='medicina'?16:18;values.reaction=value==='vig';render();}return true;}return false;},
+    env(kind){if(kind==='allocation')values=allocationProposal(actor,values);let restPlan,restError;if(kind==='recovery')try{restPlan=restRecovery(actor);}catch(e){restError=e.message;}return {restPlan,restError,actor:getActorView(actor),values,houseRules:houseRules(),granted:values.granted,initial:values.initial,isGM:game.user.isGM};},
+    async change(key,value){const kind=location.hash.slice(1);if(key.startsWith('allocation.')){set(values,key.slice(11),value);if(key==='allocation.nc')render();else refreshBudget(surface);return true;}if(kind==='condition'&&key==='entry.key'){for(const[k,v]of Object.entries(readFields(surface,'entry.')))set(values,k.slice(6),v);values.key=value;values.name=CONDITIONS[value]?.name??values.name;values.source=CONDITIONS[value]?.source??values.source;render();return true;}if(kind==='recovery'){for(const[k,v]of Object.entries(readFields(surface,'resource.')))set(values,k.slice(9),v);if(key==='resource.operation')render();return true;}if(kind==='roll'){for(const[k,v]of Object.entries(readFields(surface,'roll.')))set(values,k.slice(5),v);if(key==='roll.stat'&&values.conditionId){values.difficulty=value==='medicina'?16:18;values.reaction=value==='vig';render();}return true;}return false;},
     async action(op,data,root){
       const kind=location.hash.slice(1)||'summary';
       if(op==='condition'){values=conditionRecords(actor).find(r=>r.id===data.id)??{key:data.key,name:CONDITIONS[data.key]?.name,source:CONDITIONS[data.key]?.source};navigate('condition');return true;}

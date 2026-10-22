@@ -1,5 +1,5 @@
 export const ID = "shinobi-no-sho";
-export const VERSION = "0.2.1";
+export const VERSION = "0.2.2";
 export const ATTRIBUTES = {for:"Força",des:"Destreza",agi:"Agilidade",per:"Percepção",int:"Inteligência",vig:"Vigor",esp:"Espírito"};
 export const COMBAT = {cc:"Combate Corporal",cd:"Combate à Distância",esq:"Esquiva",lm:"Ler Movimento"};
 export const SKILLS = {
@@ -7,7 +7,7 @@ export const SKILLS = {
 };
 export const ACTOR_TYPES = {character:"Personagem",creature:"Criatura vinculada",puppet:"Marionete"};
 export const ITEM_TYPES = {power:"Poder",aptitude:"Aptidão",technique:"Técnica",equipment:"Equipamento",device:"Dispositivo"};
-export const TABS = {summary:"Resumo",combat:"Combate",techniques:"Técnicas",skills:"Perícias",social:"Social",equipment:"Equipamento",advancement:"Evolução",history:"História"};
+export const TABS = {summary:"Resumo",combat:"Combate",techniques:"Técnicas",skills:"Perícias",social:"Social",equipment:"Equipamento",advancement:"Evolução",history:"História",gm:"Mestre"};
 export const SOURCES = {basico:"Livro Básico 4.1b",avancado:"Guia Avançado — 10 anos",hijutsus1:"Hijutsus I 4.1b",hijutsus2:"Hijutsus II revisado",sociais:"Regras Sociais Revisadas",mesa:"Registro da mesa"};
 export const BOOKS = Object.entries(SOURCES).filter(([id])=>id!=="mesa");
 export const SOCIAL = ["Acalmar","Compostura","Convencer","Empatia","Encorajar","Enganar","Etiqueta","Intimidar","Ouvir e espalhar boatos","Presença","Provocar"];

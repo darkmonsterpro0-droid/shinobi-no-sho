@@ -85,8 +85,8 @@ export function conditionContext(records,context={},resources={}) {
   if(context.run&&state.noRun)reasons.push('Lento ou imobilizado impede corrida e Investida.');
   const confusion=filtered.find(r=>conditionKey(r)==='confuso'&&r.turnResult)?.turnResult;
   if([5,6].includes(confusion)&&!context.reaction)reasons.push('Confuso: neste turno não realiza ações; mantém as reações de defesa por decisão da mesa.');
-  if([1,2].includes(confusion)&&!context.reaction&&!context.fleeing)reasons.push('Confuso: neste turno deve fugir.');
-  if([3,4].includes(confusion)&&attack&&!context.nearestTarget)reasons.push('Confuso: o ataque deve ter como alvo a criatura mais próxima.');
+  if(!context.manualContext&&[1,2].includes(confusion)&&!context.reaction&&!context.fleeing)reasons.push('Confuso: neste turno deve fugir.');
+  if(!context.manualContext&&[3,4].includes(confusion)&&attack&&!context.nearestTarget)reasons.push('Confuso: o ataque deve ter como alvo a criatura mais próxima.');
   if(context.attackType==='area'&&keys.has('impedido')&&defense&&['esq','lm'].includes(context.stat))reasons.push('Contra área, Impedido não permite Esquiva/Antecipar: defesa fixa 9.');
   return {state,penalties,bonuses,penalty:Math.max(-3,penalties.reduce((s,p)=>s+p.value,0)),bonus:bonuses.reduce((s,p)=>s+p.value,0),loseDodgeBonus:keys.has('desprevenido')||unseen||state.immobile,reasons,allowed:!reasons.length,camouflage:unseen&&attack&&!context.sensor&&!context.areaCoversCamouflage?50:0};
 }

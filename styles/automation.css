@@ -27,3 +27,5 @@
 
 .sns-app .sns-base-status {font-size:12px;line-height:1.5;margin-top:12px;}
 .sns-app .sns-base-status[data-pending=true] {border-left:4px solid var(--sns-red);padding:10px;background:var(--sns-card);font-weight:600;}
+
+.sns-app .sns-condition-card[data-active=true] {border-left:4px solid var(--sns-red);}

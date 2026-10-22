@@ -26,7 +26,7 @@ export function createModels() {
       history:text(),notes:text(),
       links:schema({origin:text(),controller:text(),payer:text(),kind:text("Invocação")}),
       structure:schema({hardness:number(),absorption:resource(),slots:text(),notes:text()}),
-      conditions:list({id:text(),name:text(),source:text(),timing:text("Cena"),duration:text(),notes:text()}),
+      conditions:list({id:text(),disabled:bool(),name:text(),source:text(),timing:text("Cena"),duration:text(),notes:text()}),
       special:list({id:text(),name:text(),value:number(),max:number(),source:text(),notes:text()}),
       bonds:list({id:text(),name:text(),kind:text(),location:text(),notes:text()})
     }; }

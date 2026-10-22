@@ -1,4 +1,4 @@
-# Validação até a versão 0.2.1
+# Validação até a versão 0.2.2
 
 Atualizado em 22/10/2026. Alvo: Foundry VTT 14. Interface em português brasileiro, resumo calculado e condições.
 
@@ -33,6 +33,14 @@ Atualizado em 22/10/2026. Alvo: Foundry VTT 14. Interface em português brasilei
 - Na evolução de NC4 para NC5, o navegador confere o aviso de Inteligência 0 → 1 e sua resolução ao investir o ponto necessário.
 - Na criação, alterar as bases produz mensagens próprias de excesso, falta e distribuição completa durante a edição. Na evolução, os campos são somente para leitura.
 - Os serviços rejeitam alteração das bases após a criação, inclusive com usuário mestre e chamadas diretas de atualização.
+
+## Correções da 0.2.2
+
+- 41 testes de código e 18 verificações de fluxos da prévia aprovados. Os serviços conferem limites dos recursos em atualizações planas/nested, valores negativos, correção de excessos anteriores, alternância reversível das condições, descanso interrompido e preservação de fadiga com duração própria.
+- O navegador confere que vida/chakra editados acima do máximo voltam ao limite, que as condições usam apenas Ativar/Desativar e que o descanso mostra e aplica as fórmulas com remoção da fadiga comum.
+- Aba Mestre conferida em renderização de jogador e de mestre, incluindo tentativa de selecionar a aba diretamente. Perfil salvo pela aba do mestre com revisão de impacto.
+- Testes sem checklist de contexto e com modificador manual. Dez telas densas verificadas em 320 e 420 pixels. Capturas de descanso, condições e aba Mestre inspecionadas.
+- Os testes usam documentos simulados e Chromium. Não houve execução nativa do Foundry nesta correção.
 
 ## Limite atual
 

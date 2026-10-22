@@ -1,4 +1,4 @@
-# Automações da versão 0.2.0
+# Automações da versão 0.2.2
 
 ## Resumo e progressão
 
@@ -20,13 +20,13 @@ Na criação, todos os pontos de atributos devem ser distribuídos. A janela des
 
 A escolha entre avanço por nível inteiro e EXP pertence às **Regras da casa**. No primeiro modo, subir cada NC concede 6 pontos de atributos. No segundo, subir o NC muda os limites e o mestre concede EXP separadamente, inclusive frações. Trocar o modo não corrige pontos anteriores retroativamente. Há histórico de concessões e distribuições na ficha.
 
-Fichas antigas exigem revisão e ativação explícita. A ativação preserva recursos atuais. Fichas novas completas começam com vida/chakra cheios; aumentar os máximos na evolução não restaura valores atuais. Perícias conservam precisões manuais existentes; resistências sem precisão informada usam metade do atributo arredondada para cima mais pontos investidos. A restrição de um ponto mínimo é conferida nos usos das cinco perícias restritas. Requisitos adicionais de aptidões continuam sob responsabilidade da mesa.
+Fichas antigas exigem revisão e ativação explícita. A ativação preserva recursos atuais, respeitando os máximos. Fichas novas completas começam com vida/chakra cheios; aumentar os máximos na evolução não restaura valores atuais. Perícias conservam precisões manuais existentes; resistências sem precisão informada usam metade do atributo arredondada para cima mais pontos investidos. A restrição de um ponto mínimo é conferida nos usos das cinco perícias restritas. Requisitos adicionais de aptidões continuam sob responsabilidade da mesa.
 
 ## Recursos
 
-**Recuperação e chakra** oferece dano letal, cura, recuperação de chakra, gasto, drenagem forçada e descanso completo. As operações registram a alteração no chat. Dano recebido com vida positiva para em zero; dano posterior pode torná-la negativa. Vida zero, inconsciência, morrendo, estabilidade, exaustão por chakra e morte são derivados dos limiares do Básico pp.259–260. Drenagem forçada é distinta de gasto comum, que não permite saldo negativo. Cura comum e descanso não ressuscitam.
+**Descansar** abre diretamente a prévia da recuperação completa. **Recuperação e chakra** oferece dano letal, cura, recuperação de chakra, gasto, drenagem forçada e descanso completo. As operações registram a alteração no chat. Edições diretas e atualizações dos documentos limitam os recursos atuais aos máximos, preservando valores negativos. O mestre também ajusta excessos antigos na sincronização inicial. Dano recebido com vida positiva para em zero; dano posterior pode torná-la negativa. Vida zero, inconsciência, morrendo, estabilidade, exaustão por chakra e morte são derivados dos limiares do Básico pp.259–260. Drenagem forçada é distinta de gasto comum, que não permite saldo negativo. Cura comum e descanso não ressuscitam.
 
-Descanso completo exige confirmação de oito horas sem interrupção significativa: recupera 10 + 2 × VIG de vida e 5 + 2 × ESP de chakra, até os máximos, e remove fadiga/exaustão sem duração própria. Duração específica da fonte é preservada. Exceções de hijutsus não são presumidas.
+A recuperação prevista é exibida antes de aplicar. Descanso completo exige confirmação de oito horas sem interrupção significativa: recupera 10 + 2 × VIG de vida e 5 + 2 × ESP de chakra, até os máximos, e remove fadiga/exaustão sem duração própria. Duração específica da fonte é preservada. Frações opcionais de descanso e exceções de hijutsus não são aplicadas automaticamente nesta versão.
 
 ## Condições
 
@@ -34,18 +34,22 @@ O catálogo cobre os nomes do Básico pp.276–278, incluindo Paralisado como ap
 
 - Penalidades de condições são contextuais e limitadas a −3 por teste. Não diminuem permanentemente os atributos comprados. Fontes repetidas são preservadas; aplica-se a maior gravidade pertinente.
 - Fadiga repetida evolui para exaustão/inconsciência. Lento reduz o deslocamento; Impedido e Indefeso o zeram.
-- Caído, Fintado, Flanqueado, Desprevenido, Ofuscado, Cego e Surdo afetam apenas os contextos pertinentes. O formulário pergunta sobre tipo de ataque, sentidos, atacantes envolvidos e exceções.
+- O checklist de contexto foi retirado por decisão da mesa. Fintado e Desprevenido mantêm seus efeitos diretos; circunstâncias como sentidos usados, flanqueamento, tipo de ataque recebido, cobertura e localização do alvo ficam com os participantes. Informe o ajuste no campo Modificador da mesa. Caído mantém a penalidade direta de CC; as defesas circunstanciais são ajustadas manualmente.
 - Atordoado conserva reações. Indefeso bloqueia ações e defesas, com a exceção do teste para remover a própria causa. Inconsciência bloqueia testes comuns; a estabilização de Morrendo usa sua exceção expressa.
-- Amputado bloqueia armas de duas mãos e selos nos testes correspondentes; a exceção de Mestre dos Selos/Prestidigitação 14 deve ser confirmada pela mesa.
-- Medo e Fascinado têm controles para encerrar o efeito quando a fonte some ou surge ameaça óbvia. A defesa como reação também encerra Fascinado. A mesa determina retirada, fuga, presença de aliados e ameaças; o sistema não move tokens.
-- Confuso rola 1d8 por turno e guarda o comportamento. Em 5–6 mantém reações de defesa, conforme decisão expressa do usuário. Fuga/alvo mais próximo exigem confirmação contextual.
+- Amputado apresenta sua regra para consulta; armas de duas mãos, selos e a exceção de Mestre dos Selos/Prestidigitação 14 são conferidos pela mesa.
+- O painel usa um botão Ativar/Desativar por condição; a mesa encerra medo/fascínio quando a fonte ou ameaça determinar. A defesa como reação também encerra Fascinado. A mesa determina retirada, fuga, presença de aliados e ameaças; o sistema não move tokens.
+- Confuso rola 1d8 por turno e guarda o comportamento. Em 5–6 mantém reações de defesa, conforme decisão expressa do usuário. Fuga e escolha do alvo mais próximo são conduzidas pela mesa.
 - Sangrando causa 2 de vida por nível no início do turno. **Vigor 18: uma tentativa por turno, como reação**, independentemente dos níveis, conforme decisão do usuário. **Medicina 16: ação padrão por tentativa**, com seleção do personagem que realiza o teste. Cada sucesso remove um nível. Remover todo o sangramento de Morrendo produz Estável, sem curar.
 - Sufocamento pede Vigor como ação livre a cada turno, com dificuldade da fonte/mestre, aumentando em 1 por turno. Falha aplica o dano fixo informado ou o NC. Depois da inconsciência, o dano continua automaticamente enquanto o sufocamento persistir.
 - Resistência à própria fonte ignora suas penalidades, preservando as de outras fontes. A dificuldade e o teste devem vir da técnica ou do mestre. Se houve agravamento, informe a condição inicial para que sucessos voltem pelos estágios publicados antes da remoção.
 
-O mestre ativo processa início/fim de turno no rastreador. Uma marca persistente por fase evita repetir dano ao receber o mesmo evento; pendências são recuperáveis sem aplicar dano novamente. Retroceder o rastreador não desfaz eventos; ao avançar novamente pela mesma fase ela não é reaplicada. Fora de combate, use **Processar início do turno fora de combate**. Uma nova passagem libera outra tentativa de Vigor. Para durações de cena ou dependentes da fonte, a remoção é explícita.
+O mestre ativo processa início/fim de turno no rastreador. Uma marca persistente por fase evita repetir dano ao receber o mesmo evento; pendências são recuperáveis sem aplicar dano novamente. Retroceder o rastreador não desfaz eventos; ao avançar novamente pela mesma fase ela não é reaplicada. O controle de turno fora de combate fica com a mesa. Para durações de cena ou dependentes da fonte, a remoção é explícita.
 
-Cego e adversário não visto exigem localização por outro sentido/informação de aliado. Sensor dispensa o erro; uma área que cobre ao menos 50% da camuflagem total pode dispensá-lo, mas ainda exige localizar o alvo. Após acerto não crítico confirmado, rola-se 1d8: 1–4 falha. Se a defesa não foi informada, o chat oferece confirmação do acerto antes desse teste. Fonte: Básico p.273. Outras camuflagens ambientais simultâneas precisam ser resolvidas pela mesa.
+Camuflagem, localização por sentidos, Sensor, áreas e outras circunstâncias continuam descritos no catálogo para consulta, mas o formulário de testes não coleta mais essas escolhas. A resolução fica com a mesa, conforme pedido do usuário. O serviço anterior de camuflagem permanece para mensagens antigas, sem ser disparado pelos novos testes.
+
+## Aba Mestre
+
+Somente mestres veem a aba e podem abrir as configurações. Ela reúne livros utilizados, versões Social/Senjutsu/Jiton, anotações de regras opcionais e acesso às Regras da casa. O perfil é compartilhado pelo mundo inteiro; editar um personagem não cria um perfil diferente. A seleção de livros e versões é documental, enquanto o avanço por EXP/nível tem efeito mecânico. Anotações de opcionais não criam automações adicionais.
 
 ## Limites de resolução
 

@@ -1,11 +1,11 @@
-# Shinobi no Sho 0.2.1
+# Shinobi no Sho 0.2.2
 
-A evolução agora destaca os atributos abaixo do mínimo do novo NC e indica quantos pontos são necessários. O aviso é atualizado durante a edição.
+- Vida e chakra atuais são limitados aos máximos. Valores excedentes antigos são ajustados quando o mestre sincroniza as fichas.
+- Botão **Descansar** com prévia: 10 + 2 × Vigor de vida e 5 + 2 × Espírito de chakra. Exige oito horas de sono sem interrupção significativa, respeita máximos e preserva fadiga/exaustão com duração própria.
+- Condições agora apresentam um botão **Ativar/Desativar** por condição. Consequências automáticas de recursos continuam ligadas à causa.
+- Checklist de contexto retirado dos testes; a mesa informa ajustes no modificador manual.
+- Nova aba **Mestre**, oculta para jogadores, reúne livros, versões, regras opcionais, anotações e acesso ao avanço por EXP/nível.
 
-Os saldos de atributos e bases de combate aparecem separadamente, com quantidade faltante ou excedente. Nas bases, também é conferido o limite de transferência de 2 pontos.
+Manifesto atualizado: https://github.com/darkmonsterpro0-droid/shinobi-no-sho/releases/latest/download/system.json
 
-Conforme decisão da mesa, as bases só podem ser distribuídas na criação. Na evolução, ficam somente para consulta, inclusive para o mestre.
-
-Manifesto de atualização: https://github.com/darkmonsterpro0-droid/shinobi-no-sho/releases/latest/download/system.json
-
-38 testes de código e verificação dos fluxos na prévia. A validação dentro do Foundry real continua pendente; veja docs/VALIDACAO.md.
+41 testes de código e 18 fluxos da prévia aprovados. Validação nativa dentro do Foundry continua pendente; detalhes em docs/VALIDACAO.md.

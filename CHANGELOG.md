@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## 0.2.2 — 2026-10-22
+
+- Limita vida e chakra atuais aos máximos ao salvar, inclusive em atualizações de documentos; corrige excessos existentes na sincronização conduzida pelo mestre. Preserva valores negativos válidos.
+- Adiciona botão Descansar, prévia das recuperações e confirmação de 8 horas sem interrupção. Aplica as fórmulas do Básico e remove fadiga/exaustão sem duração própria.
+- Simplifica o painel de condições para um botão Ativar/Desativar por condição, preservando os efeitos e suas informações ao desativar.
+- Retira o checklist contextual dos testes; circunstâncias ficam com a mesa e podem ser refletidas no modificador manual.
+- Adiciona aba Mestre exclusiva para livros, versões, regras opcionais, anotações e acesso às regras da casa. Configurações não podem ser abertas por jogadores.
+- Amplia a verificação para 41 testes de código e 18 fluxos da prévia.
+
 ## 0.2.1 — 2026-10-22
 
 - Destaca atributos abaixo do mínimo ao elevar o NC, com valores atuais, mínimo exigido e pontos necessários. O aviso acompanha a edição dos campos.

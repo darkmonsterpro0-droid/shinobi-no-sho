@@ -14,3 +14,5 @@
 - Sangrando: uma tentativa de Vigor 18 por turno, independentemente dos níveis; Medicina 16 usa uma ação padrão por tentativa. Confuso 5–6 mantém reações defensivas. Decisões expressas do usuário.
 
 - Decisão de 22/10/2026: bases de combate editáveis somente na criação, inclusive para o mestre. Na evolução, consultar sem redistribuir.
+
+- Decisões de 22/10/2026: painel de condições com um botão Ativar/Desativar por condição; retirar checklist de contexto dos testes, deixando circunstâncias para a mesa e modificador manual. Aba Mestre deve ficar oculta para jogadores. Recursos atuais não podem exceder os máximos.
