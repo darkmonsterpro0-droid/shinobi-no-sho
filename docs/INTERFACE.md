@@ -73,3 +73,8 @@ O painel informa a quantidade total ativa. A partir da terceira cópia, todos os
 A escolha de atributo/aspecto aparece junto ao botão de rolagem.
 
 ![Escolhas sociais](images/social-choices.png)
+
+
+## Ajustes da 0.4
+
+O resumo não exibe mais Criação e evolução nem o cartão Regras da mesa. Descansar está no rodapé. Condições explícitas têm Desativar na própria lista; condições derivadas indicam sua origem. A tabela de perícias não exibe notas. Aptidões automatizadas abrem o uso e não permitem editar seus dados de regra. Os botões Usar têm largura suficiente e as ações sociais usam cartões compactos, inclusive em janelas estreitas.

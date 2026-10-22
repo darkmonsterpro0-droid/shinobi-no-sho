@@ -32,7 +32,7 @@
 .sns-app .sns-footer .sns-btn {min-height:30px;}
 .sns-app .sns-sheet-tools {display:flex;align-items:center;gap:5px;margin-left:auto;flex-wrap:wrap;}
 .sns-app .sns-footer:has(.sns-sheet-tools)>span:first-child {display:none;}
-.sns-app .sns-identity {grid-template-columns:190px minmax(0,1fr) 170px;gap:22px;align-items:start;}
+.sns-app .sns-identity {grid-template-columns:190px minmax(0,1fr);gap:22px;align-items:start;}
 .sns-app .sns-portrait {height:200px;border-radius:3px;}
 .sns-app .sns-portrait img {object-position:50% 29%;}
 .sns-app .sns-identity-fields {gap:18px;padding:3px 0;}

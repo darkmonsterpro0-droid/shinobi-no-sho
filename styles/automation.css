@@ -32,8 +32,16 @@
 .sns-app .sns-budget-counter {display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px;padding:14px 16px;margin-bottom:16px;border:1px solid var(--sns-line);border-left:3px solid var(--sns-accent);border-radius:4px;background:var(--sns-card);font-size:13px;}
 .sns-app .sns-budget-counter strong {flex-basis:100%;font-size:15px;}
 .sns-app .sns-budget-counter small {color:var(--sns-muted);}
-.sns-app .sns-social-action {display:flex;flex-direction:column;gap:8px;padding:14px;border:1px solid var(--sns-line);border-radius:4px;background:var(--sns-card);min-width:0;}
-.sns-app .sns-social-action .sns-btn {margin-top:auto;min-height:42px;}
+.sns-app .sns-social-action {display:flex;flex-direction:column;align-self:start;gap:10px;padding:12px;border:1px solid var(--sns-line);border-radius:4px;background:var(--sns-card);min-width:0;}
+.sns-app .sns-social-action .sns-btn {margin:0;min-height:38px;white-space:normal;width:100%;}
+.sns-app .sns-social-choices {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:center;gap:8px;}
+.sns-app .sns-social-choices .sns-field {gap:5px;}
+.sns-app .sns-social-choices .sns-field:only-child {grid-column:1/-1;}
+.sns-app .sns-social-choices small {min-width:0;overflow-wrap:anywhere;}
+.sns-app .sns-social-choices select {font-size:12px;}
+.sns-app .sns-aptitude-reference dl {display:grid;grid-template-columns:max-content minmax(0,1fr);gap:10px 14px;margin:16px 0;}
+.sns-app .sns-aptitude-reference dt {font-weight:600;}
+.sns-app .sns-aptitude-reference dd {margin:0;overflow-wrap:anywhere;white-space:pre-wrap;}
 .sns-app .sns-social-action small {color:var(--sns-muted);}
 .sns-app .sns-rule-options {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0;}
 .sns-app .sns-rule-options section {padding:12px;border:1px solid var(--sns-line);border-radius:4px;}

@@ -1,3 +1,5 @@
+import {effectiveAttributes,sizeProfile} from './physical-rules.mjs';
+import {inventoryBonuses} from './inventory-rules.mjs';
 import {aptitudeOwned} from './aptitudes.mjs';
 export const WEAPON_CATEGORIES={unarmed:'Desarmado',light:'Leve',medium:'Mediana',long:'Longa',heavy:'Pesada',throw:'Arremesso',shot:'Disparo',firearm:'Arma de fogo',ammo:'Munição'};
 const rows=[
@@ -41,7 +43,7 @@ for(const[key,name,category,damage,range,capacity,slots,type,page,extra]of [
  ['musket','Mosquete','firearm',5,'15+3des',1,1,'Perfuração',58,{requiredAttribute:'des',requiredMinimum:12,handling:22}],
  ['bullets','Munição para armas de fogo','ammo',0,0,20,1,'',58,{}]
 ])WEAPONS.push({key,name,category,damage,range,capacity,slots,damageType:type,page,critical:15,simple:false,book:'avancado',melee:!['firearm','shot','ammo'].includes(category),acuidade:category==='light',...extra});
-export function weaponRequirements(w,s,has=()=>false){const a=s.attributes??{},max=Math.max(a.for??0,a.des??0),errors=[];
+export function weaponRequirements(w,s,has=()=>false){const a=effectiveAttributes(s,{permanentOnly:true}),max=Math.max(a.for??0,a.des??0),errors=[];
  if(w.requiredAttribute){if(Number(a[w.requiredAttribute]??0)<w.requiredMinimum)errors.push(`${w.requiredAttribute.toUpperCase()} ${w.requiredMinimum}.`);return errors;}
  if(w.category==='light'&&max<(w.key==='aian'?10:8))errors.push(`Força ou Destreza ${w.key==='aian'?10:8}.`);
  if(['medium','long'].includes(w.category)&&max<10)errors.push('Força ou Destreza 10.');
@@ -55,9 +57,10 @@ export function rangePenalty(distance,range,extended=false){if(!Number.isFinite(
 export function damageDegree(natural,critical=15){return natural<=3?0:natural>=critical?4:natural<=8?1:natural<=11?2:3;}
 export function weaponAttack(w,s,items=[],rules={},options={}){
  const has=(key,selection='')=>!!aptitudeOwned(items,key,selection,rules),ranged=options.mode==='ranged'||!w.melee;
+ if((s.powerState?.active??[]).some(e=>e.alado&&e.weaponId===options.itemId))throw Error('O Leque Gigante está sustentando Flutuar e não pode atacar.');
  const errors=weaponRequirements(w,s,has);if(errors.length)throw Error(errors.join(' '));
  if(ranged&&!w.range)throw Error('Esta arma não permite ataques à distância.');
- const a=s.attributes??{},stat=ranged?'cd':'cc',attribute=ranged?'des':w.acuidade&&has('acuidade')?'des':'for';
+ const a=s.attributes??{},effective=effectiveAttributes(s),active=(s.powerState?.active??[]).filter(e=>e.active!==false),weaponEffects=active.filter(e=>e.weaponId===(options.itemId??w.key)||(w.key==='unarmed'&&e.weaponId==='unarmed')),stone=w.key==='unarmed'?active.find(e=>e.stoneFist):null,inventory=inventoryBonuses({system:s,items},{kind:'attack',now:options.now??0,scene:options.scene??''},rules),stat=options.electricStat==='cd'?'cd':ranged?'cd':'cc',attribute=options.electricStat==='cd'?'des':ranged?'des':w.acuidade&&has('acuidade')?'des':'for';
  const purchased=Number(a[attribute]??0)+Number(s.automation?.bases?.[stat]??3);
  let bonus=0,penalty=0,damage=w.damage,units=1;
  const proficiency=w.simple||has('usar-arma',w.key)||(w.key==='wakizashi'&&has('usar-arma','katana'))||(w.category==='firearm'&&has('usar-polvora'));
@@ -65,6 +68,8 @@ export function weaponAttack(w,s,items=[],rules={},options={}){
  if(has('especialista',w.category))bonus+=1;
  if(options.offhand&&!has('ambidestria'))penalty-=3;
  let range=ranged?weaponRange(w,s,has):w.reach??(['whip','spiked-chain'].includes(w.key)?4:['long'].includes(w.category)?2:1);
+ if(!ranged)range=Math.max(range,sizeProfile(s).reach);
+ if(options.electricStat){if(!['cc','cd'].includes(options.electricStat)||!weaponEffects.some(e=>e.electricMode==='blade'))throw Error('Extensão de lâmina exige Arma Elétrica ativa.');range=5;}
  const longShot=aptitudeOwned(items,'tiro-longo','',rules);if(ranged&&w.category==='throw'&&longShot?.system.catalogBook==='avancado')range*=2;
  if(ranged)penalty+=rangePenalty(Number(options.distance??0),range,rules.extendedRange&&['shot','firearm'].includes(w.category));
  else if(Number(options.distance??0)>range)throw Error('Alvo fora do alcance corpo a corpo.');
@@ -72,13 +77,17 @@ export function weaponAttack(w,s,items=[],rules={},options={}){
  if(!ranged&&options.dual){if(!has('ambidestria')||!w.double)throw Error('Esta combinação exige Ambidestria e arma dupla/em par.');damage=w.dualDamage??damage+w.double;}
  if(ranged&&w.thrownDamage)damage=w.thrownDamage;
  if(w.key==='blunderbuss'&&Number(options.distance??0)<=10)damage+=Number(a.des??0)>=12?2:1;
- if(w.key==='unarmed'&&has('punho-de-ferro'))damage=Math.min(4,Number(a.for??0)>=12?4:Number(a.for??0)>=10?3:Number(a.for??0)>=8?2:1);
+ if(w.key==='unarmed'&&has('punho-de-ferro')){const strength=Math.max(Number(effective.for??0),...(weaponEffects.filter(e=>e.ironFistSpirit).map(()=>Number(a.esp??0))));damage=Math.min(4,strength>=12?4:strength>=10?3:strength>=8?2:1);}
+ if(stone)damage=4;
  if(w.key==='rapier'&&!has('acuidade'))damage-=1;
  const improved=aptitudeOwned(items,'critico-aprimorado','',rules),improves=improved&&(improved.system.catalogBook==='avancado'?(rules.banCombatAptitudes||has('especialista',w.category)):improved.system.selection===w.key);
- const critical=w.key==='fuuma-shadow'?14:w.critical-(improves?1:0);
- let base=Math.ceil(Number(a[ranged?'des':'for']??0)/2)+damage;
+ const critical=w.key==='fuuma-shadow'?14:w.critical-Math.max(improves?1:0,...weaponEffects.map(e=>Number(e.criticalExpansion??0)));
+ let damageAttribute=Number(effective[ranged?'des':'for']??0)+(ranged?0:inventory.strengthDamageModifier);
+ if(options.useSpirit!==false&&weaponEffects.some(e=>e.damageAttribute==='esp'))damageAttribute=Math.max(damageAttribute,Number(a.esp??0));
+ let base=Math.max(0,Math.ceil(damageAttribute/2)+damage);
+ const sharpened=weaponEffects.find(e=>e.effect==='afiar');if(sharpened&&ranged&&w.key==='shuriken'){if(units>3)throw Error('Uma aplicação de Afiar estende até três shurikens.');if(units===3)base=Number(sharpened.plan.common.damage);}
  const marksman=aptitudeOwned(items,'atirador',w.category==='throw'&&w.simple?'throw':['short-bow','long-bow'].includes(w.key)?'bows':'!',rules);
  if(ranged&&marksman)base+=w.category==='throw'?3:marksman.system.catalogBook==='avancado'?2:1;
  if((rules.automaticExtraDamage||has('dano-extra',w.category))&&purchased>=18)base+=1+Math.floor((purchased-18)/2);
- return {precision:purchased+bonus+Math.max(-3,penalty),bonus,penalty,purchased,base,critical,range,units,ranged,stat,proficiency};
+ return {element:weaponEffects.find(e=>e.element)?.element,breakBlock:weaponEffects.some(e=>e.effect==='afiar')?'afiar':weaponEffects.some(e=>e.breakWeapon)?'electric':null,extendedBlade:weaponEffects.some(e=>e.effect==='afiar'),ignoreHardness:Math.max(0,...weaponEffects.map(e=>Number(e.ignoreHardness??0))),cannotBlock:!!stone&&stone.stoneFist>=9,attackFailure:inventory.attackFailure,weaponId:options.itemId??w.key,precision:purchased+bonus+Math.max(-3,penalty),bonus,penalty,purchased,base,critical,range,units,ranged,stat,proficiency};
 }

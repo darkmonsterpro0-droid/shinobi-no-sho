@@ -53,10 +53,10 @@ test('social action uses the visible attribute choice and rolls exactly once wit
  const previous={game:globalThis.game,foundry:globalThis.foundry,ChatMessage:globalThis.ChatMessage};
  let formula,count=0,result;
  try{
- globalThis.game={user:{isGM:false}};globalThis.ChatMessage={getSpeaker:()=>({})};
+ globalThis.game={user:{isGM:false},settings:{get:(_id,k)=>k==='houseRules'?{}:0}};globalThis.ChatMessage={getSpeaker:()=>({})};
  globalThis.foundry={dice:{Roll:class{constructor(f){formula=f;}async evaluate(){count++;this.total=15;return this;}async toMessage(m){result=m;}}}};
  const root={querySelectorAll:()=>[{name:'ui.social.acalmar.attribute',value:'esp'},{name:'ui.social.acalmar.aspect',value:'yin'}]};
- await buildAction({},'roll-social',{stat:'acalmar'},root,{actor:{isOwner:true,system:{...s,attributes:{...s.attributes,int:2,esp:7}}}});
+ await buildAction({},'roll-social',{stat:'acalmar'},root,{actor:{isOwner:true,getFlag:()=>undefined,items:[],system:{...s,attributes:{...s.attributes,int:2,esp:7}}}});
  assert.equal(count,1);assert.equal(formula,'2d8 + (5)');assert.match(result.flavor,/Espírito/);
  }finally{Object.assign(globalThis,previous);}
  assert.deepEqual(SOCIAL_TESTS.boatos[2],['per']);

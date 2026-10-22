@@ -1,3 +1,4 @@
+import {effectiveAttributes} from './physical-rules.mjs';
 import {APTITUDES} from './aptitude-data.mjs';
 import {SKILLS} from './config.mjs';
 import {skillBase} from './build-rules.mjs';
@@ -32,8 +33,8 @@ export function aptitudeChoices(key,book='basico',weapons=[],items=[]){
 }
 export function aptitudeEntry(key,book){return APTITUDES.find(a=>canonical(a.key)===canonical(key)&&a.book===book);}
 export function evolutionStatus(item,system,items=[],rules={}){
- const key=canonical(item.system.catalogKey),level=Number(item.system.level??1),advanced=rules.aptitudeRevision!=='basico',a=system.attributes??{},sk=k=>skillBase(system,k);
- const cc=Number(a.for??0)+Number(system.automation?.bases?.cc??3),cd=Number(a.des??0)+Number(system.automation?.bases?.cd??3);
+ const key=canonical(item.system.catalogKey),level=Number(item.system.level??1),advanced=rules.aptitudeRevision!=='basico',a=effectiveAttributes(system,{permanentOnly:true}),sk=k=>skillBase({...system,attributes:a},k);
+ const cc=Number(system.attributes?.for??0)+Number(system.automation?.bases?.cc??3),cd=Number(a.des??0)+Number(system.automation?.bases?.cd??3);
  const tests={
   'lutar-as-cegas':level===1&&sk('prontidao')>=(advanced?11:12),trespassar:level===1&&cc>=9,
   clone:level===1&&a.esp>=8,'kyoudo-kyouka':level===1&&a.esp>=10,'replica-enganadora':level===1&&sk('prestidigitacao')>=12,
@@ -52,10 +53,10 @@ export function evolutionStatus(item,system,items=[],rules={}){
 // Complex choices retain their printed prerequisite in the catalog; this helper
 // evaluates numerical and aptitude requirements, never narrative eligibility.
 export function prerequisiteStatus(entry,system,items=[],rules={},selection=''){
- const text=entry.requirements??'',a=system.attributes??{},cc=Number(a.for??0)+Number(system.automation?.bases?.cc??3),cd=Number(a.des??0)+Number(system.automation?.bases?.cd??3);
+ const text=entry.requirements??'',a=effectiveAttributes(system,{permanentOnly:true}),cc=Number(system.attributes?.for??0)+Number(system.automation?.bases?.cc??3),cd=Number(a.des??0)+Number(system.automation?.bases?.cd??3);
  const stat=(key,n)=>Number(a[key]??0)>=n;
  const has=key=>!!aptitudeOwned(items,key,'',rules)||(rules.banCombatAptitudes&&banned.includes(key));
- const skill=(key,n)=>skillBase(system,key)>=n&&(!['medicina','veneficio','mecanismos','ocultismo','lidar'].includes(key)||Number(system.skills?.[key]?.points??0)>0);
+ const skill=(key,n)=>skillBase({...system,attributes:a},key)>=n&&(!['medicina','veneficio','mecanismos','ocultismo','lidar'].includes(key)||Number(system.skills?.[key]?.points??0)>0);
  const power=(name,n)=>items.some(i=>i.type==='power'&&normalize(i.name)===normalize(name)&&Number(i.system.level??0)>=n);
  const known={acuidade:stat('des',3),ambidestria:cc>=12||(entry.book==='avancado'&&selection==='firearm'&&cd>=12),'ataque-em-movimento':stat('agi',4),atirador:stat('des',12),'bloqueio-ambidestro':has('ambidestria'),'combate-defensivo':cc>=9,'critico-aprimorado':has('especialista')&&Math.max(cc,cd)>=13,'dano-extra':Math.max(cc,cd)>=18,guerreiro:Math.max(a.for??0,a.des??0)>=(entry.book==='avancado'&&selection==='light'?8:10),'mira-apurada':stat('des',12)&&has('tiro-longo'),mobilidade:stat('agi',3)&&has('reflexos'),'ponto-cego':stat('agi',6)||skill('prestidigitacao',6),'punho-de-ferro':stat('for',2),'retirada-rapida':stat('agi',entry.book==='avancado'?9:10),rolamento:skill('acrobacia',2)&&has('de-pe'),'tiro-longo':stat('des',entry.book==='avancado'?11:12),'tiro-preciso':stat('des',9),trespassar:cc>=7,'usar-armaduras-pesadas':stat('for',10)||stat('vig',15),'ninja-medico':skill('medicina',7),quimico:stat('int',entry.book==='avancado'?6:8),sensor:skill('rastrear',10),shunjutsu:Math.max(a.des??0,a.int??0)>=10&&has('diligente')&&has('velocista'),'burro-de-carga':stat('for',4),'metabolismo-rapido':stat('vig',1)&&stat('esp',1),'furtividade-agil':skill('furtividade',9),'usar-polvora':skill('mecanismos',2)&&stat('des',2)};
  Object.assign(known,{

@@ -89,3 +89,12 @@ node scripts/check-preview.mjs
 72 testes de código e 24 verificações de navegador local cobrem as alterações desta versão, incluindo quantidade total de clones, alterações retroativas de precisão, divisão/devolução de chakra de Kage, contadores, rolagens e janelas estreitas. A inspeção visual da prévia foi realizada. Os testes de iniciativa simulam a API do Foundry; não são uma execução nativa do rastreador.
 
 A ferramenta de controle do aplicativo falhou ao iniciar e nenhum navegador conectado continha sessão do Foundry. Criação de Actors e itens embutidos, repetições no chat, permissões, reconexão e dois clientes precisam de conferência em mundo de teste. `verified` permanece 14.367 com o escopo de evidência anterior. A publicação da implementação atual foi autorizada pelo usuário, sem apresentar o lote inteiro como concluído.
+
+
+## Implementação 0.4.0 — 2026-10-22
+
+124 testes de código passaram. A prévia independente passou em 24 fluxos gerais, cinco verificações de layout e sete fluxos novos de automação. A última rodada de layout cobriu 1080, 760, 420 e 320 pixels; a rodada de automações conferiu compra de poder incorporado à ficha, cobrança de chakra, aplicação confirmada de dano, criação de arma, absorção de armadura, tamanho, pílulas e venenos. Os testes de regressão cobrem Misshi, Wana, Souin com clones, repetição de confirmação, escape de Cegante/Dano Contínuo e dureza imaginária.
+
+A inspeção visual foi realizada na prévia. Os cenários usam substitutos da API do Foundry, dados locais de exemplo e navegador headless; não são testes de um mundo real. Não foram verificados concorrência entre clientes, persistência após reconexão, permissões completas dos documentos reais nem os callbacks reais de chat e combate. `verified` continua 14.367 com o escopo anterior.
+
+Consulte DESENVOLVIMENTO-0.4.md para os fluxos ainda incompletos. Aprovação dos testes não significa automação integral dos livros.

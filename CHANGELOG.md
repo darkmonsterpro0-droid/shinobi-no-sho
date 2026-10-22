@@ -1,3 +1,11 @@
+# 0.4.0 — 2026-10-22
+
+- Poderes comuns e afinidade elemental: aquisição, parâmetros, custos, efeitos ativos e resolução confirmada por alvo.
+- Armaduras, consumíveis, Químico e venenos; tamanho, dureza e camuflagem.
+- Interface compacta, proteção de aptidões automatizadas e desativação de condições no resumo.
+- Misshi com cobrança única; pílulas com contador manual do mestre; penalidades de equipamento fora do limite das condições.
+- Cobertura parcial e pendências documentadas em docs/DESENVOLVIMENTO-0.4.md; testes locais não substituem validação em mundo Foundry.
+
 # Histórico de versões
 
 ## 0.3.0 — 2026-10-22

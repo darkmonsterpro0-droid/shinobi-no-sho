@@ -7,7 +7,7 @@ const nativeMoves=w=>['whip','spiked-chain','kusarigama','shuang-gou'].includes(
 export function maneuverPlan(key,attack,w,system,items=[],rules={},options={}){
  if(!Object.hasOwn(availableManeuvers(items,rules),key))throw Error('Manobra não disponível nesta ficha.');
  const has=k=>!!aptitudeOwned(items,k,'',rules),owned=k=>aptitudeOwned(items,k,'',rules),a=system.attributes??{},unarmed=w.key==='unarmed'||w.key==='nunchaku'&&w.book==='avancado';
- const p={...attack,notes:[],resist:null,condition:null,ignoreHardness:0,action:'Padrão'},cc=Number(a.for??0)+Number(system.automation?.bases?.cc??3);
+ const p={...attack,notes:[],resist:null,condition:null,ignoreHardness:attack.ignoreHardness??0,action:'Padrão'},cc=Number(a.for??0)+Number(system.automation?.bases?.cc??3);
  const needsUnarmed=['chute-duplo','chute-giratorio','chute-inverso','golpe-atemi','golpe-carate','soco-agarrado','soco-em-gancho','voadora'];
  if(needsUnarmed.includes(key)&&(!unarmed||p.ranged))throw Error('Esta aptidão exige ataque desarmado.');
  if(w.category==='heavy'&&!basics.includes(key)&&key!=='ataque-giratorio')throw Error('Armas pesadas não aceitam esta aptidão de manobra.');
@@ -37,7 +37,7 @@ export function maneuverPlan(key,attack,w,system,items=[],rules={},options={}){
  }
  if(key==='desarme-agressivo')p.notes.push('Ao acertar, causa dano e desarma.');
  if(key==='golpe-atemi'){p.penalty-=1;p.base+=2;p.notes.push('Exige pontos vitais desprotegidos. O bônus também se aplica a crítico de ataque sem aptidão de manobra.');}
- if(key==='golpe-carate'){p.ignoreHardness=options.object?10:2;}
+ if(key==='golpe-carate'){p.ignoreHardness=Math.max(p.ignoreHardness,options.object?10:2);}
  if(key==='soco-agarrado')p.notes.push('Bloqueio não permitido; alvo deve estar desarmado ou usando arma leve.');
  if(['desarme-a-distancia','flechada-no-joelho'].includes(key)){
   if(!p.ranged)throw Error('Esta aptidão exige arremesso ou disparo.');const level=Number(owned(key).system.level??1);
@@ -47,9 +47,9 @@ export function maneuverPlan(key,attack,w,system,items=[],rules={},options={}){
  }
  const multi=['ataque-multiplo','chute-duplo','soco-em-gancho'].includes(key);
  if(multi){const count=key==='chute-duplo'?2:Number(options.count??2),reduction=Number(options.hardness??0);if(!Number.isFinite(reduction)||reduction<0)throw Error('Redução de dano inválida.');
-  p.attacks=splitDamage(Math.max(0,p.base-reduction),count).map((base,i)=>({base,bonus:p.bonus,penalty:p.penalty,notes:[]}));
-  if(key==='chute-duplo'){p.attacks[0].base+=2;p.attacks[0].notes.push('Chute Giratório: +2 somente na parcela do primeiro golpe (decisão da mesa).');p.notes.push('Segundo ataque recebe +1 de acerto somente se o primeiro acertar.');}
-  if(key==='soco-em-gancho'){p.attacks.at(-1).base+=1;p.attacks.at(-1).bonus+=1;}
+  p.attacks=splitDamage(Math.max(0,p.base-reduction),count).map((base,i)=>({base,damagePool:p.base,divisionCount:count,divisionIndex:i,postDivisionBonus:0,bonus:p.bonus,penalty:p.penalty,notes:[]}));
+  if(key==='chute-duplo'){p.attacks[0].base+=2;p.attacks[0].postDivisionBonus=2;p.attacks[0].notes.push('Chute Giratório: +2 somente na parcela do primeiro golpe (decisão da mesa).');p.notes.push('Segundo ataque recebe +1 de acerto somente se o primeiro acertar.');}
+  if(key==='soco-em-gancho'){p.attacks.at(-1).base+=1;p.attacks.at(-1).postDivisionBonus=1;p.attacks.at(-1).bonus+=1;}
   p.notes.push('Somente o primeiro ataque permite defesas que não sejam reações ou aptidões/técnicas defensivas; grau é individual.');
  }
  p.precision=p.purchased+p.bonus+Math.max(-3,p.penalty);return p;

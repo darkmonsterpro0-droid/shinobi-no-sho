@@ -1,13 +1,39 @@
+import {validatePowerPurchase} from './power-rules.mjs';
 import {ID} from './config.mjs';
 import {pointBudgets} from './build-rules.mjs';
 import {aptitudeEntry,aptitudeChoices,canonical,prerequisiteStatus,evolutionStatus} from './aptitudes.mjs';
 import {WEAPONS} from './weapons.mjs';
-export function validatePurchase(actor,item,{previous=null,rules={},isGM=false}={}){
+const same=(a,b)=>Object.is(a,b)||!!a&&!!b&&typeof a==='object'&&typeof b==='object'&&Array.isArray(a)===Array.isArray(b)&&Object.keys(a).length===Object.keys(b).length&&Object.keys(a).every(k=>Object.hasOwn(b,k)&&same(a[k],b[k]));
+const valueAt=(object,path)=>path.split('.').reduce((value,key)=>value?.[key],object);
+function patchEntries(patch,prefix=''){
+ return Object.entries(patch??{}).flatMap(([key,value])=>{
+  const path=prefix?`${prefix}.${key}`:key;
+  return value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length?patchEntries(value,path):[[path,value]];
+ });
+}
+// Aptitude rules are immutable after purchase. Active state and usage counters live
+// on the actor; no item fields need an exception for execution.
+export function validateAutomatedAptitudeEdit(previous,patch,{allowEvolution=true}={}){
+ if(previous?.type!=='aptitude'||!previous.system?.catalogKey)return [];
+ const errors=[];
+ for(const[path,value]of patchEntries(patch)){
+  if(same(valueAt(previous,path),value))continue;
+  if(path==='system.level'){
+   if(!allowEvolution)errors.push('Evolua a aptidão a partir da ficha de um personagem.');
+   else if(!Number.isInteger(value)||value!==Number(previous.system.level??1)+1)errors.push('Aptidões automatizadas só aumentam um nível por evolução validada.');
+   continue;
+  }
+  if(path==='system'||path.startsWith('system.')||['name','img','type','effects','flags'].includes(path)||path.startsWith('effects.')||path===`flags.${ID}`||path.startsWith(`flags.${ID}.`)||path.startsWith('flags.-=')||['-=system','-=name','-=img','-=type','-=effects','-=flags'].includes(path))errors.push('Aptidões automatizadas não podem ser editadas. Use os controles de uso, evolução ou remoção da ficha.');
+ }
+ return [...new Set(errors)];
+}
+export function validatePurchase(actor,item,{previous=null,rules={},books,isGM=false}={}){
  if(actor.getFlag?.(ID,'clone')&&!previous&&['aptitude','power','technique'].includes(item.type))return ['Clones comuns não adquirem poderes ou aptidões; altere a ficha original.'];
- const items=[...(actor.items??[])].filter(i=>(i.id??i._id)!==(item.id??item._id)),s=item.system??{},old=previous?.system??{},errors=[];
+ const items=[...(actor.items??[])].filter(i=>(i.id??i._id)!==(item.id??item._id)),s=item.system??{},old=previous?.system??{},errors=previous?validateAutomatedAptitudeEdit(previous,item):[];
  const list=[...items,item],before=pointBudgets(actor.system,[...items,...(previous?[previous]:[])],rules),after=pointBudgets(actor.system,list,rules);
  if(['power','aptitude'].includes(item.type)&&after.powers.remaining<0&&after.powers.spent>=before.powers.spent)errors.push(`Poderes: ${-after.powers.remaining} ponto(s) excedente(s).`);
  if(item.type==='power'&&s.level!==null&&(!Number.isInteger(s.level)||s.level<0||s.level>after.powers.limit))errors.push(`Poderes: nível entre 0 e ${after.powers.limit}.`);
+ if(item.type==='power')errors.push(...validatePowerPurchase(actor,item,{previous,rules,books,isGM}));
  if(item.type!=='aptitude'||!s.catalogKey)return errors;
  const entry=aptitudeEntry(s.catalogKey,s.catalogBook);if(!entry)return [...errors,'Aptidão ou fonte desconhecida.'];
  if(rules.banCombatAptitudes&&['especialista','maestria','reflexos','intuicao'].includes(s.catalogKey))errors.push('Esta aptidão está banida nas regras da mesa.');
@@ -35,6 +61,6 @@ export function validatePurchase(actor,item,{previous=null,rules={},isGM=false}=
 }
 export function createItemClass(Base){return class ShinobiItem extends Base{
  async _preCreate(data,options,user){if(await super._preCreate(data,options,user)===false)return false;if(this.parent?.constructor.documentName!=='Actor')return;this._validateSNS(this.toObject());}
- async _preUpdate(data,options,user){if(await super._preUpdate(data,options,user)===false)return false;if(this.parent?.constructor.documentName!=='Actor')return;const expanded=foundry.utils.expandObject(data);if(!expanded.system||!['level','selection','acquisition','catalogKey','catalogBook'].some(k=>Object.hasOwn(expanded.system,k)))return;const next=foundry.utils.mergeObject(this.toObject(),expanded,{inplace:false});this._validateSNS(next,this.toObject());}
- _validateSNS(item,previous=null){if(!previous&&this.parent.getFlag?.(ID,'clone')&&item.flags?.[ID]?.replicaOf)return;const rules=game.settings.get(ID,'houseRules')??{},errors=validatePurchase(this.parent,item,{previous,rules,isGM:game.user.isGM});if(errors.length)throw Error(errors.join(' '));}
+ async _preUpdate(data,options,user){if(await super._preUpdate(data,options,user)===false)return false;const previous=this.toObject(),embedded=this.parent?.constructor.documentName==='Actor',locked=validateAutomatedAptitudeEdit(previous,data,{allowEvolution:embedded});if(locked.length)throw Error(locked.join(' '));if(!embedded)return;const expanded=foundry.utils.expandObject(data);if(!expanded.system||!['level','selection','acquisition','catalogKey','catalogBook','powerData'].some(k=>Object.hasOwn(expanded.system,k)))return;const next=foundry.utils.mergeObject(previous,expanded,{inplace:false});this._validateSNS(next,previous);}
+ _validateSNS(item,previous=null){if(!previous&&this.parent.getFlag?.(ID,'clone')&&item.flags?.[ID]?.replicaOf)return;const rules=game.settings.get(ID,'houseRules')??{},errors=validatePurchase(this.parent,item,{previous,rules,books:game.settings.get(ID,'profile')?.books,isGM:game.user.isGM});if(errors.length)throw Error(errors.join(' '));}
 };}

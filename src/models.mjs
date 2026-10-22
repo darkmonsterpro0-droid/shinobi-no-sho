@@ -24,6 +24,8 @@ export function createModels() {
       actions:schema({standard:bool(),movement:bool(),partial:bool(),notes:text()}),
       advancement:schema({attributesAvailable:number(),attributesSpent:number(),skillsAvailable:number(),skillsSpent:number(),powersAvailable:number(),powersSpent:number(),notes:text()}),
       history:text(),notes:text(),
+      physical:new f.ObjectField({initial:{size:'medium',temporary:false,bodyHardness:0,camouflage:[]}}),
+      powerState:new f.ObjectField({initial:{}}),inventoryState:new f.ObjectField({initial:{}}),
       links:schema({origin:text(),controller:text(),payer:text(),kind:text("Invocação")}),
       structure:schema({hardness:number(),absorption:resource(),slots:text(),notes:text()}),
       conditions:list({id:text(),disabled:bool(),name:text(),source:text(),timing:text("Cena"),duration:text(),notes:text()}),
@@ -40,7 +42,8 @@ export function createModels() {
       action:text(),cost:text(),range:text(),area:text(),duration:text(),seals:text(),
       quantity:number(),compartments:text(),equipped:bool(),loaded:bool(),damaged:bool(),destroyed:bool(),grip:text(),damageType:text(),damage:text(),critical:text(),properties:text(),
       uses:resource(),hardness:number(),absorption:resource(),slot:text(),availability:text("Registro manual"),
-      origin:text(),controller:text(),payer:text()
+      origin:text(),controller:text(),payer:text(),
+      powerData:new f.ObjectField({initial:{}}),inventoryData:new f.ObjectField({initial:{}})
     };}
   }
   return {ShinobiActorModel,ShinobiItemModel};

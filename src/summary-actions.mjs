@@ -1,3 +1,4 @@
+import {clearInventoryRestEffects} from './inventory-rules.mjs';
 import {rerollOption} from './reroll-options.mjs';
 import {ID,ATTRIBUTES,COMBAT,SKILLS} from './config.mjs';
 import {esc,set} from './ui.mjs';
@@ -86,6 +87,7 @@ export async function automationAction(app,op,data,root,{actor,show}) {
     if(v.operation==='damage')await damageActor(actor,n);
     else if(v.operation==='rest') {
       if(!v.fullRest)throw Error('Confirme as oito horas de descanso completo sem interrupção significativa.');
+      update['system.inventoryState']=clearInventoryRestEffects(actor.system.inventoryState??{});
       const rest=restRecovery(actor);update['system.resources.vitality.value']=rest.vitality;update['system.resources.chakra.value']=rest.chakra;
     }else if(v.operation==='heal'){if(vit===null)throw Error('Preencha a vitalidade atual.');update['system.resources.vitality.value']=Math.min(d.vitality,vit+n);}
     else if(v.operation==='chakra'){if(chakra===null)throw Error('Preencha o chakra atual.');update['system.resources.chakra.value']=Math.min(d.chakra,chakra+n);}
@@ -93,7 +95,7 @@ export async function automationAction(app,op,data,root,{actor,show}) {
     else if(v.operation==='drain'){if(chakra===null)throw Error('Preencha o chakra atual.');update['system.resources.chakra.value']=chakra-n;update['system.automation.forcedDrain']=true;}
     else if(v.operation!=='damage')throw Error('Operação desconhecida.');
     if(Object.keys(update).length)await actor.update(update);
-    if(v.operation==='rest')for(const r of conditionRecords(actor).filter(r=>['fatigado','exausto'].includes(r.key)&&!r.remaining&&!r.duration))await saveCondition(actor,r,{remove:true});
+    if(v.operation==='rest')for(const r of conditionRecords(actor).filter(r=>!r.automatic&&['fatigado','exausto'].includes(r.key)&&!r.remaining&&!r.duration))await saveCondition(actor,r,{remove:true});
     await emit(actor,'Recursos atualizados',`<p>${esc({heal:'Vitalidade recuperada',damage:'Dano letal',chakra:'Chakra recuperado',spend:'Gasto de chakra',drain:'Drenagem forçada',rest:'Descanso completo'}[v.operation])}: ${v.operation==='rest'?`8 horas sem interrupção significativa. Vitalidade ${vit} → ${update['system.resources.vitality.value']}; chakra ${chakra} → ${update['system.resources.chakra.value']}. Básico pp. 259–260`:n}.</p>`);await app.close();return;
   }
   if(op==='roll-stat'){owner(actor);const stat=data.stat;return show('roll',{actor,values:{stat,kind:stat in ATTRIBUTES?'attribute':stat==='esq'||stat==='lm'?'defense':'attack'}});}

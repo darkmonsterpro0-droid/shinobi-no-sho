@@ -1,5 +1,5 @@
 export const ID = "shinobi-no-sho";
-export const VERSION = "0.3.0";
+export const VERSION = "0.4.0";
 export const ATTRIBUTES = {for:"Força",des:"Destreza",agi:"Agilidade",per:"Percepção",int:"Inteligência",vig:"Vigor",esp:"Espírito"};
 export const COMBAT = {cc:"Combate Corporal",cd:"Combate à Distância",esq:"Esquiva",lm:"Ler Movimento"};
 export const SKILLS = {
@@ -13,6 +13,9 @@ export const BOOKS = Object.entries(SOURCES).filter(([id])=>id!=="mesa");
 export const SOCIAL = ["Acalmar","Compostura","Convencer","Empatia","Encorajar","Enganar","Etiqueta","Intimidar","Ouvir e espalhar boatos","Presença","Provocar"];
 export function defaultProfile() {
   return {name:"Regras da mesa",books:["basico","avancado","hijutsus1","hijutsus2","sociais"],social:"revisado",senjutsu:"a definir",jiton:"a definir",notes:"",decisions:[
+    {id:"soldier-pill-reset",name:"Pílulas do soldado",description:"A contagem de doses só é zerada manualmente pelo mestre; descanso e reinício da contagem preservam intoxicação com duração própria.",source:"Decisão do usuário · 22/10/2026",status:"Definido"},
+    {id:"equipment-penalty",name:"Penalidades de equipamento",description:"Penalidades de armadura e falta de kit ficam separadas do limite de −3 das condições.",source:"Decisão do usuário · 22/10/2026",status:"Definido"},
+    {id:"seal-cost",name:"Custo próprio de selos",description:"Selos são efeitos distintos, com seus próprios custos. Misshi custa 3 chakra no total; não cobra novamente os mesmos 3 na ativação. Custos explicitamente separados de outros selos permanecem.",source:"Decisão do usuário · 22/10/2026",status:"Definido"},
     {id:"clone-versao-anterior",name:"Clone: quantidade ativa",description:"Com Clone 2, até duas cópias ativas usam −3 nos testes. Ao criar a terceira, todos os clones passam a falhar automaticamente em testes de combate; máximo de seis.",source:"Decisão do usuário em 22/10/2026",status:"Definido"},
     {id:"dominio-agua-reserva",name:"Domínio da Água: reserva individual",description:"Cada usuário controla e gasta os pontos de água que ele próprio gerou no ambiente.",source:"Decisão do usuário em 22/10/2026",status:"Definido"},
     {id:"chute-duplo",name:"Chute Duplo: bônus do primeiro golpe",description:"Dividir o dano base e depois aplicar +2 somente à parcela do primeiro golpe.",source:"Decisão do usuário em 22/10/2026",status:"Definido"},

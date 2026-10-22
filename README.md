@@ -1,6 +1,6 @@
 # Shinobi no Sho — Foundry VTT 14
 
-**Versão 0.3.0 · ficha, rolagens e automações em desenvolvimento · português brasileiro**
+**Versão 0.4.0 · ficha, rolagens e automações em desenvolvimento · português brasileiro**
 
 Fichas em marfim e grafite, com resumo calculado, distribuição de atributos por NC e condições do Livro Básico. A aba Mestre reúne livros, versões de regras, anotações e acesso ao avanço por EXP ou nível inteiro. Ela aparece somente para o mestre.
 
@@ -58,11 +58,13 @@ Veja [Automações e fontes](docs/AUTOMACOES.md) para condições, testes, exce�
 
 A versão automatiza partes das compras, armas e aptidões, incluindo contadores, validações, ataques, repetição de testes e clones comuns. As perícias e ações sociais têm rolagens diretas. As ações sociais usam as fórmulas revisadas. O mestre pode escolher progressão de 2, 3 ou 4 pontos de poder.
 
-A automação ainda não é integral: Clone Verdadeiro/Perfeito, Rashoumon, Kousen/explosivos e algumas combinações de armas/aptidões continuam pendentes. Modificadores de técnicas recebem os parâmetros originais informados pela mesa; ações, alvos, circunstâncias narrativas e aplicação de dano continuam sob seu controle. Algumas opções do mestre apenas registram autorização para fluxos futuros. Armas especiais e aptidões restritas de hijutsu não fazem parte deste lote.
+A versão inclui poderes comuns, afinidades, armaduras, consumíveis, Químico, venenos, tamanho, dureza e camuflagem. Há aplicação confirmada de dano e efeitos por alvo, com consumo de recursos e processamento de turnos. Áreas e defesas são confirmadas pela mesa.
+
+A automação ainda não é integral. Consulte a [cobertura e as pendências da 0.4](docs/DESENVOLVIMENTO-0.4.md), especialmente tarjas coladas, estoque de kunais preparadas, Makibishi, gatilhos de Inflamável contínuo, rituais e distribuição global de projéteis. Armas especiais, hijutsus, HUDs completos e dano de queda estão fora deste lote.
 
 **Clone 2:** até duas cópias ativas usam −3 nos testes; com três a seis, todas falham automaticamente em combate. O gerador vincula as cópias à origem e controla os custos de criação e divisão/devolução de chakra de Kage Bunshin.
 
-Veja [notas da versão](RELEASE-NOTES.md) e [pendências detalhadas](docs/DESENVOLVIMENTO-0.3.md). Não há transcrição integral dos livros. Alterar o perfil não converte fichas automaticamente. Módulos externos não são exigidos e ainda não possuem adaptadores próprios.
+Veja [notas da versão](RELEASE-NOTES.md) e [pendências detalhadas](docs/DESENVOLVIMENTO-0.4.md). Não há transcrição integral dos livros. Alterar o perfil não converte fichas automaticamente. Módulos externos não são exigidos e ainda não possuem adaptadores próprios.
 
 ## Acesso e atalhos
 
@@ -91,7 +93,7 @@ A prévia abre em `http://127.0.0.1:4173` e usa os mesmos componentes de layout.
 Para preparar uma atualização, sempre use **um número maior e ainda não publicado**:
 
 ```sh
-node scripts/release.mjs --version 0.3.1 --repo darkmonsterpro0-droid/shinobi-no-sho
+node scripts/release.mjs --version 0.4.1 --repo darkmonsterpro0-droid/shinobi-no-sho
 node --test tests/*.test.mjs
 node scripts/release.mjs --check --repo darkmonsterpro0-droid/shinobi-no-sho
 ```

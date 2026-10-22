@@ -21,3 +21,8 @@
 - O usuário autorizou publicar a implementação atual como 0.3.0 em 22/10/2026. Consultar docs/DESENVOLVIMENTO-0.3.md; catálogo não equivale a automação integral de aptidões. Preservar as limitações nas notas; não declarar o pedido original inteiro concluído.
 
 - Decisões de 22/10/2026: Chute Duplo recebe +2 apenas na parcela do primeiro golpe, depois da divisão. Domínio da Água usa reserva individual de cada personagem. Clone 2 segue a quantidade total ativa: até dois clones usam −3 nos testes; ao criar o terceiro, todos passam a falhar automaticamente em combate, até seis. Não há versões distintas misturadas: a população controla o efeito em todas as cópias. Decisão esclarecida pelo usuário.
+
+- Lote seguinte autorizado: ajustes visuais; bloqueio da edição de aptidões automatizadas; poderes comuns e afinidade elemental; armaduras, consumíveis, utilitários, Químico e venenos; tamanho, dureza e camuflagem. Somente dano de queda fica para o HUD do mestre. Armas especiais e hijutsus permanecem fora do lote.
+- Pílulas do soldado: o mestre zera a contagem manualmente. Descanso não zera doses nem encerra a intoxicação de duração própria.
+- Equipamentos: suas penalidades ficam fora do limite de −3 das condições, inclusive armadura sem treinamento e falta de kit.
+- Selos: cada efeito tem seu próprio custo. Misshi custa 3 chakra no total; não cobrar 3 ao preparar e mais 3 ao ativar. Preservar custos explicitamente separados, como Bakudan e armazenamento de jutsu.

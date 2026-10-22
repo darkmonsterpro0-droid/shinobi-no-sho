@@ -1,4 +1,8 @@
+import {WEAPON_RESOLUTION_ACTIONS,weaponResolutionAction} from './weapon-resolution.mjs';
 import {TECHNIQUE_ACTIONS,techniqueAction} from './technique-actions.mjs';
+import {POWER_ACTIONS,powerAction} from './power-actions.mjs';
+import {INVENTORY_ACTIONS,inventoryAction} from './inventory-actions.mjs';
+import {PHYSICAL_ACTIONS,physicalAction} from './physical-actions.mjs';
 import {CLONE_ACTIONS,cloneAction} from './clone-actions.mjs';
 import {APTITUDE_USE_ACTIONS,aptitudeUseAction} from './aptitude-use.mjs';
 import {CATALOG_ACTIONS,catalogAction} from './catalog.mjs';
@@ -8,7 +12,7 @@ import {allocationProposal,houseRules,getActorView,conditionRecords,saveConditio
 import {CONDITIONS} from './conditions.mjs';
 import {progression,validateAllocation} from './progression.mjs';
 import {ID,ICONS,ITEM_TYPES,defaultProfile} from "./config.mjs";
-import {actorView,itemView,panelView,esc,set} from "./ui.mjs";
+import {actorView,itemView,panelView,esc,set,isAutomatedAptitude} from "./ui.mjs";
 import {bindSurface,readFields} from "./interactions.mjs";
 
 const deepCopy=value=>foundry.utils.deepClone(value);
@@ -16,7 +20,7 @@ const profile=()=>deepCopy(game.settings.get(ID,"profile"));
 const own=doc=>!!doc?.isOwner;
 const permittedActors=()=>game.actors.filter(a=>a.visible).map(a=>({uuid:a.uuid,name:a.name}));
 const asActor=doc=>(doc?.constructor?.documentName==="Actor"||doc?.documentName==="Actor")?doc:doc?.actor??((doc?.parent?.constructor?.documentName==="Actor"||doc?.parent?.documentName==="Actor")?doc.parent:null);
-const titles={"technique-modifiers":"Aptidões da técnica","aptitude-use":"Usar aptidão",catalog:"Catálogo do livro","weapon-use":"Usar arma",library:"Biblioteca",settings:"Regras da mesa",sources:"Fontes",resources:"Recursos e vínculos",conditions:"Condições",condition:"Condição",special:"Recurso específico",bond:"Vínculo específico",test:"Registrar teste",declare:"Declarar técnica",defense:"Escolher defesa",result:"Conferir resultado",create:"Criar personagem",impact:"Revisar perfil",allocation:"Atributos e evolução",house:"Regras da casa",xp:"Conceder EXP",roll:"Teste do resumo",recovery:"Recuperação e chakra",appearance:"Aparência e acessibilidade",decision:"Decisão da mesa"};
+const titles={"technique-modifiers":"Aptidões da técnica","power-catalog":"Poderes comuns","power-editor":"Adquirir / evoluir poder","power-use":"Usar poder","inventory-catalog":"Armaduras, consumíveis e utilitários","inventory-use":"Usar equipamento",physical:"Tamanho e proteção","physical-impact":"Dano recebido","physical-object":"Objetos e barreiras","aptitude-use":"Usar aptidão",catalog:"Catálogo do livro","weapon-use":"Usar arma",library:"Biblioteca",settings:"Regras da mesa",sources:"Fontes",resources:"Recursos e vínculos",conditions:"Condições",condition:"Condição",special:"Recurso específico",bond:"Vínculo específico",test:"Registrar teste",declare:"Declarar técnica",defense:"Escolher defesa",result:"Conferir resultado",create:"Criar personagem",impact:"Revisar perfil",allocation:"Atributos e evolução",house:"Regras da casa",xp:"Conceder EXP",roll:"Teste do resumo",recovery:"Recuperação e chakra",appearance:"Aparência e acessibilidade",decision:"Decisão da mesa"};
 const mutating=new Set(["new-item","remove-item","favorite-item","condition","special","bond","save-entry","delete-entry","portrait"]);
 const gmOnly=new Set(["review-profile","apply-profile","decision"]);
 function assertOwner(doc) {if(!own(doc))throw Error("Você não possui permissão para editar esta ficha.");}
@@ -55,6 +59,7 @@ export function createApplications() {
       if(!this.document)return;
       if(!(key==='name'||key.startsWith('system.')))return;
       assertOwner(this.document);
+      if(isAutomatedAptitude(this.document))throw Error('Aptidões automatizadas não podem ser editadas. Use os controles de uso ou evolução da ficha.');
       const status=this.element.querySelector('[data-save-status]');if(status)status.textContent="Salvando…";
       await this.document.update({[key]:value});
       if(key.startsWith("system.resources.")&&key.endsWith(".value")){const input=el?.querySelector(`[name="${key}"]`);if(input)input.value=this.document.system.resources[key.split(".")[2]].value??"";}
@@ -87,11 +92,21 @@ export function createApplications() {
       if(this.kind==='condition'&&key==='entry.key'){for(const [k,v]of Object.entries(readFields(root,'entry.')))set(this.values,k.slice(6),v);this.values.name=CONDITIONS[value]?.name??this.values.name;this.values.source=CONDITIONS[value]?.source??this.values.source;await this.render({force:true});}
       if(this.kind==='recovery'){for(const[k,v]of Object.entries(readFields(root,'resource.')))set(this.values,k.slice(9),v);if(key==='resource.operation')await this.render({force:true});}
       if(this.kind==='roll'){for(const[k,v]of Object.entries(readFields(root,'roll.')))set(this.values,k.slice(5),v);if(key==='roll.stat'&&this.values.conditionId){this.values.difficulty=value==='medicina'?16:18;this.values.reaction=value==='vig';await this.render({force:true});}}
+      if(['power-editor','power-use','inventory-use','inventory-catalog','weapon-resolution'].includes(this.kind)){
+        Object.assign(this.values,readFields(root));
+        if(key==='power.effect'){delete this.values['power.tier'];delete this.values['power.mode'];delete this.values['power.weaponId'];}
+        if(key==='power.storedPowerId'){delete this.values['power.storedEffect'];delete this.values['power.storedTier'];}
+        if(['power.level','power.effect','power.tier','power.mode','power.storedPowerId','inventory.mode','resolve.targetUuid','resolve.defense'].includes(key)){this._focusField=key;await this.render({force:true});}
+      }
     }
   }
   function show(kind,config={}) {return new ShinobiPanel(kind,config).render({force:true});}
   async function dispatch(app,op,data,root,button) {
     const doc=app.document;const actor=app._actor??asActor(doc);
+    if(WEAPON_RESOLUTION_ACTIONS.has(op))return weaponResolutionAction(app,op,data,root,{actor,show});
+    if(POWER_ACTIONS.has(op))return powerAction(app,op,data,root,{actor,show});
+    if(INVENTORY_ACTIONS.has(op))return inventoryAction(app,op,data,root,{actor,show});
+    if(PHYSICAL_ACTIONS.has(op))return physicalAction(app,op,data,root,{actor,show});
     if(CLONE_ACTIONS.has(op))return cloneAction(app,op,data,root,{actor,show});
     if(TECHNIQUE_ACTIONS.has(op))return techniqueAction(app,op,data,root,{actor,show});
     if(APTITUDE_USE_ACTIONS.has(op))return aptitudeUseAction(app,op,data,root,{actor,show});
@@ -107,7 +122,7 @@ export function createApplications() {
     if(op==="settings"||op==="sources"||op==="library"||op==="resources"||op==="conditions")return show(op,{actor});
     if(op==="panel")return show(data.panel,{actor});
     if(op==="preview-item"){app.selectedId=data.id;return app.render({force:true});}
-    if(op==="edit-item") {const item=actor?.items.get(data.id)??game.items.get(data.id);if(item?.visible)return item.sheet.render({force:true});return;}
+    if(op==="edit-item") {const item=actor?.items.get(data.id)??game.items.get(data.id);if(item?.visible){if(isAutomatedAptitude(item)&&actor)return show('aptitude-use',{actor,itemId:item.id});return item.sheet.render({force:true});}return;}
     if(op==="favorite-item") {const item=actor?.items.get(data.id)??game.items.get(data.id);if(!item)return;assertOwner(item);await item.update({'system.favorite':!item.system.favorite});return app.render({force:true});}
     if(op==="remove-item") {
       const item=actor?.items.get(data.id)??game.items.get(data.id);if(!item)return;assertOwner(item);
@@ -122,6 +137,7 @@ export function createApplications() {
     }
     if(op==="portrait") {
       assertOwner(doc);
+      if(isAutomatedAptitude(doc))throw Error('O ícone de uma aptidão automatizada faz parte do registro do livro.');
       const picker=new foundry.applications.apps.FilePicker.implementation({type:"image",current:doc.img,callback:async path=>{try {assertOwner(doc);await doc.update({img:path});}catch(e){ui.notifications.error(e.message);}}});
       return picker.render({force:true});
     }

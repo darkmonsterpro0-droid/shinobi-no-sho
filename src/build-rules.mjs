@@ -1,3 +1,4 @@
+import {powerPurchaseCost} from './power-rules.mjs';
 import {ATTRIBUTES,SKILLS} from './config.mjs';
 import {progression} from './progression.mjs';
 export const RANKS=['Genin','Chuunin','Jounin Especial','Jounin','Jounin Elite','Sannin/Kage','Nukenin'];
@@ -25,7 +26,7 @@ export function pointBudgets(system,items=[],rules={}){
  const nc=Number(system.campaign?.level??4),p=progression(nc),skills=Object.entries(system.skills??{}).filter(([key])=>key!=='voo').reduce((n,[,v])=>n+Number(v.points??0),0);
  const rate=Number(rules.powerRate??2),powers=p.powers*rate/2;
  const banned=new Set(rules.banCombatAptitudes?['especialista','maestria','reflexos','intuicao']:[]);
- const paid=items.filter(i=>i.type==='power').reduce((n,i)=>n+Number(i.system.level??0),0)+items.filter(i=>i.type==='aptitude'&&!banned.has(i.system.catalogKey)&&!(rules.automaticExtraDamage&&i.system.catalogKey==='dano-extra')&&i.system.acquisition!=='Concedida').reduce((n,i)=>n+2*Math.max(0,Number(i.system.level??1)-(i.system.acquisition==='Gratuita'?1:0)),0);
+ const paid=items.filter(i=>i.type==='power').reduce((n,i)=>n+powerPurchaseCost(i,items),0)+items.filter(i=>i.type==='aptitude'&&!banned.has(i.system.catalogKey)&&!(rules.automaticExtraDamage&&i.system.catalogKey==='dano-extra')&&i.system.acquisition!=='Concedida').reduce((n,i)=>n+2*Math.max(0,Number(i.system.level??1)-(i.system.acquisition==='Gratuita'?1:0)),0);
  const social=Math.max(2,2*p.min),socialSpent=Number(system.social?.yin??0)+Number(system.social?.yang??0);
  return {skills:{total:p.skills,spent:skills,remaining:p.skills-skills,limit:Math.floor(nc/2)},powers:{total:powers,spent:paid,remaining:powers-paid,limit:Math.floor(nc/2)},social:{total:social,spent:socialSpent,remaining:social-socialSpent,limit:Math.floor(nc/2)},free:{total:3,spent:items.filter(i=>i.type==='aptitude'&&i.system.acquisition==='Gratuita'&&!banned.has(i.system.catalogKey)).length}};
 }
