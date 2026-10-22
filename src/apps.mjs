@@ -6,7 +6,7 @@ const deepCopy=value=>foundry.utils.deepClone(value);
 const profile=()=>deepCopy(game.settings.get(ID,"profile"));
 const own=doc=>!!doc?.isOwner;
 const permittedActors=()=>game.actors.filter(a=>a.visible).map(a=>({uuid:a.uuid,name:a.name}));
-const asActor=doc=>doc?.documentName==="Actor"?doc:doc?.actor??null;
+const asActor=doc=>(doc?.constructor?.documentName==="Actor"||doc?.documentName==="Actor")?doc:doc?.actor??((doc?.parent?.constructor?.documentName==="Actor"||doc?.parent?.documentName==="Actor")?doc.parent:null);
 const titles={library:"Biblioteca",settings:"Regras da mesa",sources:"Fontes e decisões",resources:"Recursos e vínculos",conditions:"Condições e duração",condition:"Condição",special:"Recurso específico",bond:"Vínculo específico",test:"Registrar teste",declare:"Declarar técnica",defense:"Escolher defesa",result:"Conferir resultado",create:"Criar personagem",impact:"Revisar perfil",appearance:"Aparência e acessibilidade",decision:"Decisão da mesa"};
 const mutating=new Set(["new-item","remove-item","favorite-item","condition","special","bond","save-entry","delete-entry","portrait"]);
 const gmOnly=new Set(["review-profile","apply-profile","decision"]);
@@ -58,10 +58,10 @@ export function createApplications() {
   }
   class ShinobiPanel extends mixin(ApplicationV2) {
     static DEFAULT_OPTIONS={position:{width:780,height:730}};
-    constructor(kind,config={}){super({window:{title:titles[kind]??kind}});this.kind=kind;this._actor=config.actor??null;this.panelConfig=config;this.values=config.values??{};this.step=0;this.draft=config.draft??{name:"Novo personagem",system:{}};}
+    constructor(kind,config={}){super({window:{title:titles[kind]??kind},...(kind==='create'?{position:{width:730,height:650}}:{})});this.kind=kind;this._actor=config.actor??null;this.panelConfig=config;this.values=config.values??{};this.step=0;this.draft=config.draft??{name:"Novo personagem",system:{}};}
     async _prepareContext(options) {
       const base=await super._prepareContext(options);
-      const p=profile();const env={...this.panelConfig,values:this.kind==='create'?this.draft:this.values,step:this.step,actor:this._actor?sourceData(this._actor):null,profile:p,items:game.items.filter(i=>i.visible).map(sourceData),isGM:game.user.isGM,theme:game.settings.get(ID,"theme"),reduceMotion:game.settings.get(ID,"reduceMotion")};
+      const p=profile();const env={...this.panelConfig,values:this.kind==='create'?this.draft:this.values,step:this.step,actor:this._actor?sourceData(this._actor):null,profile:p,items:(this._actor?this._actor.items.contents:game.items.filter(i=>i.visible)).map(sourceData),selectedId:this.selectedId,isGM:game.user.isGM,theme:game.settings.get(ID,"theme"),reduceMotion:game.settings.get(ID,"reduceMotion")};
       return {...base,theme:env.theme,body:panelView(this.kind,env)};
     }
     async _snsChange(key,value) {if(key.startsWith('draft.'))set(this.draft,key.slice(6),value);}
@@ -77,6 +77,7 @@ export function createApplications() {
     if(op==="theme") {await game.settings.set(ID,"theme",game.settings.get(ID,"theme")==="dark"?"light":"dark");return app.render({force:true});}
     if(op==="settings"||op==="sources"||op==="library"||op==="resources"||op==="conditions")return show(op,{actor});
     if(op==="panel")return show(data.panel,{actor});
+    if(op==="preview-item"){app.selectedId=data.id;return app.render({force:true});}
     if(op==="edit-item") {const item=actor?.items.get(data.id)??game.items.get(data.id);if(item?.visible)return item.sheet.render({force:true});return;}
     if(op==="favorite-item") {const item=actor?.items.get(data.id)??game.items.get(data.id);if(!item)return;assertOwner(item);await item.update({'system.favorite':!item.system.favorite});return app.render({force:true});}
     if(op==="remove-item") {
@@ -86,8 +87,8 @@ export function createApplications() {
     if(op==="new-item"||op==="new-world-item") {
       const type=ITEM_TYPES[data.kind]?data.kind:'technique';const itemData={name:`Novo ${ITEM_TYPES[type].toLocaleLowerCase('pt-BR')}`,type,img:ICONS[type]};
       let item;
-      if(actor&&op!=="new-world-item") {assertOwner(actor);[item]=await actor.createEmbeddedDocuments("Item",[itemData]);}
-      else item=await Item.create(itemData);
+      if(op==="new-item") {if(!actor)throw Error("Abra o cadastro a partir de uma ficha para salvar o registro nela.");assertOwner(actor);[item]=await actor.createEmbeddedDocuments("Item",[itemData]);}
+      else {if(actor)throw Error("Use a biblioteca do diretório de Itens para criar modelos compartilhados.");item=await Item.create(itemData);}
       if(item)item.sheet.render({force:true});await app.render({force:true});return;
     }
     if(op==="portrait") {

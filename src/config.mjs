@@ -1,5 +1,5 @@
 export const ID = "shinobi-no-sho";
-export const VERSION = "0.1.1";
+export const VERSION = "0.1.2";
 export const ATTRIBUTES = {for:"Força",des:"Destreza",agi:"Agilidade",per:"Percepção",int:"Inteligência",vig:"Vigor",esp:"Espírito"};
 export const COMBAT = {cc:"Combate Corporal",cd:"Combate à Distância",esq:"Esquiva",lm:"Ler Movimento"};
 export const SKILLS = {
@@ -20,4 +20,4 @@ export function defaultProfile() {
     {id:"fracassos",name:"Fracassos simultâneos",description:"Dois fracassos automáticos em teste resistido: aguardando decisão.",source:"Básico p.250",status:"Pendente"}
   ]};
 }
-export const ICONS = Object.fromEntries(['character','creature','puppet','power','aptitude','technique','equipment','device'].map(type=>[type,`systems/${ID}/assets/${type==='character'?'portrait':type}.svg`]));
+export const ICONS = Object.fromEntries(['character','creature','puppet','power','aptitude','technique','equipment','device'].map(type=>[type,`systems/${ID}/assets/${type==='character'?'shinobi-portrait.png':type+'.svg'}`]));

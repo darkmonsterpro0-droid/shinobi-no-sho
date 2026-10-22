@@ -9,3 +9,5 @@ Referências de projeto: Livro Básico 4.1b; Livro de Hijutsus 4.1b; Livro de Hi
 Naruto pertence a Masashi Kishimoto / Shueisha e demais titulares pertinentes. Foundry Virtual Tabletop é produto de Foundry Gaming LLC. Este projeto é uma implementação comunitária independente, sem afiliação oficial.
 
 Os SVGs de retrato, marionete e paisagem são originais deste projeto. Ícones `icons/svg/` e Font Awesome são carregados da instalação do Foundry, sem cópia desses recursos no pacote. A prévia independente usa símbolos de substituição para os ícones.
+
+O retrato `assets/shinobi-portrait.png` foi gerado com a ferramenta integrada de imagens para este projeto. Prompt e finalidade estão em docs/ARTE.md. Não é uma ilustração extraída dos livros.

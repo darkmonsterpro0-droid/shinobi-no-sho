@@ -69,3 +69,23 @@ test('manual chat records escape text, respect whisper and do not mutate actor r
 test('release source contains no automatic dice execution or target damage application',async()=>{
   const files=await readdir(path.join(root,'src'));const source=(await Promise.all(files.filter(f=>f.endsWith('.mjs')).map(f=>readFile(path.join(root,'src',f),'utf8')))).join('\n');assert.ok(!/new\s+Roll\s*\(/.test(source));assert.ok(!/\.applyDamage\s*\(/.test(source));assert.ok(!/\b(eval|Function)\s*\(/.test(source));
 });
+
+test('sheet creations are embedded in the actor using the v14 static documentName',async()=>{
+  const {apps}=runtime();const embedded=[],world=[];
+  globalThis.Item={create:async data=>{world.push(data);return {sheet:{render(){}}};}};
+  class ActorDocument {static documentName='Actor';isOwner=true;async createEmbeddedDocuments(type,entries){embedded.push(...entries);return entries.map(()=>({sheet:{render(){}}}));}}
+  const doc=new ActorDocument(),sheet=new apps.ShinobiActorSheet({document:doc});
+  for(const kind of Object.keys(ITEM_TYPES))await sheet._snsAction('new-item',{kind},fields({}));
+  assert.equal(embedded.length,5);assert.equal(world.length,0);
+  const embeddedItem=new apps.ShinobiItemSheet({document:{isOwner:true,parent:doc}});await embeddedItem._snsAction('new-item',{kind:'technique'},fields({}));assert.equal(embedded.length,6);assert.equal(world.length,0);
+  const globalPanel=new apps.ShinobiPanel('library');await assert.rejects(()=>globalPanel._snsAction('new-item',{kind:'power'},fields({})),/partir de uma ficha/);assert.equal(world.length,0);
+  await globalPanel._snsAction('new-world-item',{kind:'power'},fields({}));assert.equal(world.length,1);
+  const personalPanel=new apps.ShinobiPanel('library',{actor:doc});await assert.rejects(()=>personalPanel._snsAction('new-world-item',{kind:'power'},fields({})),/modelos compartilhados/);
+});
+
+test('personal libraries create actor entries; shared libraries explicitly create world templates',()=>{
+  const personal=panelView('library',{actor,items:[]}),shared=panelView('library',{items:[]});
+  assert.ok(!personal.includes('data-sns="new-world-item"'));assert.ok(personal.includes('Acervo pessoal'));
+  assert.ok(shared.includes('data-sns="new-world-item"'));assert.ok(!shared.includes('data-sns="new-item"'));
+  const skills=actorView(actor,'skills');assert.ok(!skills.includes('.trained'));assert.ok(skills.includes('system.skills.mecanismos.points'));
+});

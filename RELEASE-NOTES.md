@@ -1,11 +1,13 @@
-Correção 0.1.1 da declaração de compatibilidade para **Foundry VTT 14.367**.
+**Shinobi no Sho 0.1.2 — interface e armazenamento dos cadastros**
 
-O manifesto anterior não tinha `compatibility.verified`, causando o indicador de compatibilidade desconhecida. A nova versão inclui esse campo e mantém os limites na geração 14. Sem alteração das regras ou das fichas.
+- Ficha e criação reorganizadas para seguir os conceitos, sem o cabeçalho grande de montanhas. Novo retrato ilustrado, tipografia consistente e editores em colunas.
+- Biblioteca com consulta lateral e contexto pessoal.
+- Poderes, aptidões, técnicas, equipamentos e dispositivos criados na ficha ficam dentro dela, sem aparecer no diretório de Itens. A biblioteca acessada pelo diretório continua criando modelos compartilhados.
+- Caixa de treinamento removida; perícias passam a mostrar pontos investidos e precisão manual.
+- Estilos de fonte corrigidos para não substituir os ícones dos controles nativos da janela.
 
-Em **Sistemas de Jogo**, atualize Shinobi no Sho para **0.1.1**. Se a atualização não aparecer, use **Instalar Sistema** com o mesmo manifesto:
+Atualize para **0.1.2**, reinicie o mundo e reabra as fichas. Registros globais criados anteriormente são preservados; não são movidos ou apagados automaticamente. Arraste os registros que desejar do diretório para a ficha.
 
-https://github.com/darkmonsterpro0-droid/shinobi-no-sho/releases/latest/download/system.json
+Manifesto: https://github.com/darkmonsterpro0-droid/shinobi-no-sho/releases/latest/download/system.json
 
-Depois, recarregue a configuração do Foundry e abra novamente a criação de mundo.
-
-Os registros reais confirmam instalação do pacote no Foundry 14.367. A seleção do sistema na criação de mundo após esta correção e os fluxos dentro do mundo ainda aguardam confirmação. Veja docs/VALIDACAO.md.
+14 testes de código e verificação da prévia em Chromium aprovados. Os testes do adaptador usam substitutos das classes do Foundry; a interação após a atualização dentro do mundo real ainda depende de confirmação. Mantida compatibilidade declarada com Foundry 14.367. Sem automação de regras.

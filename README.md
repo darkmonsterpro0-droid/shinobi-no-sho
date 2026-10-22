@@ -1,6 +1,6 @@
 # Shinobi no Sho — Foundry VTT 14
 
-**Versão 0.1.1 · fichas manuais · português brasileiro**
+**Versão 0.1.2 · fichas manuais · português brasileiro**
 
 Primeira versão com foco na interface: marfim, grafite, vermelho discreto e leitura clara, seguindo os conceitos visuais preparados para o projeto. Valores e decisões permanecem sob controle da mesa.
 
@@ -29,13 +29,14 @@ Também é possível baixar o ZIP em [Releases](https://github.com/darkmonsterpr
 - Edita e salva fichas de personagem, criatura vinculada e marionete.
 - Organiza resumo, combate, técnicas, perícias, social, equipamento, evolução e história.
 - Permite criar poderes, aptidões, técnicas, equipamentos e dispositivos, com fonte e notas.
-- Oferece busca, favoritos, biblioteca de itens do mundo e o arrastar nativo do Foundry.
+- Oferece busca, favoritos e biblioteca pessoal na ficha. Poderes, aptidões, técnicas, equipamentos e dispositivos criados ali ficam no personagem e não no diretório de Itens.
+- A Biblioteca Shinobi do diretório de Itens é compartilhada e cria modelos do mundo explicitamente. Itens antigos do mundo são preservados; podem ser arrastados para a ficha pelo recurso nativo do Foundry.
 - Registra condições, recursos especiais e vínculos manualmente.
 - Publica anotações de testes, declarações, defesas e resultados no chat, com visibilidade pública, privada ao mestre ou pessoal.
 - Guarda livros, variantes e decisões no perfil do mestre; permite revisar o impacto documental antes de salvar.
 - Possui temas marfim e grafite e fichas que se reorganizam em janelas estreitas.
 
-Os campos salvam ao sair deles. Números em branco ainda não foram preenchidos. Patente, NC, precisões, recursos máximos e pontos não são derivados automaticamente. Treinamento é uma anotação; a mesa consulta os requisitos da perícia.
+Os campos salvam ao sair deles. Números em branco ainda não foram preenchidos. Patente, NC, precisões, recursos máximos e pontos não são derivados automaticamente. Perícias têm pontos investidos e precisão manual, sem caixa de treinamento; a mesa consulta os usos restritos e exceções na fonte.
 
 ## O que fica manual
 

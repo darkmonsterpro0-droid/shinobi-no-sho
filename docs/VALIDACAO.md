@@ -1,10 +1,10 @@
-# Validação das versões 0.1.0 e 0.1.1
+# Validação até a versão 0.1.2
 
 Data: 21/10/2026. Alvo: Foundry VTT 14. Interface manual em português brasileiro.
 
 ## Evidência executada
 
-- 12 testes de código aprovados com Node.js 24: manifesto e versões, campos manuais, renderização das fichas e painéis, decisões da mesa, escape de conteúdo, caminhos de gravação, permissões e privacidade dos registros no chat.
+- 14 testes de código aprovados com Node.js 24: manifesto e versões, campos manuais, renderização das fichas e painéis, decisões da mesa, escape de conteúdo, caminhos de gravação, permissões e privacidade dos registros no chat.
 - Os testes da integração com documentos e chat usam substitutos de classes do Foundry. Eles verificam o código do adaptador, sem executar o programa Foundry.
 - Prévia executada em Chromium com os mesmos componentes, estilos e eventos de formulário das fichas: 23 áreas abertas sem erros de JavaScript e com controles nomeados.
 - Valores editados persistem após recarregar a prévia; busca ignora acentos; navegação por setas mantém foco; condições e reservas específicas são cadastradas e aparecem nas listas.
@@ -12,6 +12,13 @@ Data: 21/10/2026. Alvo: Foundry VTT 14. Interface manual em português brasileir
 - Perfil documental salvo após revisão de impacto. Temas claro e escuro e fichas de personagem, criatura e marionete renderizados.
 - Resumo, perícias, técnica, configurações e assistente verificados em telas de 320 e 420 pixels de largura. Abas e tabela de perícias têm rolagem própria; o restante se reorganiza em colunas menores.
 - ZIP conferido com leitor independente: integridade CRC, manifesto na raiz, caminhos de arquivos e ausência de PDFs, credenciais, mundos e arquivos locais de desenvolvimento.
+
+## Correções verificadas na 0.1.2
+
+- Cadastro dos cinco tipos de item a partir de uma ficha chama apenas a criação de documentos incorporados ao Actor; o diretório global não é alterado. O teste reproduz `Actor.documentName` estático da API v14.
+- Sem contexto de personagem, um cadastro pessoal é recusado, em vez de criar silenciosamente no mundo. Criação global exige a ação explícita da biblioteca compartilhada.
+- Teste no navegador confere que uma fonte de ícones definida no cabeçalho externo à ficha não é substituída, que títulos internos usam Arial mesmo sob um estilo genérico serifado e que as etapas do assistente mantêm círculos. Esse teste usa uma estrutura de cabeçalho simulada, sem afirmar execução do Foundry.
+- Pontos de perícia persistem após recarregar; não existe mais caixa de treinamento na ficha. Precisão permanece manual, sem aplicação automática de restrições.
 
 ## Limite atual
 

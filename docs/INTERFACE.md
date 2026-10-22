@@ -1,6 +1,6 @@
 # Interface implementada
 
-A versão 0.1.0 aplica a composição dos conceitos: marfim e grafite, acentos vermelhos, retrato à esquerda, identificação e recursos em destaque, navegação horizontal e conteúdo em cartões. Os desenhos vetoriais são originais e substituíveis pelo seletor de imagem do Foundry.
+A versão 0.1.2 revisa a composição para se aproximar das pranchas aprovadas: marfim e grafite, acentos vermelhos, retrato à esquerda, identificação e recursos em destaque, navegação horizontal e conteúdo em cartões. O retrato padrão em tinta sobre papel foi gerado para o projeto. Os ícones vetoriais são originais. Retratos pessoais continuam substituíveis pelo seletor de imagem do Foundry.
 
 As fichas possuem oito abas: resumo, combate, técnicas, perícias, social, equipamento, evolução e história. Criaturas vinculadas e marionetes apresentam também seus campos de origem, controle, reserva pagadora e estrutura, conforme o tipo. Esses vínculos são anotações.
 
@@ -11,6 +11,14 @@ As capturas abaixo são da prévia funcional da interface, fora do Foundry. Os �
 ## Resumo
 
 ![Resumo](images/01-summary.png)
+
+## Assistente de criação
+
+![Criação](images/create.png)
+
+## Perícias sem caixa de treinamento
+
+![Perícias](images/skills.png)
 
 ## Editor de técnica
 

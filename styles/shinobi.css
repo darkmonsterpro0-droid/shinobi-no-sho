@@ -11,7 +11,7 @@
 .sns-app h2 {font-size:24px;font-weight:700;letter-spacing:-.5px;}
 .sns-app h3 {font-size:14px;font-weight:700;}
 .sns-app small,.sns-app .sns-hint {font-size:12px;color:var(--sns-muted);}
-.sns-app input,.sns-app textarea,.sns-app select,.sns-app button {font:inherit;letter-spacing:normal;box-shadow:none;}
+.sns-app .sns-surface :is(input,textarea,select,button) {font:inherit;letter-spacing:normal;box-shadow:none;}
 .sns-app input:not([type=checkbox]),.sns-app textarea,.sns-app select {width:100%;min-width:0;min-height:36px;border:1px solid var(--sns-line);border-radius:4px;padding:6px 9px;background:var(--sns-input);color:var(--sns-ink);height:auto;}
 .sns-app textarea {resize:vertical;line-height:1.6;}
 .sns-app input::placeholder {color:var(--sns-muted);opacity:1;}

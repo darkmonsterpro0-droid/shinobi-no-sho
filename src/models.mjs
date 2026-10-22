@@ -16,7 +16,7 @@ export function createModels() {
       campaign:schema({level:number(),draft:new f.BooleanField({initial:true})}),
       attributes:schema(Object.fromEntries(Object.keys(ATTRIBUTES).map(k=>[k,number()]))),
       combat:schema(Object.fromEntries(Object.keys(COMBAT).map(k=>[k,number()]))),
-      skills:schema(Object.fromEntries(Object.keys(SKILLS).map(k=>[k,schema({value:number(),trained:bool(),notes:text()})]))),
+      skills:schema(Object.fromEntries(Object.keys(SKILLS).map(k=>[k,schema({points:number(),value:number(),trained:bool(),notes:text()})]))),
       resources:schema({vitality:resource(),chakra:resource()}),
       movement:schema({distance:number(),type:text()}),
       social:schema({yin:number(),yang:number(),notes:text()}),

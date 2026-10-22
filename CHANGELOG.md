@@ -1,5 +1,16 @@
 # Histórico de versões
 
+## 0.1.2 — 2026-10-21
+
+- Reorganiza ficha, assistente e editores conforme a composição das artes: cabeçalhos compactos, colunas, fontes sem serifa e retrato em tinta sobre papel.
+- Biblioteca com lista e prévia lateral; perfil e referências com visual mais discreto.
+- Corrige a identificação do Actor pela propriedade estática documentada no Foundry 14. Cadastros pela ficha agora são incorporados ao personagem. Sem criação global como alternativa silenciosa.
+- Biblioteca pessoal e modelos compartilhados são contextos diferentes; registros existentes não são apagados ou movidos automaticamente.
+- Retira a coluna Treinamento e acrescenta pontos investidos, mantendo precisão manual. Valores antigos de precisão são preservados.
+- Restringe os estilos de fonte dos botões ao conteúdo das fichas, preservando a fonte dos controles nativos da janela.
+- Adiciona testes para propriedade dos cadastros, biblioteca pessoal/compartilhada, isolamento das fontes e persistência dos pontos de perícia.
+
+
 ## 0.1.1 — 2026-10-21
 
 - Declara Foundry 14.367 no campo `compatibility.verified`, que estava ausente e produzia compatibilidade desconhecida.

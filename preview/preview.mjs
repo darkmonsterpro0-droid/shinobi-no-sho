@@ -5,7 +5,7 @@ document.querySelector("#preview-version").textContent=`PRÉVIA DA VERSÃO ${VER
 const storageKey='shinobi-no-sho.preview.v1';
 const fresh=()=>({theme:'light',reduceMotion:false,profile:defaultProfile(),actor:{id:'preview',uuid:'Actor.preview',type:'character',name:'Aoi · exemplo editável',img:ICONS.character,items:[],system:{identity:{village:'',rank:'',clan:'',concept:''},campaign:{level:null,draft:true},attributes:{},combat:{},skills:Object.fromEntries(Object.keys(SKILLS).map(k=>[k,{value:null,trained:false,notes:''}])),resources:{vitality:{value:null,max:null},chakra:{value:null,max:null}},movement:{distance:null,type:''},actions:{},social:{},advancement:{},links:{kind:'Invocação'},structure:{absorption:{}},conditions:[],special:[],bonds:[],history:'',notes:''}},items:[],records:[]});
 let data;try{data=JSON.parse(localStorage.getItem(storageKey))??fresh();}catch{data=fresh();}
-let itemId=null,entryId=null,step=0,draft={name:'Novo personagem',system:{}},proposed=null,unbind,focusTab=null;
+let itemId=null,entryId=null,step=0,draft={name:'Novo personagem',system:{}},proposed=null,unbind,focusTab=null,selectedLibraryId=null;
 const surface=document.querySelector('#surface');
 const labels={...TABS,create:'Criar personagem',library:'Biblioteca',power:'Editor de poder',aptitude:'Editor de aptidão',technique:'Editor de técnica',item:'Arma e equipamento',test:'Registrar teste',declare:'Declarar técnica',defense:'Escolher defesa',result:'Conferir resultado',conditions:'Condições e duração',settings:'Regras da mesa',sources:'Fontes e decisões',resources:'Recursos e vínculos',appearance:'Aparência e acesso'};
 document.querySelector('#preview-navigation').innerHTML=Object.entries(labels).map(([k,label])=>`<a href="#${k}">${label}</a>`).join('');
@@ -17,7 +17,7 @@ function render(){
   const kind=view();let body;
   if(kind in TABS)body=actorView(data.actor,kind,{profile:data.profile,actors:[{uuid:data.actor.uuid,name:data.actor.name}]});
   else if(['power','aptitude','technique','item'].includes(kind))body=itemView(itemForView(kind));
-  else {const collection={condition:'conditions',special:'special',bond:'bonds'}[kind];const entry=collection?data.actor.system[collection].find(e=>e.id===entryId)??{}:{};body=panelView(kind,{actor:data.actor,profile:data.profile,items:[...data.items,...data.actor.items],isGM:true,theme:data.theme,reduceMotion:data.reduceMotion,values:kind==='create'?draft:entry,step,proposed,actorCount:1,issues:[]});}
+  else {const collection={condition:'conditions',special:'special',bond:'bonds'}[kind];const entry=collection?data.actor.system[collection].find(e=>e.id===entryId)??{}:{};body=panelView(kind,{actor:data.actor,profile:data.profile,items:data.actor.items,selectedId:selectedLibraryId,isGM:true,theme:data.theme,reduceMotion:data.reduceMotion,values:kind==='create'?draft:entry,step,proposed,actorCount:1,issues:[]});}
   surface.innerHTML=body;surface.dataset.view=kind;surface.dataset.theme=data.theme;surface.dataset.reduceMotion=data.reduceMotion;document.querySelector('#preview-title').textContent=labels[kind]??kind;
   document.querySelectorAll('#preview-navigation a').forEach(a=>a.classList.toggle('active',a.hash===location.hash||(!location.hash&&a.hash==='#summary')));
   document.querySelector('#actor-type').value=data.actor.type;
@@ -33,6 +33,7 @@ async function action(op,d,root){
   if(op==='panel'){navigate(d.panel);return;}
   if(op==='close'){navigate('summary');return;}
   if(op==='new-item'||op==='new-world-item'){const i={id:crypto.randomUUID(),type:d.kind,name:`Novo ${ITEM_TYPES[d.kind].toLowerCase()}`,img:ICONS[d.kind],system:{source:{book:'mesa'},uses:{},absorption:{}}};(op==='new-world-item'?data.items:data.actor.items).push(i);itemId=i.id;persist();navigate(d.kind==='equipment'||d.kind==='device'?'item':d.kind);return;}
+  if(op==='preview-item'){selectedLibraryId=d.id;render();return;}
   if(op==='edit-item'){const i=[...data.actor.items,...data.items].find(x=>x.id===d.id);if(!i)return;if(!data.actor.items.includes(i))data.actor.items.push(i);itemId=i.id;navigate(['equipment','device'].includes(i.type)?'item':i.type);return;}
   if(op==='remove-item'){if(!confirm('Remover este registro da prévia?'))return;data.actor.items=data.actor.items.filter(i=>i.id!==d.id);data.items=data.items.filter(i=>i.id!==d.id);persist();render();return;}
   if(op==='favorite-item'){const i=[...data.actor.items,...data.items].find(x=>x.id===d.id);if(i)i.system.favorite=!i.system.favorite;persist();render();return;}
