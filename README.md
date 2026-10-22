@@ -1,12 +1,12 @@
 # Shinobi no Sho — Foundry VTT 14
 
-**Versão 0.1.2 · fichas manuais · português brasileiro**
+**Versão 0.2.0 · resumo, evolução e condições · português brasileiro**
 
-Primeira versão com foco na interface: marfim, grafite, vermelho discreto e leitura clara, seguindo os conceitos visuais preparados para o projeto. Valores e decisões permanecem sob controle da mesa.
+Fichas em marfim e grafite, com resumo calculado, distribuição de atributos por NC e condições do Livro Básico. O mestre escolhe o avanço por EXP ou nível inteiro nas Regras da casa.
 
 Veja as [telas implementadas](docs/INTERFACE.md). Esta é uma versão inicial: código e prévia foram testados; execução dentro de um mundo real do Foundry 14 ainda não foi verificada. Detalhes em [Validação](docs/VALIDACAO.md).
 
-![Ficha de personagem](docs/images/01-summary.png)
+![Ficha de personagem](docs/images/automated-summary.png)
 
 ## Instalar pelo Foundry
 
@@ -31,16 +31,30 @@ Também é possível baixar o ZIP em [Releases](https://github.com/darkmonsterpr
 - Permite criar poderes, aptidões, técnicas, equipamentos e dispositivos, com fonte e notas.
 - Oferece busca, favoritos e biblioteca pessoal na ficha. Poderes, aptidões, técnicas, equipamentos e dispositivos criados ali ficam no personagem e não no diretório de Itens.
 - A Biblioteca Shinobi do diretório de Itens é compartilhada e cria modelos do mundo explicitamente. Itens antigos do mundo são preservados; podem ser arrastados para a ficha pelo recurso nativo do Foundry.
-- Registra condições, recursos especiais e vínculos manualmente.
+- Calcula CC, CD, Esquiva, Ler Movimento, deslocamento, vitalidade e chakra máximos a partir de atributos e NC.
+- Distribui atributos na criação e evolução, valida mínimos, máximos, orçamento e transferência das bases de combate.
+- Controla condições com efeitos incorporados à ficha, penalidades contextuais, duração por turno, sangramento, sufocamento e confusão.
+- Oferece recuperação, descanso, gasto e drenagem de chakra com operações explícitas.
+- Mantém recursos especiais e vínculos como registros manuais.
 - Publica anotações de testes, declarações, defesas e resultados no chat, com visibilidade pública, privada ao mestre ou pessoal.
 - Guarda livros, variantes e decisões no perfil do mestre; permite revisar o impacto documental antes de salvar.
 - Possui temas marfim e grafite e fichas que se reorganizam em janelas estreitas.
 
-Os campos salvam ao sair deles. Números em branco ainda não foram preenchidos. Patente, NC, precisões, recursos máximos e pontos não são derivados automaticamente. Perícias têm pontos investidos e precisão manual, sem caixa de treinamento; a mesa consulta os usos restritos e exceções na fonte.
+Os campos editáveis salvam ao sair deles. Em personagens com cálculos ativos, os valores derivados ficam somente para leitura. Perícias preservam a precisão manual; quando ela está em branco, testes de resistência usam a base e os pontos investidos. Os usos restritos de Lidar com Animais, Mecanismos, Medicina, Ocultismo e Venefício exigem ao menos um ponto.
+
+## Criar e evoluir
+
+Escolha NC 4–20 no assistente ou na janela de distribuição aberta ao criar um personagem. Distribua todos os pontos da criação. Para evoluir, clique no NC ou em **Distribuir / subir NC**. O mestre pode elevar o NC; o jogador distribui o saldo respeitando os limites.
+
+Em **Regras da casa**, o mestre escolhe nível inteiro (+6 pontos de atributos por NC) ou EXP concedida separadamente, inclusive fracionária. A alteração não concede pontos retroativamente. Subir de nível aumenta máximos sem curar ou restaurar chakra.
+
+Fichas antigas continuam com seus valores manuais até usar **Conferir e ativar cálculos**. Revise os atributos comprados e bases; os recursos atuais são preservados. Criaturas e marionetes não recebem automaticamente a fórmula de criação humana.
+
+Veja [Automações e fontes](docs/AUTOMACOES.md) para condições, testes, exceções e funcionamento dos turnos.
 
 ## O que fica manual
 
-Esta versão não rola dados, não calcula fichas, não verifica requisitos de compra, não gasta ações/chakra/itens, não aplica dano, não controla iniciativa, não encerra condições e não transfere recursos entre vínculos. Os botões de combate publicam registros; a mesa faz a resolução e edita as fichas.
+Compras e requisitos de poderes/aptidões, bônus específicos de clãs e técnicas, efeitos sociais, dano de ataques, alvos, distâncias no mapa, consumo de ações e custos de técnicas continuam sob controle da mesa. Os registros antigos de combate continuam manuais. Use os botões **Testar/Defesa** do resumo para os novos testes com condições. Situações como flanqueamento, sentidos usados e alcance de áreas exigem contexto informado pela mesa.
 
 Não há compêndios transcritos dos livros. Cadastre o conteúdo utilizado pela sua mesa. Alterar o perfil não converte fichas nem aplica revisões automaticamente. Módulos externos não são exigidos e ainda não possuem adaptadores próprios.
 
@@ -48,7 +62,7 @@ Não há compêndios transcritos dos livros. Cadastre o conteúdo utilizado pela
 
 As permissões nativas do Foundry controlam as fichas. Só o mestre salva o perfil e decisões do mundo. Cada jogador escolhe seu tema em **Configurações → Configurar definições → Shinobi no Sho**. A mesma seção oferece o menu de regras ao mestre.
 
-Macros opcionais, sem automação de regras:
+Atalhos opcionais:
 
 ```js
 game.shinobi.createCharacter();
@@ -71,7 +85,7 @@ A prévia abre em `http://127.0.0.1:4173` e usa os mesmos componentes de layout.
 Para preparar uma atualização, sempre use **um número maior e ainda não publicado**:
 
 ```sh
-node scripts/release.mjs --version 0.1.1 --repo darkmonsterpro0-droid/shinobi-no-sho
+node scripts/release.mjs --version 0.2.1 --repo darkmonsterpro0-droid/shinobi-no-sho
 node --test tests/*.test.mjs
 node scripts/release.mjs --check --repo darkmonsterpro0-droid/shinobi-no-sho
 ```

@@ -1,0 +1,20 @@
+.sns-app .sns-stat>[data-sns=roll-stat] {font-size:10px;min-height:24px;width:100%;padding:3px 5px;border-width:1px 0 0;border-radius:0;background:transparent;}
+.sns-app input[readonly] {cursor:default;color:var(--sns-ink);background:transparent;}
+.sns-app .sns-budget {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--sns-line);border-radius:4px;background:var(--sns-card);margin:12px 0;}
+.sns-app .sns-budget>div {display:flex;flex-direction:column;text-align:center;gap:6px;padding:12px 5px;border-right:1px solid var(--sns-line);}
+.sns-app .sns-budget>div:last-child {border:0;color:var(--sns-red);}
+.sns-app .sns-budget span {font-size:11px;}
+.sns-app .sns-budget strong {font-size:23px;font-variant-numeric:tabular-nums;}
+.sns-app .sns-attribute-allocation {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:18px 0;}
+.sns-app .sns-allocation-status {font-size:12px;color:var(--sns-muted);padding:12px;border-left:3px solid var(--sns-red);background:var(--sns-card);}
+.sns-app .sns-condition-cards {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0;}
+.sns-app .sns-condition-card {padding:14px;border:1px solid var(--sns-line);border-radius:4px;background:var(--sns-card);min-width:0;}
+.sns-app .sns-condition-card>header {display:flex;justify-content:space-between;gap:10px;margin-bottom:9px;}
+.sns-app .sns-condition-card>p {font-size:12px;margin-bottom:10px;}
+.sns-app .sns-condition-card>small {display:block;font-size:10px;margin-bottom:8px;overflow-wrap:anywhere;}
+.sns-app .sns-condition-card>.sns-toolbar {margin-top:12px;}
+.sns-app .sns-condition-card .sns-btn {font-size:11px;min-height:30px;padding:6px 9px;}
+.sns-app .sns-condition-catalog {display:flex;flex-wrap:wrap;gap:7px;}
+.sns-app .sns-roll-explanation {font-size:12px;line-height:1.5;padding:13px;border:1px solid var(--sns-line);background:var(--sns-card);border-radius:4px;margin-top:15px;}
+.sns-app .sns-allocation>.sns-hint {display:block;margin-bottom:12px;}
+@container(max-width:560px){.sns-app .sns-condition-cards {grid-template-columns:minmax(0,1fr);}.sns-app .sns-attribute-allocation {grid-template-columns:repeat(2,minmax(0,1fr));}}

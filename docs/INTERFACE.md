@@ -1,6 +1,6 @@
 # Interface implementada
 
-A versão 0.1.2 revisa a composição para se aproximar das pranchas aprovadas: marfim e grafite, acentos vermelhos, retrato à esquerda, identificação e recursos em destaque, navegação horizontal e conteúdo em cartões. O retrato padrão em tinta sobre papel foi gerado para o projeto. Os ícones vetoriais são originais. Retratos pessoais continuam substituíveis pelo seletor de imagem do Foundry.
+A composição revisada na 0.1.2 mantém a composição para se aproximar das pranchas aprovadas: marfim e grafite, acentos vermelhos, retrato à esquerda, identificação e recursos em destaque, navegação horizontal e conteúdo em cartões. O retrato padrão em tinta sobre papel foi gerado para o projeto. Os ícones vetoriais são originais. Retratos pessoais continuam substituíveis pelo seletor de imagem do Foundry.
 
 As fichas possuem oito abas: resumo, combate, técnicas, perícias, social, equipamento, evolução e história. Criaturas vinculadas e marionetes apresentam também seus campos de origem, controle, reserva pagadora e estrutura, conforme o tipo. Esses vínculos são anotações.
 
@@ -10,7 +10,7 @@ As capturas abaixo são da prévia funcional da interface, fora do Foundry. Os �
 
 ## Resumo
 
-![Resumo](images/01-summary.png)
+![Resumo calculado](images/automated-summary.png)
 
 ## Assistente de criação
 
@@ -39,3 +39,17 @@ As capturas abaixo são da prévia funcional da interface, fora do Foundry. Os �
 ## Janela estreita
 
 ![Janela estreita](images/narrow-420.png)
+
+## Distribuição e evolução de atributos
+
+Orçamento, investimentos, saldo e limites aparecem juntos. O NC pode ser escolhido na criação; depois, a alteração pertence ao mestre.
+
+![Atributos](images/allocation.png)
+
+## Regras da casa
+
+![Regras da casa](images/house.png)
+
+## Condições com efeitos
+
+![Condições](images/automated-conditions.png)

@@ -43,7 +43,7 @@ function runtime(){
   class SchemaField {constructor(fields={},options={}){this.fields=fields;this.options=options;}}
   class ArrayField {constructor(element,options={}){this.element=element;this.options=options;}}
   class Base {constructor(options={}){this.options=options;this.document=options.document;this.element=null;}async _prepareContext(){return {};}render(){return this;}async close(){this.closed=true;}async _preClose(){}async _onRender(){}}
-  globalThis.foundry={data:{fields:{NumberField:Field,StringField:Field,BooleanField:Field,SchemaField,ArrayField}},abstract:{TypeDataModel:class{}},utils:{deepClone:structuredClone,randomID:()=>Math.random().toString(36).slice(2)},applications:{api:{ApplicationV2:Base,HandlebarsApplicationMixin:b=>b,DialogV2:{confirm:async()=>true}},sheets:{ActorSheetV2:Base,ItemSheetV2:Base}}};
+  globalThis.foundry={data:{fields:{NumberField:Field,StringField:Field,BooleanField:Field,SchemaField,ArrayField,ObjectField:Field}},abstract:{TypeDataModel:class{}},utils:{deepClone:structuredClone,randomID:()=>Math.random().toString(36).slice(2)},applications:{api:{ApplicationV2:Base,HandlebarsApplicationMixin:b=>b,DialogV2:{confirm:async()=>true}},sheets:{ActorSheetV2:Base,ItemSheetV2:Base}}};
   let p=defaultProfile();const messages=[],writes=[];const worldItems=[];
   globalThis.game={user:{id:'player1',isGM:false},settings:{get:(id,key)=>key==='profile'?p:key==='theme'?'light':false,set:async(id,key,value)=>{writes.push({key,value});if(key==='profile')p=value;}},items:{filter:()=>worldItems,contents:worldItems,get:()=>null},actors:{filter:()=>[],contents:[],size:0}};
   globalThis.ui={notifications:{info:()=>{},error:()=>{}}};
@@ -66,7 +66,7 @@ test('manual chat records escape text, respect whisper and do not mutate actor r
   const panel=new apps.ShinobiPanel('result',{actor:doc});await panel._snsAction('post-record',{},fields({'record.title':'<script>evil()</script>','record.notes':'<img src=x onerror=1>','record.visibility':'gm','record.vitality':'-10'}));
   assert.equal(messages.length,1);assert.deepEqual(messages[0].whisper,['gm1']);assert.ok(!messages[0].content.includes('<script>'));assert.ok(messages[0].content.includes('&lt;script&gt;'));assert.equal(doc.system.resources.vitality.value,10);assert.equal(messages[0].flags['shinobi-no-sho'].manual,true);
 });
-test('release source contains no automatic dice execution or target damage application',async()=>{
+test('source uses no legacy global Roll constructor, target attack damage application or code evaluation',async()=>{
   const files=await readdir(path.join(root,'src'));const source=(await Promise.all(files.filter(f=>f.endsWith('.mjs')).map(f=>readFile(path.join(root,'src',f),'utf8')))).join('\n');assert.ok(!/new\s+Roll\s*\(/.test(source));assert.ok(!/\.applyDamage\s*\(/.test(source));assert.ok(!/\b(eval|Function)\s*\(/.test(source));
 });
 

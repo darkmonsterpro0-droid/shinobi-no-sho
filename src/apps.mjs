@@ -1,3 +1,7 @@
+import {SUMMARY_ACTIONS,automationAction,refreshBudget} from './summary-actions.mjs';
+import {allocationProposal,houseRules,getActorView,conditionRecords,saveCondition,creationSystem,statPrecision} from './automation.mjs';
+import {CONDITIONS} from './conditions.mjs';
+import {progression,validateAllocation} from './progression.mjs';
 import {ID,ICONS,ITEM_TYPES,defaultProfile} from "./config.mjs";
 import {actorView,itemView,panelView,esc,set} from "./ui.mjs";
 import {bindSurface,readFields} from "./interactions.mjs";
@@ -7,12 +11,12 @@ const profile=()=>deepCopy(game.settings.get(ID,"profile"));
 const own=doc=>!!doc?.isOwner;
 const permittedActors=()=>game.actors.filter(a=>a.visible).map(a=>({uuid:a.uuid,name:a.name}));
 const asActor=doc=>(doc?.constructor?.documentName==="Actor"||doc?.documentName==="Actor")?doc:doc?.actor??((doc?.parent?.constructor?.documentName==="Actor"||doc?.parent?.documentName==="Actor")?doc.parent:null);
-const titles={library:"Biblioteca",settings:"Regras da mesa",sources:"Fontes e decisões",resources:"Recursos e vínculos",conditions:"Condições e duração",condition:"Condição",special:"Recurso específico",bond:"Vínculo específico",test:"Registrar teste",declare:"Declarar técnica",defense:"Escolher defesa",result:"Conferir resultado",create:"Criar personagem",impact:"Revisar perfil",appearance:"Aparência e acessibilidade",decision:"Decisão da mesa"};
+const titles={library:"Biblioteca",settings:"Regras da mesa",sources:"Fontes e decisões",resources:"Recursos e vínculos",conditions:"Condições e duração",condition:"Condição",special:"Recurso específico",bond:"Vínculo específico",test:"Registrar teste",declare:"Declarar técnica",defense:"Escolher defesa",result:"Conferir resultado",create:"Criar personagem",impact:"Revisar perfil",allocation:"Atributos e evolução",house:"Regras da casa",xp:"Conceder EXP",roll:"Teste do resumo",recovery:"Recuperação e chakra",appearance:"Aparência e acessibilidade",decision:"Decisão da mesa"};
 const mutating=new Set(["new-item","remove-item","favorite-item","condition","special","bond","save-entry","delete-entry","portrait"]);
 const gmOnly=new Set(["review-profile","apply-profile","decision"]);
 function assertOwner(doc) {if(!own(doc))throw Error("Você não possui permissão para editar esta ficha.");}
 function assertGM() {if(!game.user.isGM)throw Error("Somente o mestre pode alterar as regras da mesa.");}
-function sourceData(item) {const d=item.toObject();return {...d,id:item.id,items:item.items?.map(i=>({...i.toObject(),id:i.id}))??[]};}
+function sourceData(item) {if(item.constructor?.documentName==='Actor'||item.documentName==='Actor')return getActorView(item);const d=item.toObject();return {...d,id:item.id,items:item.items?.map(i=>({...i.toObject(),id:i.id}))??[]};}
 const surfaceOptions={classes:["sns-app"],tag:"form",position:{width:940,height:820},window:{resizable:true},form:{handler:async()=>{},submitOnChange:false,closeOnSubmit:false}};
 
 export function createApplications() {
@@ -27,7 +31,7 @@ export function createApplications() {
       root.dataset.reduceMotion=String(game.settings.get(ID,"reduceMotion"));
       this._unbindSNS=bindSurface(root,{
         action:(op,data,el,button)=>this._snsAction(op,data,el,button),
-        change:(key,value,el)=>this._snsChange(key,value,el),
+        change:(key,value,el)=>this._snsChange(key,value,root),
         error:error=>{console.error(`${ID} |`,error);ui.notifications.error(error.message??String(error));const status=root.querySelector('[data-save-status]');if(status)status.textContent="Não foi possível salvar. Seu valor não foi descartado; tente novamente.";}
       });
       if(this.document&&!own(this.document)) {
@@ -35,6 +39,9 @@ export function createApplications() {
         for(const b of root.querySelectorAll('[data-sns]'))if(mutating.has(b.dataset.sns))b.disabled=true;
       }
       if(this.kind==='settings'&&!game.user.isGM){for(const el of root.querySelectorAll('[name], [data-sns="review-profile"]'))el.disabled=true;}
+      if(this.kind==='house'&&!game.user.isGM)for(const el of root.querySelectorAll('[name]'))el.disabled=true;
+      if(this.kind==='allocation'&&!game.user.isGM&&!this.values.initial)root.querySelector('[name="allocation.nc"]')?.setAttribute('disabled','');
+      if(this._focusField){const field=root.querySelector(`[name="${this._focusField}"]`);field?.focus();this._focusField=null;}
       if(this._focusTab){root.querySelector(`[data-tab="${this._focusTab}"]`)?.focus();this._focusTab=null;}
     }
     async _preClose(options) {this._unbindSNS?.();return super._preClose(options);}
@@ -50,7 +57,7 @@ export function createApplications() {
   };
   class ShinobiActorSheet extends mixin(ActorSheetV2) {
     _snsTab="summary";
-    async _prepareContext(options) {const base=await super._prepareContext(options);return {...base,theme:game.settings.get(ID,"theme"),body:actorView(sourceData(this.document),this._snsTab,{profile:profile(),actors:permittedActors()})};}
+    async _prepareContext(options) {const base=await super._prepareContext(options);return {...base,theme:game.settings.get(ID,"theme"),body:actorView(sourceData(this.document),this._snsTab,{profile:profile(),actors:permittedActors(),isGM:game.user.isGM,houseRules:houseRules()})};}
   }
   class ShinobiItemSheet extends mixin(ItemSheetV2) {
     static DEFAULT_OPTIONS={position:{width:760,height:780}};
@@ -61,14 +68,21 @@ export function createApplications() {
     constructor(kind,config={}){super({window:{title:titles[kind]??kind},...(kind==='create'?{position:{width:730,height:650}}:{})});this.kind=kind;this._actor=config.actor??null;this.panelConfig=config;this.values=config.values??{};this.step=0;this.draft=config.draft??{name:"Novo personagem",system:{}};}
     async _prepareContext(options) {
       const base=await super._prepareContext(options);
-      const p=profile();const env={...this.panelConfig,values:this.kind==='create'?this.draft:this.values,step:this.step,actor:this._actor?sourceData(this._actor):null,profile:p,items:(this._actor?this._actor.items.contents:game.items.filter(i=>i.visible)).map(sourceData),selectedId:this.selectedId,isGM:game.user.isGM,theme:game.settings.get(ID,"theme"),reduceMotion:game.settings.get(ID,"reduceMotion")};
+      const p=profile();const env={...this.panelConfig,values:this.kind==='create'?this.draft:this.values,step:this.step,actor:this._actor?sourceData(this._actor):null,profile:p,houseRules:houseRules(),performers:game.actors.filter(a=>a.isOwner).map(a=>({uuid:a.uuid,name:a.name})),items:(this._actor?this._actor.items.contents:game.items.filter(i=>i.visible)).map(sourceData),selectedId:this.selectedId,isGM:game.user.isGM,theme:game.settings.get(ID,"theme"),reduceMotion:game.settings.get(ID,"reduceMotion")};
+      if(this.kind==='allocation'&&this._actor){const p=allocationProposal(this._actor,this.values);this.values={...p,nc:p.nc};env.values=this.values;env.granted=p.granted;env.initial=p.initial;}
       return {...base,theme:env.theme,body:panelView(this.kind,env)};
     }
-    async _snsChange(key,value) {if(key.startsWith('draft.'))set(this.draft,key.slice(6),value);}
+    async _snsChange(key,value,root) {
+      if(key.startsWith('draft.')){set(this.draft,key.slice(6),value);if(key==='draft.system.campaign.level'){await this.render({force:true});return;}refreshBudget(root);}
+      if(key.startsWith('allocation.')){set(this.values,key.slice(11),value);if(key==='allocation.nc'){this._focusField=key;await this.render({force:true});return;}refreshBudget(root);}
+      if(this.kind==='condition'&&key==='entry.key'){for(const [k,v]of Object.entries(readFields(root,'entry.')))set(this.values,k.slice(6),v);this.values.name=CONDITIONS[value]?.name??this.values.name;this.values.source=CONDITIONS[value]?.source??this.values.source;await this.render({force:true});}
+      if(this.kind==='roll'){for(const[k,v]of Object.entries(readFields(root,'roll.')))set(this.values,k.slice(5),v);if(key==='roll.stat'&&this.values.conditionId){this.values.difficulty=value==='medicina'?16:18;this.values.reaction=value==='vig';await this.render({force:true});}}
+    }
   }
   function show(kind,config={}) {return new ShinobiPanel(kind,config).render({force:true});}
   async function dispatch(app,op,data,root,button) {
     const doc=app.document;const actor=app._actor??asActor(doc);
+    if(SUMMARY_ACTIONS.has(op))return automationAction(app,op,data,root,{actor,show});
     if(doc&&mutating.has(op))assertOwner(doc);
     if(actor&&mutating.has(op))assertOwner(actor);
     if(gmOnly.has(op))assertGM();
@@ -114,11 +128,12 @@ export function createApplications() {
     }
     if(["condition","special","bond"].includes(op)) {
       if(!actor)throw Error("Abra esta janela a partir de uma ficha.");assertOwner(actor);
-      const key={condition:"conditions",special:"special",bond:"bonds"}[op];const values=actor.system[key].find(v=>v.id===data.id);
-      return show(op,{actor,values:values?deepCopy(values):{}});
+      const key={condition:"conditions",special:"special",bond:"bonds"}[op];const values=(op==='condition'?conditionRecords(actor):actor.system[key]).find(v=>v.id===data.id);
+      return show(op,{actor,values:values?deepCopy(values):data.key?{key:data.key,name:CONDITIONS[data.key]?.name,source:CONDITIONS[data.key]?.source}:{}});
     }
     if(op==="save-entry"||op==="delete-entry") {
       const values={...app.values,...Object.fromEntries(Object.entries(readFields(root,"entry.")).map(([key,value])=>[key.slice(6),value]))};
+      if(app.kind==='condition') {if(!actor)throw Error('Ficha não encontrada.');await saveCondition(actor,values,{remove:op==='delete-entry'});await app.close();for(const open of ApplicationV2.instances?.()??[])if(open!==app&&open.rendered&&open.classList?.contains('sns-app'))await open.render({force:true});return;}
       if(op==="save-entry"&&!values.name?.trim())throw Error("Informe um nome para o registro.");
       if(app.kind==='decision') {assertGM();const p=profile();p.decisions.push({id:foundry.utils.randomID(),...values});await game.settings.set(ID,"profile",p);}
       else {
@@ -146,7 +161,8 @@ export function createApplications() {
     if(op==="finish-wizard") {
       for(const [key,value] of Object.entries(readFields(root,"draft.")))set(app.draft,key.slice(6),value);
       if(!app.draft.name?.trim())throw Error("Informe o nome do personagem.");
-      const actor=await Actor.create({...app.draft,type:"character",img:ICONS.character});if(actor)actor.sheet.render({force:true});await app.close();return;
+      const source=data.draft==='true'?{...app.draft,system:{...app.draft.system,campaign:{...app.draft.system?.campaign,draft:true},automation:{...app.draft.system?.automation,enabled:false}}}:{...app.draft,system:creationSystem(app.draft.system)};
+      const actor=await CONFIG.Actor.documentClass.create({...source,type:"character",img:ICONS.character},{snsSkipAllocation:true});if(actor)actor.sheet.render({force:true});await app.close();return;
     }
   }
   return {ShinobiActorSheet,ShinobiItemSheet,ShinobiPanel,show};

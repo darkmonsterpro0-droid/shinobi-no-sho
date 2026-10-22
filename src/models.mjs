@@ -1,6 +1,6 @@
 import {ATTRIBUTES,COMBAT,SKILLS} from "./config.mjs";
 
-// No derived game values: the first release is an editable manual sheet.
+// Purchased values and current resources are persisted; summary totals are derived.
 export function createModels() {
   const f=foundry.data.fields;
   const number=()=>new f.NumberField({required:true,nullable:true,initial:null});
@@ -14,6 +14,7 @@ export function createModels() {
       schemaVersion:new f.NumberField({initial:1,integer:true,min:1}),
       identity:schema({village:text(),rank:text(),clan:text(),concept:text()}),
       campaign:schema({level:number(),draft:new f.BooleanField({initial:true})}),
+      automation:schema({enabled:bool(),attributeGranted:number(),forcedDrain:bool(),bases:schema({cc:new f.NumberField({initial:3}),cd:new f.NumberField({initial:3}),esq:new f.NumberField({initial:3}),lm:new f.NumberField({initial:3})}),history:new f.ArrayField(new f.ObjectField(),{initial:[]})}),
       attributes:schema(Object.fromEntries(Object.keys(ATTRIBUTES).map(k=>[k,number()]))),
       combat:schema(Object.fromEntries(Object.keys(COMBAT).map(k=>[k,number()]))),
       skills:schema(Object.fromEntries(Object.keys(SKILLS).map(k=>[k,schema({points:number(),value:number(),trained:bool(),notes:text()})]))),

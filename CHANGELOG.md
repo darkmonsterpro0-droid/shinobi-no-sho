@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## 0.2.0 — 2026-10-21
+
+- Adiciona resumo calculado, bases de combate, deslocamento, vida e chakra máximos, iniciativa e testes com condições.
+- Criação com NC 4–20 e orçamento de atributos; evolução com validação e janela de distribuição. Subir de nível não recupera recursos atuais.
+- Regras da casa permitem avanço por nível inteiro ou EXP fracionária concedida pelo mestre.
+- Adiciona catálogo das condições do Básico, efeitos no Actor, estados derivados, ícones, resistência, agravamento, duração e processamento de turnos com proteção contra repetição.
+- Sangrando permite uma tentativa de Vigor por turno; Medicina exige ação padrão por tentativa. Confuso 5–6 preserva reações defensivas, conforme decisões da mesa.
+- Acrescenta recuperação, descanso, drenagem forçada e camuflagem total após confirmação de acerto não crítico.
+- Preserva fichas antigas para ativação revisada e mantém técnicas/compras manuais. Atualiza testes e documentação dos limites.
+
 ## 0.1.2 — 2026-10-21
 
 - Reorganiza ficha, assistente e editores conforme a composição das artes: cabeçalhos compactos, colunas, fontes sem serifa e retrato em tinta sobre papel.

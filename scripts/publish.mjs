@@ -1,5 +1,5 @@
 import {execFileSync} from 'node:child_process';
-import {readFile} from 'node:fs/promises';
+import {readFile,readdir} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {prepare} from './release.mjs';
@@ -17,7 +17,7 @@ try {
   // Listing successful releases distinguishes an existing version from network/auth failures.
   const releases=JSON.parse(run('gh',['api','--paginate',`repos/${repo}/releases`,'--slurp'])).flat();
   if(releases.some(release=>release.tag_name===tag))throw Error('Esta versão já foi publicada. Aumente a versão.');
-  run(process.execPath,['--test','tests/system.test.mjs'],{stdio:'inherit'});
+  run(process.execPath,['--test',...(await readdir(path.join(root,'tests'))).filter(f=>f.endsWith('.test.mjs')).map(f=>`tests/${f}`)],{stdio:'inherit'});
   const {filename}=await prepare({repo,check:true});
   run('git',['tag',tag]);
   run('git',['push','origin',tag],{stdio:'inherit'});

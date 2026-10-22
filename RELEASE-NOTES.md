@@ -1,13 +1,11 @@
-**Shinobi no Sho 0.1.2 — interface e armazenamento dos cadastros**
+# Shinobi no Sho 0.2.0
 
-- Ficha e criação reorganizadas para seguir os conceitos, sem o cabeçalho grande de montanhas. Novo retrato ilustrado, tipografia consistente e editores em colunas.
-- Biblioteca com consulta lateral e contexto pessoal.
-- Poderes, aptidões, técnicas, equipamentos e dispositivos criados na ficha ficam dentro dela, sem aparecer no diretório de Itens. A biblioteca acessada pelo diretório continua criando modelos compartilhados.
-- Caixa de treinamento removida; perícias passam a mostrar pontos investidos e precisão manual.
-- Estilos de fonte corrigidos para não substituir os ícones dos controles nativos da janela.
+Resumo e evolução agora calculam atributos investidos, CC, CD, Esquiva, LM, deslocamento, vida e chakra máximos. A criação permite escolher NC 4–20; a evolução abre a distribuição de atributos e não recupera recursos atuais.
 
-Atualize para **0.1.2**, reinicie o mundo e reabra as fichas. Registros globais criados anteriormente são preservados; não são movidos ou apagados automaticamente. Arraste os registros que desejar do diretório para a ficha.
+O mestre escolhe **nível inteiro ou EXP** em **Regras da casa**. Condições do Livro Básico usam efeitos incorporados à ficha, penalidades contextuais, resistência e processamento por turno. Sangrando tem uma tentativa de Vigor por turno; Confuso 5–6 mantém reações defensivas.
 
-Manifesto: https://github.com/darkmonsterpro0-droid/shinobi-no-sho/releases/latest/download/system.json
+Fichas antigas: use **Conferir e ativar cálculos** depois de revisar atributos e bases. Seus recursos atuais serão preservados. Técnicas, compras e dano de ataques continuam manuais.
 
-14 testes de código e verificação da prévia em Chromium aprovados. Os testes do adaptador usam substitutos das classes do Foundry; a interação após a atualização dentro do mundo real ainda depende de confirmação. Mantida compatibilidade declarada com Foundry 14.367. Sem automação de regras.
+Manifesto estável: https://github.com/darkmonsterpro0-droid/shinobi-no-sho/releases/latest/download/system.json
+
+38 testes de código e 15 verificações de fluxos da prévia aprovados. A prévia usa serviços reais com documentos simulados; não equivale a um mundo Foundry. Compatibilidade declarada para 14.367; turnos, efeitos e permissões em múltiplos clientes ainda exigem verificação nativa. Consulte docs/VALIDACAO.md e docs/AUTOMACOES.md.
