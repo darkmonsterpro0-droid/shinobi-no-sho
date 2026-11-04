@@ -1,0 +1,7 @@
+{
+  "TYPES": {
+    "Actor": {"character":"Personagem","creature":"Criatura vinculada","puppet":"Marionete"},
+    "Item": {"power":"Poder","aptitude":"Aptidão","technique":"Técnica","equipment":"Equipamento","device":"Dispositivo"}
+  },
+  "SNS": {"Title":"Shinobi no Sho","Manual":"Registro manual","Settings":"Regras da mesa","Library":"Biblioteca","Sources":"Fontes e decisões"}
+}

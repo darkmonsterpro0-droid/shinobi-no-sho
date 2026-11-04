@@ -1,0 +1,73 @@
+import {ID,SKILLS} from './config.mjs';
+import {aptitudeOwned} from './aptitudes.mjs';
+import {skillBase} from './build-rules.mjs';
+import {claimUsage,mutateRuntime,periodKey,activeAptitudes} from './aptitude-runtime.mjs';
+import {houseRules,derivedSummary,conditionRecords,saveCondition,statPrecision,damageActor} from './automation.mjs';
+import {readFields} from './interactions.mjs';
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+export const APTITUDE_USE_ACTIONS=new Set(['aptitude-use','execute-aptitude','end-aptitude','new-aptitude-scene','new-aptitude-day']);
+export function aptitudeUsePlan(item,s,items=[],values={},rules={}){
+ const key=item.system.catalogKey,level=Number(item.system.level??1),a=s.attributes??{},p={key,level,cost:0,action:'Livre',notes:[]},skill=k=>skillBase(s,k),has=k=>!!aptitudeOwned(items,k,'',rules),power=name=>Number(items.find(i=>i.type==='power'&&i.name.toLowerCase()===name)?.system.level??0);
+ switch(key){
+  case 'trabalho-duro':{const choice=values.choice??'movement';if(!['movement','attack','defense','damage','difficulty'].includes(choice))throw Error('Benefício inválido.');if(s.identity?.clan==='Hachimon Tonkou'&&['damage','difficulty'].includes(choice))throw Error('Com Hachimon Tonkou, Trabalho Duro permite somente as três primeiras opções.');if(items.some(i=>i.type==='power'&&/hachimon/i.test(i.name)&&i.system.active))throw Error('Trabalho Duro não acumula com Hachimon Tonkou ativo.');p.active={choice,turn:true};p.limit=1;p.period='turn';break;}
+  case 'dominio-simples':{const choice=values.choice??'damage';if(!['damage','hardness','difficulty','range'].includes(choice))throw Error('Benefício inválido.');p.active={choice,scene:true};p.limit=1;p.period='scene';break;}
+  case 'sensor':p.cost=item.system.selection==='chakra'||!item.system.selection?5:3;p.action=values.mode==='concentration'?'Padrão; concentração':'Movimento';p.active={turn:values.mode!=='concentration',concentration:values.mode==='concentration'};p.notes.push(`Alcance ${10+2*skill('rastrear')} m. ${item.system.selection==='solo'?'Exige contato com o solo; detecta criaturas em contato com ele.':'O mestre informa as criaturas detectadas.'}`);if(item.system.selection==='olfato')p.roll={stat:'rastrear',difficulty:values.environment==='adverse'?30:20};break;
+  case 'kyoudo-kyouka':if(values.mode==='movement'&&level<2)throw Error('Preparação com movimento exige Kyoudo Kyouka 2.');p.cost=Math.ceil(Number(a.esp??0)/2);p.action=values.mode==='movement'?'Movimento':'Parcial';p.active={base:(values.mode==='movement'?Number(a.esp??0):Math.ceil(Number(a.esp??0)/2))+power('iryou ninjutsu'),difficulty:9+Number(a.esp??0)};p.notes.push(`Próximo ataque desarmado: dano base ${p.active.base}; Acrobacia ${p.active.difficulty} evita Caído. Não soma dano de arma ou outros bônus de dano. Bloqueio comum não permitido.`);break;
+  case 'replica-enganadora':if(!Number.isFinite(Number(values.margin))||Number(values.margin)<1||Number(values.margin)>2)throw Error('A defesa deve ter falhado por 1 ou 2 pontos.');p.cost=4;p.action='Movimento';p.limit=level>=2?2:1;p.period='scene';p.notes.push('Somente contra ataque corporal ou projétil; não pode seguir falha em técnica defensiva. Troca pelo clone e afasta-se sem ataque oportuno.');if(level>=2)p.notes.push('Pode tentar Furtividade ao fugir; deslocamento pela metade.');break;
+  case 'miragem':{const sizes=['small','medium','large','huge'],index=sizes.indexOf(values.size??'small'),max=Number(a.int??0)>=16?3:Number(a.int??0)>=12?2:Number(a.int??0)>=8?1:0;if(index<0||index>max)throw Error('Tamanho acima do permitido por Inteligência.');p.cost=index+1;p.action='Padrão';p.notes.push(`Criar a até 5 m. Imagem ${values.mode==='mobile'?'móvel, sustentada':'imóvel, contínua'}, sem sair do ponto de criação. Interagir revela a ilusão.`);break;}
+  case 'fascinar':p.cost=3;p.action='Padrão';p.notes.push(`Alvo a até 5 m: Inteligência ${6+Number(a.int??0)+(has('ilusao-profunda')?1:0)} evita Fascinado. A partir do segundo turno, nova tentativa livre, dificuldade cumulativamente −1; dano ou ameaça quebra fascínio. Uma vez por alvo na cena.`);break;
+  case 'encantar':{const nv=Number(values.level??1),magen=power('magen');p.action='Padrão';if(values.mode==='magen'){if(!Number.isInteger(nv)||nv<1||nv>magen)throw Error('Nível de Magen inválido.');p.cost=nv;p.notes.push(`Inteligência ${9+nv+Math.ceil(Number(a.int??0)/2)} evita a mudança de atitude (Ilusão Profunda já incluída).`);}else{p.cost=3;p.notes.push(`Inteligência ${6+Number(a.int??0)} evita a mudança de atitude.`);}p.notes.push(`Alcance ${5+Number(a.int??0)} m. Muda um estágio de atitude; duração contínua até o fim da cena.`);break;}
+  case 'de-pe':p.action=values.mode==='reaction'?'Reação':'Livre';if(values.mode==='reaction'){p.limit=1;p.period='scene';}p.clearProne=true;break;
+  case 'rolamento':p.action='Reação';p.clearProne=true;p.notes.push('Dobra a redução de altura dos testes para amortecer queda.');break;
+  case 'retirada-rapida':p.action='Movimento + parcial';p.notes.push('Foge do alcance corporal sem provocar ataques oportunos.');if(values.mode==='boost'){if(item.system.catalogBook!=='avancado')throw Error('O bônus de +10 m é da revisão do Guia.');p.limit=1;p.period='scene';p.notes.push('+10 m neste deslocamento.');}break;
+  case 'duro-de-matar':{const amount=Number(values.amount),vit=Number(s.resources?.vitality?.value);if(!Number.isFinite(amount)||amount<=0||vit<=0||vit-amount>0)throw Error('Informe dano de ataque não crítico que levaria a vitalidade atual de positiva a 0 ou menos.');p.limit=1;p.period='day';p.survival=Math.max(1,vit>Number(a.vig??0)?Number(a.vig??0):1);p.notes.push(`Vitalidade após o ataque: ${p.survival}. Não funciona contra crítico.`);break;}
+  case 'shunjutsu':p.cost=1;p.active={turn:true};p.notes.push(`Espírito ${a.esp??0} substitui atributos/perícias no deslocamento e seus testes. Concede +1 Kawarimi por cena.${level>=2?' Finta pode usar Destreza ou Inteligência.':''}${level>=3?' Acelerado enquanto se move; na defesa, anula a finta acelerada adversária.':''}`);break;
+  case 'mira-apurada':if(!String(values.target??'').trim())throw Error('Informe o alvo da mira.');p.action='Movimento';p.active={round:true,target:String(values.target).trim()};p.notes.push('+1 CD com arma de disparo contra o alvo durante esta rodada.');break;
+  case 'instancia-de-falange':p.action='Parcial';if(!items.some(i=>i.type==='equipment'&&i.system.equipped&&['staff','pike','scythe','fan','otsuchi','yari'].includes(i.system.catalogKey)))throw Error('Empunhe uma arma longa.');p.active={};p.notes.push(`Inimigos que entram a 1 m geram oportunidade; Cambalhota ${2+Number(a.for??0)+Number(s.automation?.bases?.cc??3)} evita. Não aumenta o limite de ataques oportunos. Encerra ao mover-se, cair, deixar de empunhar ou perder a capacidade de reagir.`);break;
+  case 'estilo-zui-quan':p.action=level>=2?'Livre':'Parcial';p.active={...(level>=2?{}:{remaining:5})};p.notes.push('Ataques contra o usuário têm 25% de falha, inclusive com sensores. Golpear desarmado inclui finta livre. Não pode usar técnicas, mas pode sustentar Energizar. Após encerrar, aguardar 2 turnos.');if(level<2)p.consume='strong-drink';break;
+  case 'henge-perfeito':p.action='Parcial';p.notes.push(`Henge contínuo. Prontidão/Procurar ${9+skill('disfarce')+(aptitudeOwned(items,'perito','disfarce',rules)||aptitudeOwned(items,'pericia-inata','disfarce',rules)?1:0)} para notar. Cancelado se sofrer dano maior que ${2*skill('disfarce')}. Custos e demais regras do Henge continuam aplicáveis.`);break;
+  case 'kai-perfeito':p.action='Parcial';p.roll={stat:'esp',bonus:2};p.notes.push('Kai pode desfazer as próprias técnicas fora de seu turno. Custos e demais regras de Kai continuam aplicáveis.');break;
+  case 'corpo-esguio':if(!['cc','for','escapar'].includes(values.stat??'escapar'))throw Error('Teste inválido.');p.action='Parcial no próprio turno';p.roll={stat:values.stat??'escapar',bonus:2};p.notes.push('Bônus para escapar de agarramento, cordas ou algemas; compare com a dificuldade da fonte.');break;
+  case 'avaliador-do-perigo':if(!['cc','cd','esq','lm','int','per'].includes(values.stat??'per'))throw Error('Teste inválido.');p.action='Movimento (informação após observar) ou padrão (imediata)';p.roll={stat:values.stat??'per',bonus:2};p.notes.push('Concentração contra distração recebe Perito e Perícia Inata, sem acumular cópias do mesmo bônus.');break;
+  case 'imobilizacao':{if(values.mode==='des'&&has('utilitarista-rapido'))throw Error('Substituir por Destreza exige Kousen sem Utilitarista Rápido.');const stat=values.mode==='des'?'des':'for';p.action='Padrão + movimento';p.notes.push(`Após manter agarrado por uma rodada: Vigor ${7+Number(a[stat]??0)} contra sufocamento; falha causa ${a[stat]??0} de dano fixo. Repetir ao manter; cada teste posterior tem −1 Vigor. Sucesso não desfaz o agarramento. Exige Kousen para usar Destreza.`);break;}
+  case 'arremessar':p.action='Padrão (Derrubar)';p.notes.push(`Distância até ${Math.min(10,Number(a.for??0))} m. ${item.system.catalogBook==='avancado'?`Colisão: ${Math.min(10,Number(a.for??0))} dano fixo, dividido por 2 se atingir outra criatura que falhe na defesa.`:''} Se arremessar para cima, cai no fim do turno.`);break;
+  case 'seguir-sombra':p.action='Parcial após Arremessar';p.notes.push('Exige estar acelerado. Move-se até o alvo e recebe padrão para ataque sem aptidão de manobra, exceto Múltiplo/Progressivo. Não combina com Arremessar feito com Múltiplo ou Derrubar Agressivo.');break;
+  case 'envenenar-arma':p.action='Padrão';p.notes.push('Cada dose pode envenenar 3 armas ou 30 projéteis; o veneno usado conserva seus próprios efeitos e resistências.');break;
+  case 'auxiliador-especialista':p.action='Movimento + ação necessária';p.notes.push('Auxiliar Aliado como movimento adicional; Prestar Ajuda usa dificuldade −5, em vez de −2.');break;
+  case 'kawarimi-explosivo':p.action='Parcial após Kawarimi/Réplica';p.consume='explosive-tag';p.notes.push(`Tarja detona após o movimento; Agilidade/Prontidão ${9+skill('prestidigitacao')} para evitar. Forneça uma tarja real; Bakudan/Mina Explosiva mantêm suas próprias regras de custo e metade de área/dano.`);break;
+  default:throw Error('Esta aptidão é passiva ou é aplicada pelo seletor de manobras/técnicas.');
+ }
+ return p;
+}
+export async function aptitudeUseAction(app,op,data,root,{actor,show}){
+ if(op==='new-aptitude-scene'||op==='new-aptitude-day'){if(!game.user.isGM)throw Error('Somente o mestre avança cena/dia.');const key=op==='new-aptitude-scene'?'sceneEpoch':'dayEpoch';await game.settings.set(ID,key,Number(game.settings.get(ID,key)??0)+1);return app.render({force:true});}
+ if(!actor?.isOwner)throw Error('Você não pode usar esta ficha.');
+ const item=actor.items.get(data.id??app.panelConfig?.itemId);if(!item||!aptitudeOwned([...actor.items],item.system.catalogKey,item.system.selection,houseRules()))throw Error('Aptidão não disponível.');
+ if(op==='aptitude-use')return show('aptitude-use',{actor,itemId:item.id});
+ if(op==='end-aptitude'){await mutateRuntime(actor,state=>{delete state.active[item.system.catalogKey];if(item.system.catalogKey==='estilo-zui-quan')state.cooldowns[item.system.catalogKey]=2;});return app.render({force:true});}
+ const stateCheck=derivedSummary(actor).state;if(stateCheck.noActions&&stateCheck.noReactions)throw Error('A condição atual impede usar aptidões.');
+ const values=Object.fromEntries(Object.entries(readFields(root,'aptitude.')).map(([k,v])=>[k.slice(9),v])),plan=aptitudeUsePlan(item,actor.system,[...actor.items],values,houseRules());Object.assign(app.values,values);
+ const actionCheck=statPrecision(actor,'esp',{kind:'attribute',manualContext:true,reaction:plan.action.startsWith('Reação')});if(!actionCheck.allowed)throw Error(actionCheck.reasons.join(' '));
+ if(stateCheck.noActions&&!plan.action.startsWith('Reação'))throw Error('A condição atual impede esta ação.');
+ if(stateCheck.noReactions&&plan.action.startsWith('Reação'))throw Error('A condição atual impede reações.');
+ const rollKind=plan.roll?.stat in SKILLS?'skill':plan.roll?.stat==='cc'?'defense':'attribute';
+ const rollCheck=plan.roll?statPrecision(actor,plan.roll.stat,{kind:rollKind,manualContext:true}):null;
+ if(rollCheck&&!rollCheck.allowed)throw Error(rollCheck.reasons.join(' '));
+ await mutateRuntime(actor,state=>{
+  if(state.cooldowns[plan.key])throw Error(`Aguarde ${state.cooldowns[plan.key]} turno(s) para reutilizar.`);
+  if(plan.limit)claimUsage(state,actor,plan.key,plan.period,plan.limit);
+  const changes={},chakra=actor.system.resources.chakra.value;
+  if(plan.cost){if(chakra==null||chakra<plan.cost)throw Error('Chakra insuficiente.');changes['system.resources.chakra.value']=chakra-plan.cost;}
+  if(plan.survival!==undefined)changes['system.resources.vitality.value']=plan.survival;
+  if(plan.active)state.active[plan.key]={...plan.active,...(plan.active.turn?{turn:periodKey(actor,'turn')}:{turn:undefined}),...(plan.active.scene?{scene:periodKey(actor,'scene')}:{scene:undefined}),...(plan.active.round?{round:periodKey(actor,'round')}:{round:undefined})};
+  if(plan.consume){const supply=[...actor.items].find(i=>i.system.catalogKey===plan.consume&&Number(i.system.quantity??0)>0);if(!supply)throw Error('Falta o consumível necessário na ficha.');plan.supply=supply;}
+  return {changes};
+ });
+ if(plan.supply)await plan.supply.update({'system.quantity':Number(plan.supply.system.quantity)-1});
+ if(plan.clearProne)for(const c of conditionRecords(actor).filter(c=>c.key==='caido'))await saveCondition(actor,c,{remove:true});
+ const flavor=`<strong>${esc(item.name)}</strong><p>Ação: ${esc(plan.action)}${plan.cost?' · Chakra: '+plan.cost:''}.</p><ul>${plan.notes.map(n=>'<li>'+esc(n)+'</li>').join('')}</ul>`;
+ if(plan.roll){const check=rollCheck;const precision=check.precision+Number(plan.roll.bonus??0),roll=await new foundry.dice.Roll(`2d8 + (${precision})`).evaluate();await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor,flags:{[ID]:{kind:'aptitude-test',actorUuid:actor.uuid,stat:plan.roll.stat,precision,natural:roll.total-precision,difficulty:plan.roll.difficulty}}});}
+ else await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:flavor});
+ if(plan.key==='estilo-zui-quan'&&plan.level===1){const roll=await new foundry.dice.Roll('1d8').evaluate();await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:`Zui Quan: ${roll.total<=2?'Não faz nada.':roll.total<=4?'Ataca o alvo mais próximo.':'Age normalmente.'}`});}
+ return app.render({force:true});
+}

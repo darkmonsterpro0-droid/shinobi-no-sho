@@ -1,0 +1,22 @@
+.sns-app .sns-extra-resources{min-width:0}
+.sns-app .sns-extra-resources>header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.sns-app .sns-extra-resources>header h3{font-size:12px}
+.sns-app .sns-extra-resource-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));gap:8px}
+.sns-app .sns-extra-resource{border:1px solid var(--sns-line);background:var(--sns-card);border-radius:4px;padding:10px;min-width:0}
+.sns-app .sns-extra-resource>header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.sns-app .sns-extra-resource h4{margin:0;font-size:13px;overflow-wrap:anywhere}
+.sns-app .sns-extra-resource header small{display:block;font-size:10px;overflow-wrap:anywhere;color:var(--sns-muted)}
+.sns-app .sns-extra-resource .sns-btn{min-height:26px;padding:4px 7px;font-size:10px}
+.sns-app .sns-extra-resource-amount{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:6px}
+.sns-app .sns-extra-resource-amount>.sns-field{width:90px;max-width:100%;margin-bottom:0!important}
+.sns-app .sns-extra-resource-amount .sns-field>span{font-size:10px}
+.sns-app .sns-extra-resource-amount input{min-height:30px;font-size:16px;padding:4px 6px}
+.sns-app .sns-extra-resource-amount>span{font-size:12px;color:var(--sns-muted);overflow-wrap:anywhere}
+.sns-app .sns-extra-resource details{margin-top:8px;font-size:11px}
+.sns-app .sns-extra-resource summary{cursor:pointer;min-height:26px;line-height:26px}
+.sns-app .sns-extra-resource dl{margin:6px 0;overflow-wrap:anywhere;white-space:pre-wrap}
+.sns-app .sns-extra-resource dt{font-weight:600;margin-top:8px}
+.sns-app .sns-extra-resource dd{margin:3px 0 8px;color:var(--sns-muted)}
+.sns-app .sns-extra-resource details p{font-size:10px;color:var(--sns-muted)}
+.sns-app .sns-sheet-workspace>.sns-extra-resources{flex:none;max-height:210px;overflow:auto;padding:10px 16px;border-bottom:1px solid var(--sns-line);background:var(--sns-bg);scrollbar-width:thin}
+@container(max-width:720px){.sns-app .sns-sheet-workspace>.sns-extra-resources{max-height:none;overflow:visible;padding:10px 12px}}

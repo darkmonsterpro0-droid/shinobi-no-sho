@@ -1,0 +1,232 @@
+import {SAVED_ACTIONS,savedActionEvent,attackTargets,selectedTargets} from './saved-actions.mjs';
+import {extraResources,resourceEditorData,changeExtraResource} from './extra-resources.mjs';
+import {combatHUDView,hudActors,selectedHUDActor} from './combat-hud.mjs';
+import {bindSavedActionDrag} from './action-shortcuts.mjs';
+import {WEAPON_RESOLUTION_ACTIONS,weaponResolutionAction} from './weapon-resolution.mjs';
+import {TECHNIQUE_ACTIONS,techniqueAction} from './technique-actions.mjs';
+import {POWER_ACTIONS,powerAction} from './power-actions.mjs';
+import {INVENTORY_ACTIONS,inventoryAction} from './inventory-actions.mjs';
+import {PHYSICAL_ACTIONS,physicalAction} from './physical-actions.mjs';
+import {CLONE_ACTIONS,cloneAction} from './clone-actions.mjs';
+import {APTITUDE_USE_ACTIONS,aptitudeUseAction} from './aptitude-use.mjs';
+import {CATALOG_ACTIONS,catalogAction} from './catalog.mjs';
+import {BUILD_ACTIONS,buildAction} from './build-actions.mjs';
+import {SUMMARY_ACTIONS,automationAction,refreshBudget} from './summary-actions.mjs';
+import {allocationProposal,houseRules,getActorView,conditionRecords,saveCondition,creationSystem,statPrecision,restRecovery} from './automation.mjs';
+import {CONDITIONS} from './conditions.mjs';
+import {progression,validateAllocation} from './progression.mjs';
+import {ID,ICONS,ITEM_TYPES,defaultProfile} from "./config.mjs";
+import {actorView,itemView,panelView,esc,set,isAutomatedAptitude} from "./ui.mjs";
+import {bindSurface,readFields} from "./interactions.mjs";
+
+const deepCopy=value=>foundry.utils.deepClone(value);
+const profile=()=>deepCopy(game.settings.get(ID,"profile"));
+const own=doc=>!!doc?.isOwner;
+const permittedActors=()=>game.actors.filter(a=>a.visible).map(a=>({uuid:a.uuid,name:a.name}));
+const asActor=doc=>(doc?.constructor?.documentName==="Actor"||doc?.documentName==="Actor")?doc:doc?.actor??((doc?.parent?.constructor?.documentName==="Actor"||doc?.parent?.documentName==="Actor")?doc.parent:null);
+const titles={"combat-hud":"HUD de combate","saved-actions":"Ações salvas","action-targets":"Alvos da ação","technique-modifiers":"Aptidões da técnica","power-catalog":"Poderes comuns","power-editor":"Adquirir / evoluir poder","power-use":"Usar poder","inventory-catalog":"Armaduras, consumíveis e utilitários","inventory-use":"Usar equipamento",physical:"Tamanho e proteção","physical-impact":"Dano recebido","physical-object":"Objetos e barreiras","aptitude-use":"Usar aptidão",catalog:"Catálogo do livro","weapon-use":"Usar arma",library:"Biblioteca",settings:"Regras da mesa",sources:"Fontes",resources:"Recursos e vínculos",conditions:"Condições",condition:"Condição",special:"Recurso específico",bond:"Vínculo específico",test:"Registrar teste",declare:"Declarar técnica",defense:"Escolher defesa",result:"Conferir resultado",create:"Criar personagem",impact:"Revisar perfil",allocation:"Atributos e evolução",house:"Regras da casa",xp:"Conceder EXP",roll:"Teste do resumo",recovery:"Recuperação e chakra",appearance:"Aparência e acessibilidade",decision:"Decisão da mesa"};
+const mutating=new Set([...SAVED_ACTIONS,"new-item","remove-item","favorite-item","condition","special","bond","save-entry","delete-entry","portrait"]);
+const gmOnly=new Set(["review-profile","apply-profile","decision"]);
+function assertOwner(doc) {if(!own(doc))throw Error("Você não possui permissão para editar esta ficha.");}
+function assertGM() {if(!game.user.isGM)throw Error("Somente o mestre pode alterar as regras da mesa.");}
+function sourceData(item) {if(item.constructor?.documentName==='Actor'||item.documentName==='Actor')return getActorView(item);const d=item.toObject();return {...d,id:item.id,items:item.items?.map(i=>({...i.toObject(),id:i.id}))??[]};}
+const surfaceOptions={classes:["sns-app"],tag:"form",position:{width:940,height:820},window:{resizable:true},form:{handler:async()=>{},submitOnChange:false,closeOnSubmit:false}};
+
+export function createApplications() {
+  const {HandlebarsApplicationMixin,ApplicationV2}=foundry.applications.api;
+  const {ActorSheetV2,ItemSheetV2}=foundry.applications.sheets;
+  const mixin=Base=>class extends HandlebarsApplicationMixin(Base) {
+    static DEFAULT_OPTIONS=surfaceOptions;
+    static PARTS={surface:{template:`systems/${ID}/templates/surface.hbs`}};
+    async _onRender(context,options) {
+      await super._onRender(context,options);
+      this._unbindSNS?.();const root=this.element.querySelector('.sns-surface');if(!root)return;
+      root.dataset.reduceMotion=String(game.settings.get(ID,"reduceMotion"));
+      this._unbindSNS=bindSurface(root,{
+        action:(op,data,el,button)=>this._snsAction(op,data,el,button),
+        change:(key,value,el)=>this._snsChange(key,value,root),
+        error:error=>{console.error(`${ID} |`,error);ui.notifications.error(error.message??String(error));const status=root.querySelector('[data-save-status]');if(status)status.textContent="Não foi possível salvar. Seu valor não foi descartado; tente novamente.";}
+      });
+      this._unbindActionDrag?.();this._unbindActionDrag=bindSavedActionDrag(root,this._actor??asActor(this.document));
+      if((this.document??this._actor)&&!own(this.document??this._actor)) {
+        for(const el of root.querySelectorAll('[name]'))el.disabled=true;
+        for(const b of root.querySelectorAll('[data-sns]'))if(mutating.has(b.dataset.sns))b.disabled=true;
+      }
+      if(this.kind==='settings'&&!game.user.isGM){for(const el of root.querySelectorAll('[name], [data-sns="review-profile"]'))el.disabled=true;}
+      if(this.kind==='house'&&!game.user.isGM)for(const el of root.querySelectorAll('[name]'))el.disabled=true;
+      if(this.kind==='allocation'&&!game.user.isGM&&!this.values.initial)root.querySelector('[name="allocation.nc"]')?.setAttribute('disabled','');
+      if(this._focusField){const field=root.querySelector(`[name="${this._focusField}"]`);field?.focus();this._focusField=null;}
+      if(this._focusTab){root.querySelector(`[data-tab="${this._focusTab}"]`)?.focus();this._focusTab=null;}
+    }
+    async _preClose(options) {this._unbindSNS?.();this._unbindActionDrag?.();return super._preClose(options);}
+    async _snsChange(key,value,el) {
+      if(key.startsWith('extraResource.')){const actor=this._actor??asActor(this.document);await changeExtraResource(actor,key,value);const status=this.element?.querySelector('[data-save-status]');if(status)status.textContent='Recurso salvo';return;}
+      if(key.startsWith("ui.")){this._snsChoices??={};this._snsChoices[key]=value;return;}
+      if(!this.document)return;
+      if(!(key==='name'||key.startsWith('system.')))return;
+      assertOwner(this.document);
+      if(isAutomatedAptitude(this.document))throw Error('Aptidões automatizadas não podem ser editadas. Use os controles de uso ou evolução da ficha.');
+      const status=this.element.querySelector('[data-save-status]');if(status)status.textContent="Salvando…";
+      await this.document.update({[key]:value});
+      if(key.startsWith("system.resources.")&&key.endsWith(".value")){const input=el?.querySelector(`[name="${key}"]`);if(input)input.value=this.document.system.resources[key.split(".")[2]].value??"";}
+      if(status?.isConnected)status.textContent="Salvo";
+    }
+    async _snsAction(op,data,root,button) {return dispatch(this,op,data,root,button);}
+  };
+  class ShinobiActorSheet extends mixin(ActorSheetV2) {
+    static DEFAULT_OPTIONS={position:{width:1160,height:850}};
+    _snsTab="summary";
+    async _prepareContext(options) {const base=await super._prepareContext(options);return {...base,theme:game.settings.get(ID,"theme"),body:actorView(sourceData(this.document),this._snsTab,{profile:profile(),actors:permittedActors(),isGM:game.user.isGM,houseRules:houseRules(),testChoices:this._snsChoices??{}})};}
+  }
+  class ShinobiItemSheet extends mixin(ItemSheetV2) {
+    static DEFAULT_OPTIONS={position:{width:760,height:780}};
+    async _prepareContext(options) {const base=await super._prepareContext(options);return {...base,theme:game.settings.get(ID,"theme"),body:itemView(sourceData(this.document))};}
+  }
+  class ShinobiPanel extends mixin(ApplicationV2) {
+    static DEFAULT_OPTIONS={position:{width:780,height:730}};
+    constructor(kind,config={}){if(kind==='settings'&&!game.user.isGM)throw Error('Somente o mestre pode abrir as configurações da mesa.');super({window:{title:titles[kind]??kind},...(kind==='create'?{position:{width:730,height:650}}:kind==='combat-hud'?{id:'sns-combat-hud',position:{width:400,height:680}}:{})});this.kind=kind;this._actor=config.actor??null;this.panelConfig=config;this.values=config.values??{};this.step=0;this.draft=config.draft??{name:"Novo personagem",system:{}};}
+    async _prepareContext(options) {
+      const base=await super._prepareContext(options);
+      if(this.kind==='combat-hud'){
+        if(this._actor&&(!this._actor.isOwner||!hudActors().some(a=>a.uuid===this._actor.uuid)))this._actor=null;
+        return {...base,theme:game.settings.get(ID,'theme'),body:`<main class="sns-panel">${combatHUDView(this._actor)}</main>`};
+      }
+      const p=profile();const env={...this.panelConfig,attackTargets:attackTargets(),selectedTargets:selectedTargets(),values:this.kind==='create'?this.draft:this.values,step:this.step,actor:this._actor?sourceData(this._actor):null,profile:p,houseRules:houseRules(),performers:game.actors.filter(a=>a.isOwner).map(a=>({uuid:a.uuid,name:a.name})),items:(this._actor?this._actor.items.contents:game.items.filter(i=>i.visible)).map(sourceData),selectedId:this.selectedId,isGM:game.user.isGM,theme:game.settings.get(ID,"theme"),reduceMotion:game.settings.get(ID,"reduceMotion")};
+      if(this.kind==='recovery'&&this._actor){try{env.restPlan=restRecovery(this._actor);}catch(error){env.restError=error.message;}}
+      if(this.kind==='allocation'&&this._actor){const p=allocationProposal(this._actor,this.values);this.values={...p,nc:p.nc};env.values=this.values;env.granted=p.granted;env.initial=p.initial;}
+      return {...base,theme:env.theme,body:panelView(this.kind,env)};
+    }
+    async _snsChange(key,value,root) {
+      if(key.startsWith('extraResource.'))return super._snsChange(key,value,root);
+      if(this.kind==='combat-hud'){
+        if(key==='hud.actor'){this._actor=hudActors().find(a=>a.uuid===value)??null;this._focusField=key;return this.render({force:true});}
+        if(['system.actions.standard','system.actions.movement','system.actions.partial'].includes(key)){assertOwner(this._actor);await this._actor.update({[key]:!!value});return;}
+      }
+      if(this.kind==='weapon-use'){Object.assign(this.values,readFields(root));if(key==='weapon.itemId')this.panelConfig.itemId=value;if(['weapon.itemId','weapon.maneuver','weapon.count','weapon.sizeSweep'].includes(key)){this._focusField=key;await this.render({force:true});}return;}
+      if(this.kind==='aptitude-use'&&key.startsWith('clone.')){Object.assign(this.values,readFields(root,'clone.'));if(key==='clone.version'){this._focusField=key;await this.render({force:true});}return;}
+      if(key.startsWith('draft.')){set(this.draft,key.slice(6),value);if(key==='draft.system.campaign.level'){await this.render({force:true});return;}refreshBudget(root);}
+      if(key.startsWith('allocation.')){set(this.values,key.slice(11),value);if(key==='allocation.nc'){this._focusField=key;await this.render({force:true});return;}refreshBudget(root);}
+      if(this.kind==='condition'&&key==='entry.key'){for(const [k,v]of Object.entries(readFields(root,'entry.')))set(this.values,k.slice(6),v);this.values.name=CONDITIONS[value]?.name??this.values.name;this.values.source=CONDITIONS[value]?.source??this.values.source;await this.render({force:true});}
+      if(this.kind==='recovery'){for(const[k,v]of Object.entries(readFields(root,'resource.')))set(this.values,k.slice(9),v);if(key==='resource.operation')await this.render({force:true});}
+      if(this.kind==='roll'){for(const[k,v]of Object.entries(readFields(root,'roll.')))set(this.values,k.slice(5),v);if(key==='roll.stat'&&this.values.conditionId){this.values.difficulty=value==='medicina'?16:18;this.values.reaction=value==='vig';await this.render({force:true});}}
+      if(['power-editor','power-use','inventory-use','inventory-catalog','weapon-resolution'].includes(this.kind)){
+        Object.assign(this.values,readFields(root));
+        if(key==='power.effect'){delete this.values['power.tier'];delete this.values['power.mode'];delete this.values['power.weaponId'];}
+        if(key==='power.storedPowerId'){delete this.values['power.storedEffect'];delete this.values['power.storedTier'];}
+        if(['power.level','power.effect','power.tier','power.mode','power.storedPowerId','inventory.mode','resolve.targetUuid','resolve.defense'].includes(key)){this._focusField=key;await this.render({force:true});}
+      }
+    }
+  }
+  let combatHUD;
+  const hud={
+    open(config={}){if(!combatHUD)combatHUD=new ShinobiPanel('combat-hud',{actor:config.actor??selectedHUDActor()});else if(config.actor)combatHUD._actor=config.actor;return combatHUD.render({force:true});},
+    toggle(){return combatHUD?.rendered?combatHUD.close():this.open();},
+    refresh(){if(combatHUD?.rendered)return combatHUD.render({force:true});},
+    follow(){if(combatHUD?.rendered){combatHUD._actor=selectedHUDActor();return this.refresh();}}
+  };
+  function show(kind,config={}) {return kind==='combat-hud'?hud.open(config):new ShinobiPanel(kind,config).render({force:true});}
+  async function dispatch(app,op,data,root,button) {
+    const doc=app.document;const actor=app._actor??asActor(doc);
+    if(op==='hud-sheet'){assertOwner(actor);return actor.sheet.render({force:true});}
+    if(SAVED_ACTIONS.has(op))return savedActionEvent(app,op,data,root,{actor,show});
+    if(WEAPON_RESOLUTION_ACTIONS.has(op))return weaponResolutionAction(app,op,data,root,{actor,show});
+    if(POWER_ACTIONS.has(op))return powerAction(app,op,data,root,{actor,show});
+    if(INVENTORY_ACTIONS.has(op))return inventoryAction(app,op,data,root,{actor,show});
+    if(PHYSICAL_ACTIONS.has(op))return physicalAction(app,op,data,root,{actor,show});
+    if(CLONE_ACTIONS.has(op))return cloneAction(app,op,data,root,{actor,show});
+    if(TECHNIQUE_ACTIONS.has(op))return techniqueAction(app,op,data,root,{actor,show});
+    if(APTITUDE_USE_ACTIONS.has(op))return aptitudeUseAction(app,op,data,root,{actor,show});
+    if(CATALOG_ACTIONS.has(op))return catalogAction(app,op,data,root,{actor,show});
+    if(BUILD_ACTIONS.has(op))return buildAction(app,op,data,root,{actor});
+    if(SUMMARY_ACTIONS.has(op))return automationAction(app,op,data,root,{actor,show});
+    if(doc&&mutating.has(op))assertOwner(doc);
+    if(actor&&mutating.has(op))assertOwner(actor);
+    if(gmOnly.has(op))assertGM();
+    if(op==="tab") {if(data.tab==='gm')assertGM();app._snsTab=data.tab;app._focusTab=data.tab;await app.render({force:true});return;}
+    if(op==="close")return app.close();
+    if(op==="theme") {await game.settings.set(ID,"theme",game.settings.get(ID,"theme")==="dark"?"light":"dark");return app.render({force:true});}
+    if(op==="settings"||op==="sources"||op==="library"||op==="resources"||op==="conditions")return show(op,{actor});
+    if(op==="panel")return show(data.panel,{actor});
+    if(op==="preview-item"){app.selectedId=data.id;return app.render({force:true});}
+    if(op==="edit-item") {const item=actor?.items.get(data.id)??game.items.get(data.id);if(item?.visible){if(isAutomatedAptitude(item)&&actor)return show('aptitude-use',{actor,itemId:item.id});return item.sheet.render({force:true});}return;}
+    if(op==="favorite-item") {const item=actor?.items.get(data.id)??game.items.get(data.id);if(!item)return;assertOwner(item);await item.update({'system.favorite':!item.system.favorite});return app.render({force:true});}
+    if(op==="remove-item") {
+      const item=actor?.items.get(data.id)??game.items.get(data.id);if(!item)return;assertOwner(item);
+      if(await foundry.applications.api.DialogV2.confirm({window:{title:"Remover item"},content:`<p>Remover ${esc(item.name)}? Esta ação remove o registro desta lista.</p>`})) {await item.delete();await app.render({force:true});}return;
+    }
+    if(op==="new-item"||op==="new-world-item") {
+      const type=ITEM_TYPES[data.kind]?data.kind:'technique';const itemData={name:`Novo ${ITEM_TYPES[type].toLocaleLowerCase('pt-BR')}`,type,img:ICONS[type]};
+      let item;
+      if(op==="new-item") {if(!actor)throw Error("Abra o cadastro a partir de uma ficha para salvar o registro nela.");assertOwner(actor);[item]=await actor.createEmbeddedDocuments("Item",[itemData]);}
+      else {if(actor)throw Error("Use a biblioteca do diretório de Itens para criar modelos compartilhados.");item=await Item.create(itemData);}
+      if(item)item.sheet.render({force:true});await app.render({force:true});return;
+    }
+    if(op==="portrait") {
+      assertOwner(doc);
+      if(isAutomatedAptitude(doc))throw Error('O ícone de uma aptidão automatizada faz parte do registro do livro.');
+      const picker=new foundry.applications.apps.FilePicker.implementation({type:"image",current:doc.img,callback:async path=>{try {assertOwner(doc);await doc.update({img:path});}catch(e){ui.notifications.error(e.message);}}});
+      return picker.render({force:true});
+    }
+    if(["test","declare","defense","result"].includes(op)) {
+      const values={};if(doc?.type==="technique"&&op==="declare")Object.assign(values,{title:doc.name,level:doc.system.usedLevel,action:doc.system.action,cost:doc.system.cost,notes:`${doc.system.source.book} ${doc.system.source.page}`});
+      return show(op,{actor,label:data.label,values});
+    }
+    if(op==="post-record") {
+      const fields=readFields(root,"record.");const record=Object.fromEntries(Object.entries(fields).map(([key,value])=>[key.slice(7),value]));
+      if(!record.title?.trim())throw Error("Informe o título do registro.");
+      const labels={dice:"Dados informados",precision:"Precisão informada",total:"Total informado",difficulty:"Dificuldade",level:"Nível usado",targets:"Alvos",action:"Ação",cost:"Custo anotado",defense:"Defesa",base:"Dano base",hardness:"Dureza",degree:"Grau",absorption:"Absorção",vitality:"Alteração anotada de vitalidade",effects:"Outros efeitos"};
+      const rows=Object.entries(record).filter(([key,value])=>labels[key]&&String(value??"").trim()).map(([key,value])=>`<dt>${esc(labels[key])}</dt><dd>${esc(value)}</dd>`).join('');
+      const tag={test:"Teste anotado",declare:"Declarado",defense:"Defesa anotada",result:"Resultado anotado"}[app.kind];
+      const content=`<div class="sns-app"><article class="sns-record"><header><strong>${esc(record.title)}</strong><span class="sns-badge">${tag}</span></header>${actor?`<small>${esc(actor.name)}</small>`:''}<dl>${rows}</dl><p>${esc(record.notes)}</p><footer>Registro manual · nenhum dado rolado, recurso gasto ou dano aplicado pelo sistema.</footer></article></div>`;
+      const whisper=record.visibility==='self'?[game.user.id]:record.visibility==='gm'?ChatMessage.getWhisperRecipients("GM").map(u=>u.id):[];
+      if(record.visibility==='gm'&&!whisper.length)throw Error("Nenhum mestre disponível para receber o registro privado.");
+      await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content,whisper,flags:{[ID]:{kind:app.kind,manual:true,record}}});
+      await app.close();return;
+    }
+    if(["condition","special","bond"].includes(op)) {
+      if(!actor)throw Error("Abra esta janela a partir de uma ficha.");assertOwner(actor);
+      if(op==='special')return show('special',{actor,values:data.id?extraResources.get(actor,data.id):{}});
+      const key={condition:"conditions",special:"special",bond:"bonds"}[op];const values=(op==='condition'?conditionRecords(actor):actor.system[key]).find(v=>v.id===data.id);
+      return show(op,{actor,values:values?deepCopy(values):data.key?{key:data.key,name:CONDITIONS[data.key]?.name,source:CONDITIONS[data.key]?.source}:{}});
+    }
+    if(op==="save-entry"||op==="delete-entry") {
+      const values={...app.values,...Object.fromEntries(Object.entries(readFields(root,"entry.")).map(([key,value])=>[key.slice(6),value]))};
+      if(app.kind==='special'){
+        if(op==='delete-entry'){if(!await foundry.applications.api.DialogV2.confirm({window:{title:'Remover recurso'},content:'<p>Remover apenas esta reserva manual? A origem e as anotações de outros recursos serão preservadas.</p>'}))return;await extraResources.remove(actor,values.id);}
+        else await extraResources.save(actor,resourceEditorData(values));
+        await app.close();for(const open of ApplicationV2.instances?.()??[])if(open!==app&&open.rendered&&open.classList?.contains('sns-app'))await open.render({force:true});return;
+      }
+      if(app.kind==='condition') {if(!actor)throw Error('Ficha não encontrada.');await saveCondition(actor,values,{remove:op==='delete-entry'});await app.close();for(const open of ApplicationV2.instances?.()??[])if(open!==app&&open.rendered&&open.classList?.contains('sns-app'))await open.render({force:true});return;}
+      if(op==="save-entry"&&!values.name?.trim())throw Error("Informe um nome para o registro.");
+      if(app.kind==='decision') {assertGM();const p=profile();p.decisions.push({id:foundry.utils.randomID(),...values});await game.settings.set(ID,"profile",p);}
+      else {
+        if(!actor)throw Error("Ficha não encontrada.");assertOwner(actor);
+        const key={condition:"conditions",special:"special",bond:"bonds"}[app.kind];if(!key)throw Error("Tipo de registro desconhecido.");
+        const list=deepCopy(actor.system[key]);const index=list.findIndex(v=>v.id===values.id);
+        if(op==="delete-entry") {if(index>=0)list.splice(index,1);}else if(index>=0)list[index]=values;else list.push({...values,id:foundry.utils.randomID()});
+        await actor.update({[`system.${key}`]:list});
+      }
+      await app.close();
+      for(const open of ApplicationV2.instances?.()??[])if(open!==app&&open.rendered&&open.classList?.contains('sns-app'))await open.render({force:true});
+      return;
+    }
+    if(op==="decision")return show('decision');
+    if(op==="review-profile") {
+      assertGM();const proposed=profile();const fields=readFields(root,"profile.");
+      for(const [key,value] of Object.entries(fields))if(!key.startsWith('profile.books.'))set(proposed,key.slice(8),value);
+      proposed.books=Object.entries(fields).filter(([key,value])=>key.startsWith('profile.books.')&&value).map(([key])=>key.slice(14));
+      const items=[...game.items.contents,...game.actors.contents.flatMap(a=>a.items.contents)];const issues=items.filter(i=>i.system.source?.book!=='mesa'&&!proposed.books.includes(i.system.source?.book)).map(i=>`${i.parent?.name?i.parent.name+' · ':''}${i.name}: fonte desabilitada no novo perfil.`);
+      return show('impact',{proposed,issues,actorCount:game.actors.size});
+    }
+    if(op==="apply-profile") {assertGM();await game.settings.set(ID,"profile",app.panelConfig.proposed);ui.notifications.info("Perfil documental salvo. Fichas preservadas.");await app.close();return;}
+    if(op==="save-preferences") {const fields=readFields(root,"preference.");await game.settings.set(ID,"theme",fields['preference.theme']);await game.settings.set(ID,"reduceMotion",fields['preference.reduceMotion']);await app.render({force:true});return;}
+    if(op==="wizard-step") {for(const [key,value] of Object.entries(readFields(root,"draft.")))set(app.draft,key.slice(6),value);app.step=Number(data.step);return app.render({force:true});}
+    if(op==="finish-wizard") {
+      for(const [key,value] of Object.entries(readFields(root,"draft.")))set(app.draft,key.slice(6),value);
+      if(!app.draft.name?.trim())throw Error("Informe o nome do personagem.");
+      const source=data.draft==='true'?{...app.draft,system:{...app.draft.system,campaign:{...app.draft.system?.campaign,draft:true},automation:{...app.draft.system?.automation,enabled:false}}}:{...app.draft,system:creationSystem(app.draft.system)};
+      const actor=await CONFIG.Actor.documentClass.create({...source,type:"character",img:ICONS.character},{snsSkipAllocation:true});if(actor)actor.sheet.render({force:true});await app.close();return;
+    }
+  }
+  return {ShinobiActorSheet,ShinobiItemSheet,ShinobiPanel,show,hud};
+}
