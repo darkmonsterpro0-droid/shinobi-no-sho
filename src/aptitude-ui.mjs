@@ -3,6 +3,8 @@ import {cloneView} from './clone-actions.mjs';
 import {aptitudeUsePlan} from './aptitude-use.mjs';
 import {MANEUVERS} from './maneuvers.mjs';
 import {SOURCES} from './config.mjs';
+import {restrictedDefinition} from './restricted-aptitudes.mjs';
+import {restrictedUseView} from './restricted-ui.mjs';
 export const TECHNIQUE_APTITUDES=['dominio-da-agua','dominio-do-fogo','dominio-do-raio','dominio-da-terra','dominio-do-vento','dominio-ninpou','ilusao-profunda','potencializar','tecnica-acelerada','tecnica-eficiente','tecnica-elevada','tecnica-poderosa','dominio-simples','dominio-mecanico','ilusao-musical','mestre-da-criacao','tecnica-de-controle-de-chakra','tecnica-de-cura-arriscada','tecnica-de-impacto','maestria'];
 const NOTES={
  acuidade:'Permite Destreza no CC de ataques desarmados, de toque e com armas compatíveis. O dano continua usando Força.',
@@ -54,6 +56,7 @@ const NOTES={
 };
 export function aptitudeUseView(env,helpers){
  const {esc,field,select,button}=helpers,item=env.actor?.items?.find(i=>i.id===env.itemId);if(!item)return '<p>Aptidão não encontrada.</p>';
+ if(restrictedDefinition(item.system.catalogKey,item.system.catalogBook))return restrictedUseView(env,item);
  const key=item.system.catalogKey,active=env.actor?.aptitudeStates?.[key],definitions=USE_FIELDS[key],values=env.values??{};
  let content=`<h3>${esc(item.name)} · nível ${item.system.level??1}</h3><p class="sns-source">${esc(SOURCES[item.system.catalogBook])} · p. ${esc(item.system.source?.page)}</p>`;
  if(key==='clone')return content+cloneView(env.actor,item,helpers,values);

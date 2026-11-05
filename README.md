@@ -1,6 +1,8 @@
 # Shinobi no Sho — Foundry VTT 14
 
-**Versão 0.8.0 local, ainda não publicada · ficha, rolagens e automações em desenvolvimento · português brasileiro**
+**Versão 0.9.0 RES-001 local, ainda não publicada · ficha, rolagens e automações em desenvolvimento · português brasileiro**
+
+A [fundação RES-001](docs/RES-001.md) acrescenta catálogo de 139 definições restritas/especiais, acesso por origem, aquisição e evolução no motor existente, proveniência, suspensão e vínculos manuais de recursos. Há 39 definições com revisão de aquisição; efeitos individuais aguardam RES-002. Foram executados 207 testes de código (31 novos); validação no Foundry permanece pendente. O pacote local é o candidato atual; o manifesto público abaixo continua apontando à última versão publicada.
 
 A base de [recursos extras](docs/RECURSOS-EXTRAS.md) permite cadastrar reservas manuais separadas de Vitalidade e Chakra, com origem, unidade, usos e benefícios anotados. Reservas antigas são preservadas. Esta base não automatiza aptidões nem aplica seus benefícios.
 

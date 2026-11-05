@@ -12,6 +12,7 @@ export function createModels() {
   class ShinobiActorModel extends foundry.abstract.TypeDataModel {
     static defineSchema() { return {
       schemaVersion:new f.NumberField({initial:1,integer:true,min:1}),
+      capabilityData:new f.ObjectField({initial:{}}),
       identity:schema({village:text(),rank:text(),clan:text(),concept:text()}),
       campaign:schema({level:number(),experience:new f.NumberField({initial:0,min:0,max:99,integer:true}),draft:new f.BooleanField({initial:true})}),
       automation:schema({enabled:bool(),attributeGranted:number(),forcedDrain:bool(),bases:schema({cc:new f.NumberField({initial:3}),cd:new f.NumberField({initial:3}),esq:new f.NumberField({initial:3}),lm:new f.NumberField({initial:3})}),history:new f.ArrayField(new f.ObjectField(),{initial:[]})}),
@@ -37,6 +38,7 @@ export function createModels() {
     static defineSchema() {return {
       schemaVersion:new f.NumberField({initial:1,integer:true,min:1}),
       description:text(),notes:text(),favorite:bool(),catalogKey:text(),catalogBook:text(),selection:text(),active:bool(),sceneUses:number(),
+      capabilityData:new f.ObjectField({initial:{}}),
       source:schema({book:text("mesa"),page:text(),version:text(),reference:text()}),
       prerequisites:text(),choices:text(),acquisition:text("Comprada"),level:number(),usedLevel:number(),effects:text(),
       action:text(),cost:text(),range:text(),area:text(),duration:text(),seals:text(),

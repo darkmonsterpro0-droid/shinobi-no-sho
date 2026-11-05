@@ -1,3 +1,9 @@
+# RES-001 — evidência de 05/11/2026
+
+Suíte final executada: `node --test --test-reporter=tap tests/*.test.mjs`: **207 testes aprovados, 0 falhas, 0 ignorados**. Inclui 31 novos e 176 recuperados/reeexecutados da base 0.8.0. Testes de código e documentos simulados; nenhum teste nativo Foundry, visual completo ou com jogadores foi concluído nesta etapa. Registro detalhado e proveniência em [RES-001](RES-001.md). A compatibilidade declarada continua 14.367, sem ampliar o escopo da verificação nativa anterior.
+
+## Registros anteriores (históricos)
+
 # Validação até a versão 0.2.3
 
 As seções abaixo preservam o histórico. O registro mais recente é a base de recursos extras local 0.8.0, ao final deste documento.

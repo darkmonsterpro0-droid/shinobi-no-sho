@@ -2,6 +2,7 @@ import {effectiveAttributes} from './physical-rules.mjs';
 import {APTITUDES} from './aptitude-data.mjs';
 import {SKILLS} from './config.mjs';
 import {skillBase} from './build-rules.mjs';
+import {restrictedDefinition,restrictedEligibility} from './restricted-aptitudes.mjs';
 export const normalize=value=>String(value??'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 const aliases={'apanhar-objeto':'apanhar-objetos','kai-pefeito':'kai-perfeito'};
 export const canonical=key=>aliases[key]??key;
@@ -31,8 +32,10 @@ export function aptitudeChoices(key,book='basico',weapons=[],items=[]){
  if(key==='atirador')return {bows:'Arcos',throw:'Armas simples de arremesso'};
  return null;
 }
-export function aptitudeEntry(key,book){return APTITUDES.find(a=>canonical(a.key)===canonical(key)&&a.book===book);}
+export function aptitudeEntry(key,book){return APTITUDES.find(a=>canonical(a.key)===canonical(key)&&a.book===book)??restrictedDefinition(key,book);}
 export function evolutionStatus(item,system,items=[],rules={}){
+ const restricted=restrictedDefinition(item.system.catalogKey,item.system.catalogBook);
+ if(restricted){const level=Number(item.system.level??1),status=restrictedEligibility(restricted,system,items.filter(i=>(i.id??i._id)!==(item.id??item._id)),{rules,level:level+1,accessOrigin:item.system.capabilityData?.accessOrigin});return {supported:restricted.maxLevel>1,max:restricted.maxLevel,allowed:level<restricted.maxLevel&&status.allowed!==false,review:status.review,level,next:level+1};}
  const key=canonical(item.system.catalogKey),level=Number(item.system.level??1),advanced=rules.aptitudeRevision!=='basico',a=effectiveAttributes(system,{permanentOnly:true}),sk=k=>skillBase({...system,attributes:a},k);
  const cc=Number(system.attributes?.for??0)+Number(system.automation?.bases?.cc??3),cd=Number(a.des??0)+Number(system.automation?.bases?.cd??3);
  const tests={
@@ -53,6 +56,7 @@ export function evolutionStatus(item,system,items=[],rules={}){
 // Complex choices retain their printed prerequisite in the catalog; this helper
 // evaluates numerical and aptitude requirements, never narrative eligibility.
 export function prerequisiteStatus(entry,system,items=[],rules={},selection=''){
+ if(restrictedDefinition(entry.key,entry.book)){const status=restrictedEligibility(entry,system,items,{rules});return {allowed:status.allowed,review:status.review.length>0,missing:status.missing,reasons:status.review};}
  const text=entry.requirements??'',a=effectiveAttributes(system,{permanentOnly:true}),cc=Number(system.attributes?.for??0)+Number(system.automation?.bases?.cc??3),cd=Number(a.des??0)+Number(system.automation?.bases?.cd??3);
  const stat=(key,n)=>Number(a[key]??0)>=n;
  const has=key=>!!aptitudeOwned(items,key,'',rules)||(rules.banCombatAptitudes&&banned.includes(key));

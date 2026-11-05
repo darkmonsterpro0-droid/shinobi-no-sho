@@ -1,0 +1,26 @@
+// Standalone visual preview made from the actual sheet renderer and styles.
+// No Foundry session, world data or rules engine is executed in this HTML.
+import {readFile,writeFile} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+import {actorView} from '../src/ui.mjs';
+import {creationSystem} from '../src/progression.mjs';
+import {ID,ICONS,TABS,defaultProfile} from '../src/config.mjs';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const system=creationSystem({campaign:{level:4},identity:{village:'Konoha',rank:'Genin',clan:'',concept:'Personagem de exemplo'},attributes:{for:2,des:2,agi:3,per:2,int:1,vig:1,esp:1},automation:{bases:{cc:3,cd:3,esq:3,lm:3}}});
+system.special=[{id:'example-reserve',name:'Reserva de exemplo',value:3,max:5,source:'Cadastro manual ilustrativo',notes:'Exemplo visual; nenhuma aptidão vinculada.',resourceData:{schemaVersion:1,unit:'pontos',uses:'Os usos futuros podem ser anotados aqui.',benefits:'Anotação independente. Não altera Vitalidade ou Chakra.',showOnSheet:true}}];
+system.resources.vitality.value=27;system.resources.chakra.value=11;system.actions={standard:false,movement:false,partial:false};system.notes='Anotações da sessão e lembretes do personagem.';
+const actor={id:'visual',name:'Ren · exemplo',type:'character',img:ICONS.character,system,items:[{id:'kunai',name:'Kunai',type:'equipment',system:{catalogKey:'kunai',catalogBook:'basico',quantity:10,source:{book:'basico'}}}],flags:{[ID]:{savedActions:{kunai:{schemaVersion:1,id:'kunai',name:'Kunai — ataque corporal',definition:'shinobi.weaponAttack',source:{itemId:'kunai'},defaults:{mode:'melee',maneuver:'golpear'},favorite:true}}}}};
+let css='';for(const file of ['shinobi.css','concept.css','automation.css','character-sheet.css','extra-resources.css'])css+=await readFile(path.join(root,'styles',file),'utf8');
+const landscape='data:image/svg+xml;base64,'+(await readFile(path.join(root,'assets/landscape.svg'))).toString('base64');css=css.replaceAll("../assets/landscape.svg",landscape);
+const portrait='data:image/png;base64,'+(await readFile(path.join(root,'assets/shinobi-portrait.png'))).toString('base64');
+const templates=Object.keys(TABS).filter(k=>k!=='gm').map(tab=>`<template id="view-${tab}">${actorView(actor,tab,{isGM:false,profile:defaultProfile()})}</template>`).join('');
+const html=`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Shinobi no Sho — nova ficha</title><style>${css}
+html,body{margin:0;height:100%;font:14px Arial,sans-serif;background:#131d1d}body{display:flex;flex-direction:column}#notice{padding:9px 14px;background:#e6ddc8;color:#292d28;font-size:12px;flex:none}#notice strong{margin-right:10px}#notice p{margin:4px 0 0}.sns-app{flex:1;min-height:0;max-width:1300px;width:100%;margin:auto;display:flex}.sns-surface{flex:1;min-height:0}.fa-solid{font-style:normal;display:inline-block;width:1em;text-align:center}.fa-solid:before{content:'◆'}.fa-heart:before{content:'♥'}.fa-yin-yang:before{content:'☯'}.fa-eye:before{content:'◉'}.fa-book-open:before{content:'▣'}.fa-person-running:before{content:'↗'}.fa-circle-notch:before{content:'◎'}button,input,textarea,select{font:inherit}.sns-app button{cursor:pointer}#status{font-size:11px}
+</style><div id="notice"><strong>Prévia visual da ficha</strong>Use as abas e o botão de tema. Dados ilustrativos; sem conexão com o Foundry.<p id="status" role="status">Esta prévia não executa ataques nem salva alterações.</p></div><div class="sns-app"><form id="surface" class="sns-surface" data-theme="light"></form></div>${templates}<script>
+const portrait=${JSON.stringify(portrait)},surface=document.getElementById('surface');let current='summary';
+function render(tab){current=tab;surface.replaceChildren(document.getElementById('view-'+tab).content.cloneNode(true));for(const img of surface.querySelectorAll('.sns-portrait img'))img.src=portrait;for(const field of surface.querySelectorAll('input,textarea,select')){if(field.tagName==='SELECT'||field.type==='checkbox')field.disabled=true;else field.readOnly=true;}}
+surface.addEventListener('submit',e=>e.preventDefault());surface.addEventListener('click',e=>{const b=e.target.closest('button[data-sns]');if(!b)return;e.preventDefault();if(b.dataset.sns==='tab'){render(b.dataset.tab);surface.querySelector('[role=tab][data-tab="'+current+'"]').focus();}else if(b.dataset.sns==='theme')surface.dataset.theme=surface.dataset.theme==='dark'?'light':'dark';else document.getElementById('status').textContent='Este controle funciona na ficha instalada no Foundry. A prévia apresenta somente o layout.';});
+surface.addEventListener('keydown',e=>{const tab=e.target.closest('[role=tab]');if(!tab||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;const tabs=[...surface.querySelectorAll('[role=tab]')];let index=tabs.indexOf(tab);index=e.key==='Home'?0:e.key==='End'?tabs.length-1:(index+(e.key==='ArrowLeft'?-1:1)+tabs.length)%tabs.length;e.preventDefault();render(tabs[index].dataset.tab);surface.querySelector('[role=tab][data-tab="'+current+'"]').focus();});render('summary');
+</script></html>`;
+await writeFile(path.join(root,'preview/ficha-visual.html'),html);console.log('Prévia: preview/ficha-visual.html');

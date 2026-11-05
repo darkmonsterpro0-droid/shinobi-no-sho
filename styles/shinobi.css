@@ -224,3 +224,9 @@
 @media (prefers-reduced-motion:reduce) {.sns-app * {animation:none!important;transition:none!important;scroll-behavior:auto!important;}}
 @container (max-width:360px) {.sns-app .sns-identity {grid-template-columns:minmax(0,1fr);}.sns-app .sns-portrait {width:85px;}.sns-app .sns-identity .sns-form-grid {grid-template-columns:repeat(2,minmax(0,1fr));}}
 .sns-app .sns-surface[data-reduce-motion=true] * {animation:none!important;transition:none!important;}
+
+/* RES-001: additive controls reuse the current sheet and themes. */
+.sns-app .sns-origin-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:6px;margin-block:10px}
+.sns-app .sns-origin-options label{display:flex;align-items:center;gap:6px;min-height:32px;font-size:13px}
+.sns-app .sns-catalog>article p[role=status]{font-weight:600;overflow-wrap:anywhere}
+.sns-app .sns-catalog>article>label{display:block;margin-block:8px;font-size:13px}

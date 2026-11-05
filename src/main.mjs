@@ -1,4 +1,5 @@
 import {prepareWeaponAction} from './weapon-actions.mjs';
+import {capabilityStatus} from './capability-actions.mjs';
 import {extraResources} from './extra-resources.mjs';
 import {savedActions,saveAction,useSavedAction} from './saved-actions.mjs';
 import {createActionAccess} from './core/action-access.mjs';
@@ -40,6 +41,10 @@ Hooks.once("init",()=>{
   game.settings.registerMenu(ID,"rulesMenu",{name:"Regras da mesa",label:"Abrir regras da mesa",hint:"Livros, variantes, decisões e regras da casa.",icon:"fas fa-scroll",type:class extends apps.ShinobiPanel{constructor(options){super("settings",options);}},restricted:true});
   const access=createActionAccess({resolveActor:uuid=>fromUuid(uuid),list:savedActions,use:useSavedAction});
   game.noSho={apiVersion:1,adapter:ID,actions:access,hud:apps.hud};
+  game.noSho.capabilities={
+    async status(actorUuid,itemId){const actor=await fromUuid(actorUuid);if(!actor?.isOwner)throw Error('Você não controla este personagem.');const item=actor.items.get(itemId);if(!item)throw Error('Capacidade não encontrada.');return capabilityStatus(actor,item,{books:game.settings.get(ID,'profile')?.books,rules:{...game.settings.get(ID,'houseRules'),senjutsu:game.settings.get(ID,'profile')?.senjutsu}});},
+    request:(actorUuid,command)=>requestAction({...command,op:'capability',actorUuid})
+  };
   game.shinobi={extraResources,actions:{request:requestAction,prepare:prepareWeaponAction,list:savedActions,save:saveAction,use:access.use,shortcut:createActionShortcut},version:VERSION,applications:apps,open:(kind,config)=>apps.show(kind,config),createCharacter:()=>apps.show("create")};
 });
 function refreshSheets(){for(const app of foundry.applications.api.ApplicationV2.instances())if(app.classList?.contains("sns-app")&&app.rendered)app.render({force:true});}
