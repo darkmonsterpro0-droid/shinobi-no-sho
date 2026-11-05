@@ -1,4 +1,5 @@
 import {sizeProfile,effectiveAttributes} from './physical-rules.mjs';
+import {validateOriginChange} from './restricted-aptitudes.mjs';
 import {inventoryBonuses,inventoryConditions} from './inventory-rules.mjs';
 import {advanceAptitudePhase,runtimeBonuses,activeAptitudes,runtimeState,periodKey} from './aptitude-runtime.mjs';
 import {cloneTestEffect} from './clone-rules.mjs';
@@ -165,6 +166,7 @@ export function createActorClass(Base) {
     async _preUpdate(data,options,user) {
       const result=await super._preUpdate(data,options,user);if(result===false)return false;
       const expanded=foundry.utils.expandObject(data),change=expanded.system??{};
+      const originErrors=validateOriginChange(this.system,change,[...(this.items??[])],{isGM:game.user.isGM});if(originErrors.length)throw Error(originErrors.join(' '));
       if(change.powerState?.affinity&&!game.user.isGM)throw Error('Somente o mestre registra exceções de afinidade.');
       if(change.skills||change.social){const errors=validateBuildChange(this.system,change,[...(this.items??[])],houseRules());if(errors.length)throw Error(errors.join(' '));}
       for(const cap of clampResourceChanges(this,change)){const path=`system.resources.${cap.key}.value`;if(Object.hasOwn(data,path))data[path]=cap.value;else {data.system??={};data.system.resources??={};data.system.resources[cap.key]??={};data.system.resources[cap.key].value=cap.value;}globalThis.ui?.notifications?.info?.(`${cap.label} limitada ao máximo de ${cap.max}.`);}

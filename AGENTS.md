@@ -1,5 +1,7 @@
 # Regras permanentes deste projeto
 
+- RES-001 autorizada em 05/11/2026: fundação genérica, catálogo e aquisição/evolução de aptidões restritas/especiais sobre a base 0.8.0, sem segundo motor. Esta autorização amplia o escopo antigo de arquitetura apenas manual. Concessões são registros sem aplicação; não automatizar efeitos individuais, gasto/recuperação de reservas, bônus à Vitalidade/Chakra, conversão de itens antigos ou mudanças em mundos. Publicação permanece não autorizada. Ver docs/RES-001.md.
+
 - Base de recursos extras autorizada: somente arquitetura e controle manual. Manter system.special e os registros antigos; benefícios são anotações separadas da reserva. Não automatizar aptidões, criar reservas por aquisição, aplicar bônus à Vitalidade/Chakra, gastar ou recuperar reservas automaticamente nesta etapa. Ver docs/RECURSOS-EXTRAS.md.
 
 - O usuário autorizou reformular a ficha antes de ampliar automações, seguindo as referências visuais corrigidas. Preservar dados, serviços, permissões e marcações manuais. A entrega 0.7.0 é visual e local; ver docs/FICHA-0.7.md. O usuário optou por continuar o desenvolvimento sem validação nativa por enquanto; isso não equivale a teste nativo aprovado.

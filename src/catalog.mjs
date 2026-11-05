@@ -7,12 +7,15 @@ import {aptitudeCatalog,aptitudeChoices,prerequisiteStatus,aptitudeOwned,evoluti
 import {pointBudgets} from './build-rules.mjs';
 import {houseRules} from './automation.mjs';
 import {readFields} from './interactions.mjs';
+import {restrictedDefinition} from './restricted-aptitudes.mjs';
+import {restrictedCatalogView} from './restricted-ui.mjs';
 export const CATALOG_ACTIONS=new Set(['catalog','catalog-add','weapon-use','weapon-roll','weapon-reload','aptitude-evolve']);
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const options=(object,selected)=>Object.entries(object).map(([key,name])=>`<option value="${escape(key)}"${key===selected?' selected':''}>${escape(name)}</option>`).join('');
 export {weaponDocument} from './weapon-actions.mjs';
 import {weaponDocument,needsReload} from './weapon-actions.mjs';
 export function catalogView(env={}){
+ if(env.catalog==='restricted')return restrictedCatalogView(env);
  const kind=env.catalog??'weapons',actor=env.actor,system=actor?.system??{},items=actor?.items??[],books=env.profile?.books??['basico','avancado'],rules=env.houseRules??{};
  const entries=kind==='weapons'?WEAPONS.filter(w=>books.includes(w.book)):aptitudeCatalog(books,rules);
  return `<p>Escolha ${kind==='weapons'?'uma arma comum':'uma aptidão comum'}. O registro será guardado nesta ficha.</p><label class="sns-field"><span>Buscar no catálogo</span><input type="search" data-sns-search placeholder="Digite parte do nome"></label><small data-filter-count></small><div class="sns-catalog">${entries.map(e=>{
@@ -53,6 +56,13 @@ export async function catalogAction(app,op,data,root,{actor,show}){
  if(op==='catalog')return show('catalog',{actor,catalog:data.catalog});
  if(op==='weapon-use')return show('weapon-use',{actor,itemId:data.id,maneuver:data.maneuver});
  const items=[...actor.items],rules=houseRules(),profile=game.settings.get(ID,'profile');
+ if(op==='aptitude-evolve'&&restrictedDefinition(actor.items.get(data.id)?.system.catalogKey)){
+  const {requestAction}=await import('./action-executions.mjs');await requestAction({op:'capability',operation:'evolve',actorUuid:actor.uuid,itemId:data.id});return app.render({force:true});
+ }
+ if(op==='catalog-add'&&data.catalog==='restricted'){
+  const prefix=`catalog.${data.book}.${data.key}.`,values=readFields(root,prefix),get=k=>values[prefix+k];
+  const {requestAction}=await import('./action-executions.mjs');await requestAction({op:'capability',operation:'acquire',actorUuid:actor.uuid,key:data.key,book:data.book,acquisition:get('acquisition'),selection:get('selection'),accessOrigin:get('accessOrigin'),reviewReason:get('reviewReason')});return app.render({force:true});
+ }
  if(op==='aptitude-evolve'){const item=actor.items.get(data.id);if(!item||item.type!=='aptitude')throw Error('Aptidão não encontrada.');const e=evolutionStatus(item,actor.system,items,rules);if(!e.allowed)throw Error('Requisitos de evolução não atendidos.');if(pointBudgets(actor.system,items,rules).powers.remaining<2)throw Error('A evolução custa 2 pontos de poder.');await item.update({'system.level':e.next});ui.notifications.info(`${item.name}: nível ${e.next}.`);return app.render({force:true});}
  if(op==='catalog-add'){
   const weapon=data.catalog==='weapons';const entry=weapon?WEAPONS.find(w=>w.key===data.key&&w.book===data.book):aptitudeCatalog(profile.books,rules).find(a=>a.key===data.key&&a.book===data.book);

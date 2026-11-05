@@ -46,7 +46,11 @@ export async function processActionRequest(request){
  const command=request.getFlag(ID,'actionRequest');if(!command||request.getFlag(ID,'actionRequestDone'))return;
  const user=author(request);if(!user)throw Error('Autor do pedido não encontrado.');
  try{
-  if(command.op==='declare'){
+  if(command.op==='capability'){
+   const actor=await fromUuid(command.actorUuid);if(!canUse(actor,user))throw Error('Você não controla este personagem.');
+   const {processCapabilityCommand}=await import('./capability-actions.mjs');
+   await processCapabilityCommand(actor,command,{user,requestId:request.id});
+  }else if(command.op==='declare'){
    const existing=messages().find(m=>m.getFlag(ID,'actionExecution')?.requestId===request.id);
    if(!existing){
     const actor=await fromUuid(command.actorUuid);if(!canUse(actor,user))throw Error('Você não controla este personagem.');

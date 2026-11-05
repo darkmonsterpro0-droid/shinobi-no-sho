@@ -1,4 +1,5 @@
 import {SAVED_ACTIONS,savedActionEvent,attackTargets,selectedTargets} from './saved-actions.mjs';
+import {CAPABILITY_ACTIONS} from './capability-actions.mjs';
 import {extraResources,resourceEditorData,changeExtraResource} from './extra-resources.mjs';
 import {combatHUDView,hudActors,selectedHUDActor} from './combat-hud.mjs';
 import {bindSavedActionDrag} from './action-shortcuts.mjs';
@@ -128,6 +129,21 @@ export function createApplications() {
   async function dispatch(app,op,data,root,button) {
     const doc=app.document;const actor=app._actor??asActor(doc);
     if(op==='hud-sheet'){assertOwner(actor);return actor.sheet.render({force:true});}
+    if(CAPABILITY_ACTIONS.has(op)){
+      assertOwner(actor);
+      if(op==='capability-origins')return show('catalog',{actor,catalog:'restricted',editOrigins:true});
+      const values=readFields(root),command={op:'capability',actorUuid:actor.uuid};
+      if(op==='capability-save-origins'){
+        if(!actor.system.campaign?.draft&&!game.user.isGM)throw Error('Somente o mestre altera origens após a criação.');
+        command.operation='origins';command.origins=Object.entries(values).filter(([k,v])=>k.startsWith('origin.')&&v).map(([k])=>k.slice(7));command.variants={uzumaki:values['originOption.uzumaki']};
+        if([...actor.items].some(i=>i.type==='aptitude'&&i.system.capabilityData?.definitionId)&&!await foundry.applications.api.DialogV2.confirm({window:{title:'Conferir mudança de origens'},content:'<p>A alteração pode tornar aptidões adquiridas indisponíveis. Compras, concessões, reservas e dados serão preservados. Confirme a mudança após conferir as novas origens.</p>'}))return;
+      }else{
+        command.itemId=data.id;command.operation=op.slice(11);command.reason=values['capability.reason'];
+        if(op==='capability-grant'){command.benefitKey=data.benefit;command.selection=data.selection??'';}
+        if(op==='capability-link'){command.resourceKey=data.resourceKey;command.resourceId=values['capability.resource.'+data.resourceKey];}
+      }
+      const {requestAction}=await import('./action-executions.mjs');await requestAction(command);return app.render({force:true});
+    }
     if(SAVED_ACTIONS.has(op))return savedActionEvent(app,op,data,root,{actor,show});
     if(WEAPON_RESOLUTION_ACTIONS.has(op))return weaponResolutionAction(app,op,data,root,{actor,show});
     if(POWER_ACTIONS.has(op))return powerAction(app,op,data,root,{actor,show});

@@ -52,3 +52,8 @@ A fila não é um bloqueio distribuído. Mudança de coordenador no meio de uma 
 - [Macro v14](https://foundryvtt.com/api/v14/classes/foundry.documents.Macro.html): criação e permissões nativas.
 
 As referências consultadas descrevem a API pública v14 disponível; não substituem a execução na build alvo 14.367.
+
+
+## RES-001 — capacidades
+
+`src/core/capabilities.mjs` contém requisitos genéricos e ledger injetável de proveniência/suspensão. Catálogo, fórmulas e regras de origem estão em `restricted-aptitude-data.mjs` e `restricted-aptitudes.mjs`; adaptação de documentos em `capability-actions.mjs`; UI em `restricted-ui.mjs`. Aquisição/evolução reutilizam `validatePurchase`, `pointBudgets` e a fila de `action-executions.mjs`. Sem motor paralelo de ativação ou bônus. Contratos, limitações e evidências em [RES-001](RES-001.md).

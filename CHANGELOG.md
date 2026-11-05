@@ -1,3 +1,12 @@
+# 0.9.0 — RES-001, desenvolvimento local não publicado
+
+- Catálogo por fonte de 139 definições restritas/especiais dos quatro livros; 39 com revisão manual de aquisição.
+- Origens explícitas, elegibilidade, aquisição e evolução no motor comum, com incompatibilidades, quota gratuita e revisão do mestre.
+- Contrato genérico de proveniência e suspensão reversível; vínculos por ID às reservas existentes. Sem aplicar benefícios ou consumir/recuperar recursos.
+- Catálogo e consulta na aba atual de aptidões; sem reconstruir ficha/HUD.
+- 207 testes de código executados e aprovados (176 regressões recuperadas, 31 novos). Foundry 14.367 nativo e testes visuais/humanos pendentes.
+- Ver docs/RES-001.md e docs/RES-001-INVENTARIO.md para escopo e limites.
+
 # 0.8.0 — base de recursos extras, local e não publicada
 
 - Base genérica no Core para reservas manuais, com adaptador que preserva system.special e os cadastros antigos.
