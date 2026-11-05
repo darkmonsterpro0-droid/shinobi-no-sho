@@ -1,3 +1,11 @@
+# 0.9.1 — organização da ficha e aquisição de Bakuton, candidato local
+
+- Retira a aba Mestre e o atalho global da ficha. Configurações de Jogo concentram livros, variantes, regras opcionais, decisões e renovação de períodos.
+- Conserva retrato lateral, sete atributos, Vitalidade/Chakra, seis abas e temas da referência aprovada. Edição da identidade, manutenção de itens, opções de testes e ações salvas passam a aparecer sob demanda.
+- Entrada única para aquisição de poderes/aptidões/técnicas e equipamentos; técnicas manuais existentes passam a ter lista própria.
+- Bakuton aparece para sua origem e livro; compra/evolução validam Espírito 3, NC, orçamento, duplicidade e restrição de elementos. Técnicas e concessões permanecem manuais (Hijutsus II pp. 18–19).
+- Sem migração ou automações individuais de clãs. Ver docs/FICHA-0.9.1.md para evidências e limitações.
+
 # 0.9.0 — RES-001, desenvolvimento local não publicado
 
 - Catálogo por fonte de 139 definições restritas/especiais dos quatro livros; 39 com revisão manual de aquisição.

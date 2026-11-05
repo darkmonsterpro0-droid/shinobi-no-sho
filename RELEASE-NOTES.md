@@ -1,3 +1,13 @@
+# Shinobi no Sho 0.9.1 — candidato local de revisão da ficha
+
+Regras da mesa acessíveis pelas Configurações de Jogo do Foundry, sem aba Mestre nas fichas. Uma única entrada de aquisição por área e menos controles repetidos. Temas, retrato lateral, sete atributos e recursos seguem a composição aprovada; regras e dados existentes são reaproveitados.
+
+Bakuton pode ser adquirido e evoluído como poder restrito de execução manual, com fonte, requisitos e orçamento. Não cria Doton/Raiton gratuitamente, não concede técnicas automaticamente, não aplica benefícios de clãs e não altera reservas. Outros poderes restritos ainda precisam de catálogo e validação por fonte.
+
+Sem publicação ou tag de release. Consultar docs/FICHA-0.9.1.md para a validação de código e o que continua pendente no Foundry 14.367.
+
+## Entrega anterior
+
 # Shinobi no Sho 0.9.0 — candidato local RES-001
 
 Fundação para adquirir e evoluir aptidões restritas/especiais na mesma aba e usando o orçamento existente. Catálogo com 139 definições dos quatro livros, fontes e requisitos; 39 entradas exigem revisão do mestre. Escolher uma origem não concede todas as aptidões.

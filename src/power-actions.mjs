@@ -38,6 +38,7 @@ function executionPlan(actor,item,options,root){
   const stored=powerPlan(source,actor.system,itemsOf(actor),{effect:options.storedEffect??'canhao',level:Number(options.jutsuLevel??source.system.level),tier:Number(options.storedTier??1)},context(actor));
   options.jutsuCost=stored.cost;options.jutsuReach=stored.stat==='cd'?'ranged':'personal';options.jutsuDuration=stored.duration;options.jutsuAction=stored.action;options.jutsuLevel=stored.level;options.storedFrame=stored;
  }
+ if(POWER_FAMILIES[powerFamily(item)]?.manual)throw Error('Este poder possui execução manual; suas técnicas não estão automatizadas.');
  let plan=powerPlan(item,actor.system,itemsOf(actor),options,context(actor));
  if(['afiar','arma-eletrica','flutuar'].includes(plan.effect)&&(plan.effect!=='arma-eletrica'||(options.mode??'energize')==='energize')){
   const weapon=findItem(actor,options.weaponId),entry=WEAPONS.find(w=>w.key===weapon?.system.catalogKey&&w.book===weapon?.system.catalogBook);
@@ -96,7 +97,7 @@ export async function powerAction(app,op,data,root,{actor,show}){
  if(op==='power-save'){
   const v=read(root,'power.'),previous=v.id?findItem(actor,v.id):null,family=v.family??previous?.system.powerData?.family,entry=POWER_FAMILIES[family];if(!entry)throw Error('Poder inválido.');
   const level=Number(v.level),track=previous?.system.powerData?.track??1+Math.max(0,...all.filter(i=>i.type==='power'&&powerFamily(i)===family).map(i=>number(i.system.powerData?.track??1))),choices=entry.effects?Array.from({length:level},(_,i)=>{const [effect,tier]=String(v['choice.'+i]??'').split(':');return {effect,tier:Number(tier)};}):[];
-  const item={_id:previous?.id,id:previous?.id,name:String(v.name??entry.name).trim()||entry.name,type:'power',img:ICONS.power,system:{...(previous?.system??{}),level,usedLevel:level,catalogKey:family,catalogBook:'basico',source:{book:'basico',page:String(entry.page)},powerData:{family,track,choices,solid:v.solid==='yes'}}};
+  const item={_id:previous?.id,id:previous?.id,name:String(v.name??entry.name).trim()||entry.name,type:'power',img:ICONS.power,system:{...(previous?.system??{}),level,usedLevel:level,catalogKey:family,catalogBook:entry.book??'basico',source:{book:entry.book??'basico',page:String(entry.page)},powerData:{family,track,choices,solid:v.solid==='yes'}}};
   const errors=validatePowerPurchase(actor,item,{previous:previous?.toObject?.()??previous,rules,books,isGM:game.user.isGM}),next=all.filter(i=>i.id!==previous?.id).concat(item),budget=pointBudgets(actor.system,next,rules);if(budget.powers.remaining<0)errors.push(`Faltam ${-budget.powers.remaining} pontos de poder.`);if(errors.length)throw Error(errors.join(' '));
   if(previous)await previous.update({name:item.name,'system.level':level,'system.usedLevel':level,'system.powerData':item.system.powerData});else{delete item.id;delete item._id;await actor.createEmbeddedDocuments('Item',[item]);}
   return app.close();

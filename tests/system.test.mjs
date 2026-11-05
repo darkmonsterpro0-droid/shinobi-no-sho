@@ -90,7 +90,14 @@ test('personal libraries create actor entries; shared libraries explicitly creat
   const skills=actorView(actor,'skills');assert.ok(!skills.includes('.trained'));assert.ok(skills.includes('system.skills.mecanismos.points'));
 });
 
-test('Mestre tab and configuration controls are hidden from players, even when selecting the tab directly',()=>{
- const player=actorView(actor,'gm',{isGM:false});assert.ok(!player.includes('data-tab="gm"'));assert.ok(!player.includes('name="profile.notes"'));assert.ok(!player.includes('data-sns="house"'));assert.ok(!player.includes('data-sns="settings"'));
- const master=actorView(actor,'gm',{isGM:true});assert.ok(master.includes('data-tab="gm"'));assert.ok(master.includes('name="profile.notes"'));assert.ok(master.includes('name="profile.books.basico"'));assert.ok(master.includes('data-sns="review-profile"'));
+test('world controls live exclusively in Game Settings, with no GM tab for any role',()=>{
+ for(const isGM of [false,true]){
+  const sheet=actorView(actor,'gm',{isGM});assert.ok(!sheet.includes('data-tab="gm"'));assert.ok(!sheet.includes('name="profile.notes"'));assert.ok(!sheet.includes('data-sns="settings"'));assert.ok(!sheet.includes('data-sns="save-world-rules"'));
+ }
+ const settings=panelView('settings',{isGM:true});assert.ok(settings.includes('name="profile.books.basico"'));assert.ok(settings.includes('name="world.powerRate"'));assert.ok(settings.includes('data-sns="new-aptitude-scene"'));assert.ok(!panelView('settings',{isGM:false}).includes('name="profile.books.basico"'));
+});
+
+test('players cannot open the world settings menu or save optional rules through direct dispatch',async()=>{
+ const {apps,writes}=runtime();assert.throws(()=>new apps.ShinobiPanel('settings'),/Somente o mestre/);
+ const panel=new apps.ShinobiPanel('learn');await assert.rejects(()=>panel._snsAction('save-world-rules',{},fields({'world.powerRate':4})),/Somente o mestre/);assert.equal(writes.length,0);
 });

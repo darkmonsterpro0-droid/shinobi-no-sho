@@ -1,3 +1,6 @@
+import {powerAction} from '../src/power-actions.mjs';
+import {validatePowerPurchase} from '../src/power-rules.mjs';
+import {panelView} from '../src/ui.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {RESTRICTED_APTITUDES as entries} from '../src/restricted-aptitude-data.mjs';
@@ -164,8 +167,8 @@ test('capability grant adapter rejects arbitrary benefits not described by the s
  const w=world();const item=await acquire(w,'byakugan');await assert.rejects(processCapabilityCommand(w.actor,{operation:'grant',itemId:item.id,benefitKey:'reflexos',reason:'x'},{user:w.gm,requestId:'g1'}),/não descrito/);
 });
 test('restricted catalogue and existing sheet expose categories, reasons, source pages, levels and manual coverage with escaped data',async()=>{
- const w=world();let html=restrictedCatalogView({actor:w.actor,isGM:false,profile:w.books,houseRules:{}});assert.match(html,/Categoria/);assert.match(html,/Origem necessária/);assert.match(html,/Níveis:/);assert.match(html,/efeitos/);
- html=actorView(w.actor,'techniques',{isGM:true,profile:w.books});assert.match(html,/Restrita \/ especial/);assert.match(html,/Aptidão comum/);
+ const w=world();let html=restrictedCatalogView({actor:w.actor,isGM:false,profile:w.books,houseRules:{}});assert.match(html,/Categoria/);assert.match(html,/Exibindo aptidões das origens/);assert.match(html,/Níveis:/);assert.match(html,/efeitos/);
+ html=actorView(w.actor,'techniques',{isGM:true,profile:w.books});assert.match(html,/data-panel="learn"/);
  const item=await acquire(w,'byakugan');item.name='<script>x</script>';html=restrictedUseView({actor:w.actor,isGM:true,profile:w.books},item);assert.ok(html.includes('&lt;script&gt;'));assert.ok(!html.includes('<script>'));assert.match(html,/Suspensão/);assert.match(html,/Ativação/);
 });
 test('shared coordinator authenticates the original requester, serializes duplicate purchases and marks requests completed',async()=>{
@@ -203,4 +206,74 @@ test('saving a complete sheet with unchanged origin remains permitted after char
  assert.deepEqual(validateOriginChange(s,{identity:{...s.identity},capabilityData:clone(s.capabilityData)},items,{isGM:false}),[]);
  assert.deepEqual(validateOriginChange(s,{capabilityData:{schemaVersion:1}},items,{isGM:false}),[]);
  assert.match(validateOriginChange(s,{identity:{clan:'Uchiha'}},items,{isGM:false}).join(' '),/mestre/);
+});
+
+function catalogKeys(html) {return [...html.matchAll(/data-catalog="restricted" data-key="([^"]+)"/g)].map(match=>match[1]).sort();}
+test('restricted catalogue renders only the current legacy origin, for GM and player',()=>{
+ for(const origin of ['Hyuuga','Uchiha','Kugutsu no Jutsu'])for(const isGM of [false,true]){
+  const w=world(origin),before=clone(w.actor.system),keys=characterOrigins(w.actor.system).keys;
+  const expected=entries.filter(e=>e.accessOrigins.some(key=>keys.includes(key))).map(e=>e.key).sort();assert.ok(expected.length);
+  const html=restrictedCatalogView({actor:w.actor,isGM,profile:w.books});assert.deepEqual(catalogKeys(html),expected);assert.deepEqual(w.actor.system,before);
+ }
+});
+test('origin catalogue keeps unmet prerequisites visible and acquisition disabled',()=>{
+ const w=world('Aburame');w.actor.system.skills.lidar.points=0;
+ const html=restrictedCatalogView({actor:w.actor,isGM:false,profile:w.books});
+ assert.ok(catalogKeys(html).includes(definition('kikaichuu').key));assert.match(html,/Ponto investido/);
+ const button=html.match(new RegExp('<button[^>]+data-key="'+definition('kikaichuu').key+'"[^>]*>'))[0];assert.match(button,/disabled/);
+});
+test('structured origins override legacy identity and include all explicitly selected access routes',()=>{
+ const w=world('Hyuuga');w.actor.system.capabilityData={schemaVersion:1,origins:['uchiha','buki-senmon']};
+ const expected=entries.filter(e=>e.accessOrigins.some(key=>['uchiha','buki-senmon'].includes(key))).map(e=>e.key).sort();
+ const html=restrictedCatalogView({actor:w.actor,isGM:true,profile:w.books});assert.deepEqual(catalogKeys(html),expected);
+ assert.ok(!catalogKeys(html).includes(definition('byakugan').key));
+ const shared=entries.find(e=>e.accessOrigins.includes('buki-senmon')&&e.accessOrigins.includes('tensai'));assert.ok(shared);assert.ok(catalogKeys(html).includes(shared.key));
+});
+test('missing, unknown and future origins show an empty catalogue without falling back to all entries',()=>{
+ for(const data of [undefined,{schemaVersion:1,origins:[]},{schemaVersion:1,origins:['nao-catalogada']},{schemaVersion:99,origins:['hyuuga']}]){
+  const w=world('');w.actor.system.capabilityData=data;const before=clone(w.actor.system);
+  const html=restrictedCatalogView({actor:w.actor,isGM:true,profile:w.books});assert.deepEqual(catalogKeys(html),[]);assert.match(html,/Nenhuma aptidão restrita catalogada/);assert.deepEqual(w.actor.system,before);
+ }
+});
+
+const form=values=>({querySelectorAll:()=>Object.entries(values).map(([name,value])=>({name,value,type:typeof value==='number'?'number':'text'}))});
+test('Bakuton acquisition and Demolition share budget and native validators without granting powers or changing reserves',async()=>{
+ const w=world('Bakuton'),before=clone(w.actor.system),budget=pointBudgets(w.actor.system,w.actor.items).powers.remaining;
+ await powerAction({close:async()=>{}},'power-save',{},form({'power.family':'bakuton','power.level':5}),{actor:w.actor});
+ const power=w.actor.items[0];assert.equal(power.system.powerData.family,'bakuton');assert.equal(power.system.source.book,'hijutsus2');assert.equal(power.system.source.page,'19');
+ assert.equal(pointBudgets(w.actor.system,w.actor.items).powers.remaining,budget-5);
+ assert.equal(restrictedEligibility(definition('demolicao'),w.actor.system,w.actor.items,{books:w.books.books}).allowed,true);
+ await acquire(w,'demolicao');assert.equal(w.actor.items.length,2);assert.equal(pointBudgets(w.actor.system,w.actor.items).powers.remaining,budget-7);assert.deepEqual(w.actor.system,before);assert.equal(w.actor.effects.length,0);
+ await assert.rejects(powerAction({close:async()=>{}},'power-save',{},form({'power.family':'bakuton','power.level':5}),{actor:w.actor}),/já foi adquirido/);
+});
+test('Bakuton validates origin, Spirit, enabled source and NC even for the GM',()=>{
+ const w=world('Bakuton'),power={name:'Bakuton',type:'power',system:{level:5,powerData:{family:'bakuton',track:1,choices:[]}}};
+ assert.deepEqual(validatePowerPurchase(w.actor,power,{books:w.books.books}),[]);
+ w.actor.system.identity.clan='Hyuuga';assert.match(validatePowerPurchase(w.actor,power,{books:w.books.books,isGM:true}).join(' '),/Origem/);
+ w.actor.system.identity.clan='Bakuton';w.actor.system.attributes.esp=2;assert.match(validatePowerPurchase(w.actor,power,{books:w.books.books}).join(' '),/Espírito 3/);
+ assert.match(validatePowerPurchase(w.actor,power,{books:['basico']}).join(' '),/Livro/);
+ w.actor.system.campaign.level=4;assert.match(validatePowerPurchase(w.actor,power,{books:w.books.books}).join(' '),/NC/);
+});
+test('Bakuton and incompatible elemental purchases are blocked in both directions without writes',()=>{
+ const w=world('Bakuton'),power={id:'bakuton',name:'Bakuton',type:'power',system:{level:1,powerData:{family:'bakuton',track:1,choices:[]}}},katon={id:'katon',name:'Katon',type:'power',system:{level:1,powerData:{family:'katon',track:1,choices:[{effect:'canhao',tier:1}]}}};
+ w.actor.items.push(katon);assert.match(validatePowerPurchase(w.actor,power,{books:w.books.books}).join(' '),/somente Doton e Raiton/);
+ w.actor.items.splice(0);w.actor.items.push(power);assert.match(validatePowerPurchase(w.actor,katon,{books:w.books.books}).join(' '),/somente Doton e Raiton/);assert.equal(w.actor.writes.length,0);
+});
+test('power catalogue follows source and explicit origin, while manual Bakuton has no execute control',()=>{
+ const w=world('Bakuton');let html=panelView('power-catalog',{actor:w.actor,profile:w.books});assert.match(html,/data-family="bakuton"/);
+ w.actor.system.capabilityData={schemaVersion:1,origins:['hyuuga']};html=panelView('power-catalog',{actor:w.actor,profile:w.books});assert.doesNotMatch(html,/data-family="bakuton"/);
+ w.actor.system.capabilityData.origins=['bakuton'];html=panelView('power-catalog',{actor:w.actor,profile:{...w.books,books:['basico']}});assert.doesNotMatch(html,/data-family="bakuton"/);
+ w.actor.items.push({id:'b',name:'Bakuton',type:'power',system:{level:5,powerData:{family:'bakuton'}}});html=panelView('power-use',{actor:w.actor,itemId:'b'});assert.match(html,/Execução manual/);assert.doesNotMatch(html,/data-sns="power-execute"/);
+});
+test('one acquisition entry replaces repeated buttons and sheet rendering preserves all character data',()=>{
+ const w=world(),before=clone(w.actor.system);
+ const html=actorView(w.actor,'techniques',{isGM:true,profile:w.books});assert.equal((html.match(/data-panel="learn"/g)||[]).length,1);assert.doesNotMatch(html,/data-sns="power-catalog"|data-catalog="aptitudes"|data-catalog="restricted"/);
+ const menu=panelView('learn',{actor:w.actor});assert.match(menu,/data-sns="power-catalog"/);assert.match(menu,/data-catalog="restricted"/);assert.match(menu,/data-kind="technique"/);assert.deepEqual(w.actor.system,before);
+});
+test('all sheets follow the same world power budget while retaining their own state',()=>{
+ const w=world(),before=clone(w.actor.system);
+ for(const rate of [2,3,4])for(const a of [w.actor,{...w.actor,id:'second'}]){
+  const html=actorView(a,'techniques',{houseRules:{powerRate:rate},profile:w.books});assert.ok(html.includes(pointBudgets(a.system,a.items,{powerRate:rate}).powers.remaining+' pontos disponíveis'));
+ }
+ assert.deepEqual(w.actor.system,before);
 });

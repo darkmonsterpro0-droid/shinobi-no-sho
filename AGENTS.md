@@ -1,5 +1,7 @@
 # Regras permanentes deste projeto
 
+- Revisão 0.9.1 autorizada pelo usuário: reorganizar a ficha conforme referências aprovadas, retirar a aba Mestre e centralizar opções globais nas Configurações de Jogo. A ficha de cada jogador segue os settings de mundo existentes. Adquirir/evoluir Bakuton com fonte e requisitos é permitido; execução, técnicas e concessões continuam manuais. Preservar dados e não publicar release. Ver docs/FICHA-0.9.1.md.
+
 - RES-001 autorizada em 05/11/2026: fundação genérica, catálogo e aquisição/evolução de aptidões restritas/especiais sobre a base 0.8.0, sem segundo motor. Esta autorização amplia o escopo antigo de arquitetura apenas manual. Concessões são registros sem aplicação; não automatizar efeitos individuais, gasto/recuperação de reservas, bônus à Vitalidade/Chakra, conversão de itens antigos ou mudanças em mundos. Publicação permanece não autorizada. Ver docs/RES-001.md.
 
 - Base de recursos extras autorizada: somente arquitetura e controle manual. Manter system.special e os registros antigos; benefícios são anotações separadas da reserva. Não automatizar aptidões, criar reservas por aquisição, aplicar bônus à Vitalidade/Chakra, gastar ou recuperar reservas automaticamente nesta etapa. Ver docs/RECURSOS-EXTRAS.md.

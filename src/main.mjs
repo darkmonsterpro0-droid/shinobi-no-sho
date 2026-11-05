@@ -38,7 +38,7 @@ Hooks.once("init",()=>{
   const sheets=foundry.applications.apps.DocumentSheetConfig;
   sheets.registerSheet(CONFIG.Actor.documentClass,ID,apps.ShinobiActorSheet,{types:Object.keys(ACTOR_TYPES),makeDefault:true,label:"Shinobi no Sho"});
   sheets.registerSheet(CONFIG.Item.documentClass,ID,apps.ShinobiItemSheet,{types:Object.keys(ITEM_TYPES),makeDefault:true,label:"Shinobi no Sho"});
-  game.settings.registerMenu(ID,"rulesMenu",{name:"Regras da mesa",label:"Abrir regras da mesa",hint:"Livros, variantes, decisões e regras da casa.",icon:"fas fa-scroll",type:class extends apps.ShinobiPanel{constructor(options){super("settings",options);}},restricted:true});
+  game.settings.registerMenu(ID,"rulesMenu",{name:"Shinobi no Sho — Regras do mundo",label:"Configurar livros e regras",hint:"Configura todos os personagens: livros, variantes, regras opcionais e da casa.",icon:"fas fa-scroll",type:class extends apps.ShinobiPanel{constructor(options){super("settings",options);}},restricted:true});
   const access=createActionAccess({resolveActor:uuid=>fromUuid(uuid),list:savedActions,use:useSavedAction});
   game.noSho={apiVersion:1,adapter:ID,actions:access,hud:apps.hud};
   game.noSho.capabilities={

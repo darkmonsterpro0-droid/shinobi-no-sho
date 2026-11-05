@@ -9,7 +9,8 @@ export const POWER_FAMILIES={
  suiton:{name:'Suiton',page:111,effects:true,range:[10,2],size:1,damage:0,hardness:0},
  fuuinjutsu:{name:'Fuuinjutsu',page:114,requirement:'Inteligência 6'},
  'iryou-ninjutsu':{name:'Iryou Ninjutsu',page:120,requirement:'Ninja Médico; Espírito 6'},
- rasengan:{name:'Rasengan',page:121,requirement:'Espírito 8'}
+ rasengan:{name:'Rasengan',page:121,requirement:'Espírito 8'},
+ bakuton:{name:'Bakuton',page:19,book:'hijutsus2',manual:true,origins:['bakuton'],requirement:'Origem Bakuton; Espírito 3',notes:'Hijutsus II revisado, pp. 18–19. Técnicas, concessões de Doton/Raiton e uso de Canhão pelo nível de Bakuton exigem acompanhamento manual. Não aprende outros elementos além de Doton e Raiton.'}
 };
 const all=['ninpou',...ELEMENTS],solid=['ninpou','doton','suiton'],fluid=['ninpou','doton','fuuton','suiton'];
 const effect=(key,name,tiers,families,page,extra={})=>({key,name,tiers,families,page,book:'basico',...extra});

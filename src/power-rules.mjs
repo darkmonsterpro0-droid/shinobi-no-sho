@@ -1,3 +1,4 @@
+import {characterOrigins} from './restricted-aptitudes.mjs';
 import {POWER_FAMILIES,POWER_EFFECTS,POWER_TECHNIQUES,ELEMENTS,powerSource} from './power-data.mjs';
 import {aptitudeOwned,normalize} from './aptitudes.mjs';
 import {skillBase} from './build-rules.mjs';
@@ -26,7 +27,12 @@ export function powerPurchaseCost(item,items=[]){
 export function validatePowerPurchase(actor,item,{previous=null,rules={},books=['basico','avancado'],isGM=false}={}){
  const s=item.system??{},p=s.powerData??{},family=p.family,entry=POWER_FAMILIES[family];if(!family)return [];
  const errors=[],system=actor.system??{},items=[...(actor.items??[])].filter(i=>(i.id??i._id)!==(item.id??item._id)),level=n(s.level),attrs=system.attributes??{};
- if(!entry)return ['Poder comum desconhecido.'];
+ if(!entry)return ['Poder de catálogo desconhecido.'];
+ if(!books.includes(entry.book??'basico'))errors.push('Livro deste poder desabilitado.');
+ if(entry.origins&&!entry.origins.some(key=>characterOrigins(system).keys.includes(key)))errors.push('Origem necessária: '+entry.origins.join(' ou ')+'.');
+ if(family==='bakuton'&&n(attrs.esp)<3)errors.push('Bakuton exige Espírito 3.');
+ const hasBakuton=family==='bakuton'||items.some(i=>i.type==='power'&&familyOf(i)==='bakuton'&&n(i.system.level)>0);
+ if(hasBakuton&&[...items,item].some(i=>i.type==='power'&&ELEMENTS.includes(familyOf(i))&&!['doton','raiton'].includes(familyOf(i))&&n(i.system.level)>0))errors.push('Bakuton permite somente Doton e Raiton como outros elementos (Hijutsus II p. 19).');
  if(!Number.isInteger(level)||level<1||level>Math.floor(n(system.campaign?.level??4)/2))errors.push('Nível de poder acima do limite de NC ou inválido.');
  const track=Number(p.track??1),others=items.filter(i=>i.type==='power'&&familyOf(i)===family);
  if(!Number.isInteger(track)||track<1||others.some(i=>Number(i.system.powerData?.track??1)===track))errors.push('Compra repetida do poder precisa de uma sequência própria.');
@@ -37,6 +43,7 @@ export function validatePowerPurchase(actor,item,{previous=null,rules={},books=[
  if(family==='iryou-ninjutsu'&&(n(attrs.esp)<6||!apt(items,'ninja-medico')))errors.push('Iryou Ninjutsu exige Ninja Médico e Espírito 6.');
  if(family==='rasengan'&&n(attrs.esp)<8)errors.push('Rasengan exige Espírito 8.');
  const affinity=affinityStatus(system,[...items,item]);if(!affinity.allowed)errors.push(affinity.reason);
+ if(entry.manual&&(p.choices??[]).length)errors.push('Este poder tem técnicas próprias; não selecione efeitos de Ninpou.');
  if(entry.effects){
   const available=availablePowerEffects(family,{books,rules}),choices=p.choices??[],prior=new Map();
   if(choices.length!==level)errors.push('Escolha exatamente um efeito ou evolução para cada nível comprado.');
@@ -64,6 +71,7 @@ export function powerParameters(family,level,spirit,{small=false,solid=false}={}
 }
 function resist(stat,difficulty,onFail,extra={}){return {stat,difficulty,onFail,...extra};}
 export function powerPlan(item,system,items=[],options={},context={}){
+ if(POWER_FAMILIES[familyOf(item)]?.manual)throw Error('Este poder possui execução manual; suas técnicas não estão automatizadas.');
  const family=familyOf(item),familyData=POWER_FAMILIES[family];if(!familyData)throw Error('Poder comum não reconhecido.');
  const known=Math.max(n(item.system.level),...items.filter(i=>i.type==='power'&&familyOf(i)===family).map(i=>n(i.system.level))),level=n(options.level??item.system.level),attrs=context.attributes??system.attributes??{},spirit=n(attrs.esp),intel=n(attrs.int),rules=context.rules??{};
  if(!Number.isInteger(level)||level<1||level>known||level>Math.floor(n(system.campaign?.level??4)/2))throw Error('Nível usado acima do conhecido ou do limite da campanha.');

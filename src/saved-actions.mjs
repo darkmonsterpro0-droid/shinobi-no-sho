@@ -29,7 +29,7 @@ export async function saveAction(actor,{id,name,itemId,options,favorite=true}){
 }
 export function savedActionsView(actor,{all=false}={}){
  const entries=savedActions(actor).filter(x=>all||x.favorite);
- return `<section class="sns-block sns-saved-actions"><header><h3>Ações salvas</h3><button type="button" class="sns-btn" data-sns="panel" data-panel="saved-actions">Gerenciar</button></header><p class="sns-hint">Compartilhadas com os controladores deste personagem. Salve uma combinação em Usar arma.</p>${actionRows(entries,{all})||'<p>Nenhuma ação salva nesta lista.</p>'}</section>`;
+ return `<section class="sns-block sns-saved-actions"><header><h3>Ações salvas</h3><button type="button" class="sns-btn" data-sns="panel" data-panel="saved-actions">Gerenciar</button></header>${all?'<p class="sns-hint">Compartilhadas com os controladores deste personagem. Salve uma combinação em Usar arma.</p>':''}${actionRows(entries,{all})||'<p>Nenhuma ação salva nesta lista.</p>'}</section>`;
 }
 export function attackTargets(){
  const tokens=globalThis.canvas?.tokens?.placeables;

@@ -65,7 +65,7 @@ test('sheet omits removed tabs, shows budgets and puts social choices beside dir
  const a={type:'character',system:s,items:[]},p=defaultProfile();
  const html=actorView(a,'social',{isGM:false,profile:p});assert.match(html,/ui.social.acalmar.attribute/);assert.match(html,/data-sns="roll-social"/);assert.doesNotMatch(html,/data-tab="combat"|data-tab="advancement"|system.social.notes/);
  assert.match(actorView(a,'techniques',{profile:p}),/Poderes e Aptidões/);
- assert.doesNotMatch(actorView(a,'summary',{profile:p,isGM:false}),/data-sns="allocation"|data-sns="xp"|Favoritos rápidos|Recuperação e chakra/);
+ assert.doesNotMatch(actorView(a,'summary',{profile:p,isGM:false}),/data-sns="xp"|Favoritos rápidos|Recuperação e chakra/);
 });
 test('aptitude passive bonuses remain derived, with Perito never stacking for the same skill',()=>{
  const b=aptitudeBonuses(s,[apt('perito','acrobacia'),apt('perito','acrobacia'),apt('reflexos'),apt('metabolismo-rapido')]);assert.equal(b.skills.acrobacia,2);assert.equal(b.esq,1);assert.equal(b.restMultiplier,2);

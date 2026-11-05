@@ -1,6 +1,8 @@
 # Shinobi no Sho — Foundry VTT 14
 
-**Versão 0.9.0 RES-001 local, ainda não publicada · ficha, rolagens e automações em desenvolvimento · português brasileiro**
+**Versão 0.9.1 local, ainda não publicada · ficha, rolagens e automações em desenvolvimento · português brasileiro**
+
+A [revisão da ficha 0.9.1](docs/FICHA-0.9.1.md) reúne regras globais nas Configurações de Jogo, reorganiza as seis abas e acrescenta a compra manual de Bakuton por origem. Consulte a prévia em `preview/ficha-visual.html`. Testes de código e validação nativa são evidências separadas.
 
 A [fundação RES-001](docs/RES-001.md) acrescenta catálogo de 139 definições restritas/especiais, acesso por origem, aquisição e evolução no motor existente, proveniência, suspensão e vínculos manuais de recursos. Há 39 definições com revisão de aquisição; efeitos individuais aguardam RES-002. Foram executados 207 testes de código (31 novos); validação no Foundry permanece pendente. O pacote local é o candidato atual; o manifesto público abaixo continua apontando à última versão publicada.
 

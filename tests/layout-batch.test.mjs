@@ -48,7 +48,7 @@ test('summary removes the evolution block and sources card but keeps rest access
     assert.ok(!html.includes('Distribuir / subir NC'));
     assert.ok(!html.includes('Conceder EXP'));
     assert.ok(!html.includes('sns-profile-card'));
-    assert.ok(html.slice(html.indexOf('<footer')).includes('data-sns="rest"'));
+    assert.ok(html.includes('data-sns="rest"'));assert.ok(!html.slice(html.lastIndexOf('<footer')).includes('data-sns="rest"'));
   }
 });
 
