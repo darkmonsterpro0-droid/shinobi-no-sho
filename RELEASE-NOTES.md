@@ -1,29 +1,32 @@
-# Shinobi no Sho 0.9.1 — candidato local de revisão da ficha
+# Shinobi no Sho 0.9.4 — automações de clãs e combate
 
-Regras da mesa acessíveis pelas Configurações de Jogo do Foundry, sem aba Mestre nas fichas. Uma única entrada de aquisição por área e menos controles repetidos. Temas, retrato lateral, sete atributos e recursos seguem a composição aprovada; regras e dados existentes são reaproveitados.
+Atualização de 19/11/2026. Reúne o desenvolvimento preservado desde a última release pública 0.4.0, incluindo ficha, configurações nativas, HUD e os lotes de automação descritos abaixo. A publicação foi autorizada pelo usuário ao pedir o encerramento desta atualização após Yamanaka.
 
-Bakuton pode ser adquirido e evoluído como poder restrito de execução manual, com fonte, requisitos e orçamento. Não cria Doton/Raiton gratuitamente, não concede técnicas automaticamente, não aplica benefícios de clãs e não altera reservas. Outros poderes restritos ainda precisam de catálogo e validação por fonte.
+## Implementado
 
-Sem publicação ou tag de release. Consultar docs/FICHA-0.9.1.md para a validação de código e o que continua pendente no Foundry 14.367.
+- HUD por ações Padrão, Movimento, Parcial, Livre e Outras, sem contabilizar ações restantes. Usa alvos marcados; o defensor declara antes de ver os dados. A opção de crítico dispensar defesa pertence às configurações da mesa.
+- Áreas usam as células efetivamente atingidas, com cobertura mínima de metade da célula; cada ocupante resolve sua defesa. Tratamento privado dos ocupantes ocultos.
+- Akimichi: Corpulência no pagamento compartilhado, Baika, Bunbun, Nikudan/Hari, Choudan, Controle de Caloria e pílulas com estoque e consequências.
+- Inuzuka: Hakken, Shikakyu, companheiros, Juujin, Tsuuga/Gatsuga, Sotorou/Garouga, Santorou/Ooiga, treinamento e promoção, com as partes assistidas registradas na documentação da família.
+- Nara: Shibari/Mane, Kubishibari, sombras preparada/guiada, Shuriken de Sombra, Kageyose, Kage Nui e Kagezukami; custos, defesas, fuga, manutenção, movimento e término no fluxo comum.
+- Hachimon: oito Portões, Lótus, Ataque Pesado, excesso de uso, contagem do Portão da Morte e tratamento da perda permanente.
+- Yamanaka: Sensor de Mentes, Transmissão Mental, Troca de Mente, Múltipla Troca e Desordem Mental. Controle temporário sem mudar propriedade; precisões físicas do corpo e mentais do Yamanaka; capacidades comuns no menor nível; Chakra do corpo para suas técnicas; reflexo de dano/condições, resistências e término.
+- Correções de integração nativa: restauração do tamanho do HUD, campos vazios dos modelos, seleção do formulário e coleções de itens protegidas do Foundry. Pedidos interrompidos podem ser retomados com os custos e dados preservados.
 
-## Entrega anterior
+## Validação
 
-# Shinobi no Sho 0.9.0 — candidato local RES-001
+515 testes automáticos aprovados, zero falhas. Executados combates simulados em mundo real Foundry 14.370 com contas de mestre e jogador. Os documentos por família registram os cenários e recursos observados; aprovação automática e instalação conferida não certificam todos os fluxos de um mundo.
 
-Fundação para adquirir e evoluir aptidões restritas/especiais na mesma aba e usando o orçamento existente. Catálogo com 139 definições dos quatro livros, fontes e requisitos; 39 entradas exigem revisão do mestre. Escolher uma origem não concede todas as aptidões.
+Em Yamanaka, Player4 realizou Troca e Múltipla, ataque pelo corpo, reação defensiva do controlador, Sensor emprestado e Doton comum de nível 3. Confirmados recuperação da falha inicial, persistência ao reconectar, reflexo de 20 de dano, reação que libera apenas um corpo e dano dividido apenas no corpo escolhido. Sensor/rede e Desordem também tiveram cenários anteriores de várias rodadas como mestre.
 
-Concessões e suspensões possuem registro de proveniência; recursos já cadastrados podem ser vinculados por ID. Nenhum efeito individual, bônus de Vitalidade/Chakra, consumo, recuperação ou reserva nova é aplicado nesta etapa. Itens textuais e cadastros antigos não são migrados.
+Conferência final em0.9.4: o estado fatal preparado manualmente no corpo de teste matou também o Yamanaka de risco e encerrou a ligação. O ataque fatal completo continua distinguido desse ensaio de reconciliação.
 
-207 testes executados, todos aprovados; 31 cenários novos. As 176 regressões foram recuperadas de uma base limpa 0.8.0 e realmente executadas. Validação nativa no Foundry 14.367, inspeção visual e teste com pessoas pendentes. Sem publicação/tag, sem mudanças em mundos ou na instalação original. Consulte docs/RES-001.md para entrega, riscos, inventário e RES-002.
+## Limites e trabalho posterior
 
-## Histórico 0.8.0
+A automação integral dos livros permanece aberta. Outras famílias/hijutsus, ampliações dos pilotos Hyuuga/Uchiha/Aburame e casos nativos restantes estão em docs/FILA-AUTOMACOES.md e nos documentos por família. A variante opcional de troca humana completa, julgamentos de natureza/suicídio, detecção narrativa de mentes e geometrias sem dados suficientes continuam assistidos. Não são inventadas regras para essas decisões.
 
-# Shinobi no Sho 0.8.0 — base manual de recursos extras
+Nenhum livro, extração privada, credencial, mundo, ficha de teste ou backup acompanha o pacote. Compras e registros existentes são preservados; escolher uma origem não concede automaticamente todas as capacidades. Compatibilidade declarada mantida em Foundry 14.367; as provas deste ciclo são de 14.370.
 
-Reservas específicas podem ser cadastradas separadamente na ficha e aparecem abaixo de Vitalidade e Chakra. Cada uma tem nome, atual, máximo opcional, unidade, origem e anotações separadas de usos e benefícios. O valor atual é editável manualmente; a reserva pode ser ocultada sem ser excluída.
+Manifesto de instalação: https://github.com/darkmonsterpro0-droid/shinobi-no-sho/releases/latest/download/system.json
 
-Somente arquitetura e controle manual: nenhuma aptidão foi automatizada, nenhum benefício é aplicado à Vitalidade/Chakra e não há consumo ou recuperação automática dessas reservas. O cadastro anterior system.special é preservado, com metadados extensíveis em resourceData. Novos personagens não recebem reservas predefinidas.
-
-176 testes de código aprovados, incluindo 12 cenários novos. O teste de descanso confere que as reservas manuais não são renovadas. Os testes de integração usam documentos simulados; não houve validação nativa ou inspeção visual concluída. Ver docs/RECURSOS-EXTRAS.md.
-
-A prévia independente preview/ficha-visual.html apresenta uma reserva fictícia para mostrar sua posição. Esta versão permanece local, sem tag/release publicada. A compatibilidade declarada continua 14.367 com o escopo de evidência anterior.
+Após atualizar, recarregue todos os clientes do mundo para que mestres e jogadores usem o mesmo código.

@@ -1,6 +1,7 @@
 import {effectiveAttributes,sizeProfile} from './physical-rules.mjs';
 import {inventoryBonuses} from './inventory-rules.mjs';
 import {aptitudeOwned} from './aptitudes.mjs';
+import {hachimonProfile} from './hachimon-rules.mjs';
 export const WEAPON_CATEGORIES={unarmed:'Desarmado',light:'Leve',medium:'Mediana',long:'Longa',heavy:'Pesada',throw:'Arremesso',shot:'Disparo',firearm:'Arma de fogo',ammo:'Munição'};
 const rows=[
  ['unarmed','Ataque Desarmado','unarmed',0,0,15,0,0,'Esmagamento',true],
@@ -60,7 +61,7 @@ export function weaponAttack(w,s,items=[],rules={},options={}){
  if((s.powerState?.active??[]).some(e=>e.alado&&e.weaponId===options.itemId))throw Error('O Leque Gigante está sustentando Flutuar e não pode atacar.');
  const errors=weaponRequirements(w,s,has);if(errors.length)throw Error(errors.join(' '));
  if(ranged&&!w.range)throw Error('Esta arma não permite ataques à distância.');
- const a=s.attributes??{},effective=effectiveAttributes(s),active=(s.powerState?.active??[]).filter(e=>e.active!==false),weaponEffects=active.filter(e=>e.weaponId===(options.itemId??w.key)||(w.key==='unarmed'&&e.weaponId==='unarmed')),stone=w.key==='unarmed'?active.find(e=>e.stoneFist):null,inventory=inventoryBonuses({system:s,items},{kind:'attack',now:options.now??0,scene:options.scene??''},rules),stat=options.electricStat==='cd'?'cd':ranged?'cd':'cc',attribute=options.electricStat==='cd'?'des':ranged?'des':w.acuidade&&has('acuidade')?'des':'for';
+ const a=s.attributes??{},effective=options.attributes??effectiveAttributes(s),active=(s.powerState?.active??[]).filter(e=>e.active!==false),weaponEffects=active.filter(e=>e.weaponId===(options.itemId??w.key)||(w.key==='unarmed'&&e.weaponId==='unarmed')),stone=w.key==='unarmed'?active.find(e=>e.stoneFist):null,inventory=inventoryBonuses({system:s,items},{kind:'attack',now:options.now??0,scene:options.scene??''},rules),stat=options.electricStat==='cd'?'cd':ranged?'cd':'cc',attribute=options.electricStat==='cd'?'des':ranged?'des':w.acuidade&&has('acuidade')?'des':'for';
  const purchased=Number(a[attribute]??0)+Number(s.automation?.bases?.[stat]??3);
  let bonus=0,penalty=0,damage=w.damage,units=1;
  const proficiency=w.simple||has('usar-arma',w.key)||(w.key==='wakizashi'&&has('usar-arma','katana'))||(w.category==='firearm'&&has('usar-polvora'));
@@ -77,17 +78,19 @@ export function weaponAttack(w,s,items=[],rules={},options={}){
  if(!ranged&&options.dual){if(!has('ambidestria')||!w.double)throw Error('Esta combinação exige Ambidestria e arma dupla/em par.');damage=w.dualDamage??damage+w.double;}
  if(ranged&&w.thrownDamage)damage=w.thrownDamage;
  if(w.key==='blunderbuss'&&Number(options.distance??0)<=10)damage+=Number(a.des??0)>=12?2:1;
- if(w.key==='unarmed'&&has('punho-de-ferro')){const strength=Math.max(Number(effective.for??0),...(weaponEffects.filter(e=>e.ironFistSpirit).map(()=>Number(a.esp??0))));damage=Math.min(4,strength>=12?4:strength>=10?3:strength>=8?2:1);}
- if(stone)damage=4;
+ if(w.key==='unarmed'&&!options.juuken&&!options.shikakyu&&has('punho-de-ferro')){const strength=Math.max(Number(effective.for??0),...(weaponEffects.filter(e=>e.ironFistSpirit).map(()=>Number(a.esp??0))));damage=Math.min(4,strength>=12?4:strength>=10?3:strength>=8?2:1);}
+ if(stone&&!options.juuken&&!options.shikakyu)damage=4;
  if(w.key==='rapier'&&!has('acuidade'))damage-=1;
  const improved=aptitudeOwned(items,'critico-aprimorado','',rules),improves=improved&&(improved.system.catalogBook==='avancado'?(rules.banCombatAptitudes||has('especialista',w.category)):improved.system.selection===w.key);
- const critical=w.key==='fuuma-shadow'?14:w.critical-Math.max(improves?1:0,...weaponEffects.map(e=>Number(e.criticalExpansion??0)));
- let damageAttribute=Number(effective[ranged?'des':'for']??0)+(ranged?0:inventory.strengthDamageModifier);
- if(options.useSpirit!==false&&weaponEffects.some(e=>e.damageAttribute==='esp'))damageAttribute=Math.max(damageAttribute,Number(a.esp??0));
+ const lightning=has('dominio-do-raio')&&weaponEffects.some(e=>e.element==='raiton'&&['energizar','arma-eletrica'].includes(e.effect));
+ const critical=w.key==='fuuma-shadow'?14:w.critical-Math.max(improves||lightning?1:0,...weaponEffects.map(e=>Number(e.criticalExpansion??0)));
+ const gates=hachimonProfile(s);
+ let damageAttribute=Number(effective[ranged||options.juuken?'des':'for']??0)+(ranged||options.juuken?0:gates?gates.strength:inventory.strengthDamageModifier);
+ if(!gates&&!options.juuken&&!options.shikakyu&&options.useSpirit!==false&&weaponEffects.some(e=>e.damageAttribute==='esp'))damageAttribute=Math.max(damageAttribute,Number(a.esp??0));
  let base=Math.max(0,Math.ceil(damageAttribute/2)+damage);
  const sharpened=weaponEffects.find(e=>e.effect==='afiar');if(sharpened&&ranged&&w.key==='shuriken'){if(units>3)throw Error('Uma aplicação de Afiar estende até três shurikens.');if(units===3)base=Number(sharpened.plan.common.damage);}
  const marksman=aptitudeOwned(items,'atirador',w.category==='throw'&&w.simple?'throw':['short-bow','long-bow'].includes(w.key)?'bows':'!',rules);
- if(ranged&&marksman)base+=w.category==='throw'?3:marksman.system.catalogBook==='avancado'?2:1;
- if((rules.automaticExtraDamage||has('dano-extra',w.category))&&purchased>=18)base+=1+Math.floor((purchased-18)/2);
+ if(!gates&&ranged&&marksman)base+=w.category==='throw'?3:marksman.system.catalogBook==='avancado'?2:1;
+ if(!gates&&(rules.automaticExtraDamage||has('dano-extra',w.category))&&purchased>=18)base+=1+Math.floor((purchased-18)/2);
  return {element:weaponEffects.find(e=>e.element)?.element,breakBlock:weaponEffects.some(e=>e.effect==='afiar')?'afiar':weaponEffects.some(e=>e.breakWeapon)?'electric':null,extendedBlade:weaponEffects.some(e=>e.effect==='afiar'),ignoreHardness:Math.max(0,...weaponEffects.map(e=>Number(e.ignoreHardness??0))),cannotBlock:!!stone&&stone.stoneFist>=9,attackFailure:inventory.attackFailure,weaponId:options.itemId??w.key,precision:purchased+bonus+Math.max(-3,penalty),bonus,penalty,purchased,base,critical,range,units,ranged,stat,proficiency};
 }

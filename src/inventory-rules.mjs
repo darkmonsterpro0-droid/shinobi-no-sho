@@ -36,6 +36,7 @@ export function inventorySummary(subject,items,rules={}){
  const system=subject?.system??subject??{};items=list(items??subject?.items);const armor=armorSummary(system,items,rules),capacity=Math.max(0,aptitudeBonuses(system,items,rules).capacity+armor.compartments);
  let used=0,mixedHalves=0,storage=0;const unknown=[];
  for(const i of items.filter(i=>['equipment','device'].includes(i.type)&&!i.system?.inventoryData?.storedElsewhere)){
+  if(i.system?.catalogKey==='unarmed')continue;
   const e=inventoryEntry(i),d=i.system?.inventoryData??{},q=Math.max(0,numeric(i.system?.quantity,1));
   if(!q)continue;if(e?.kind==='armor')continue;
   if(e?.storage){storage+=e.storage*q;continue;}
@@ -49,7 +50,8 @@ export function inventorySummary(subject,items,rules={}){
  return {used,capacity,excess,storage,unknown,armor,movementPenalty:excess*3,penalty:-excess};
 }
 export function poisonTraining(system,items=[],rules={}){
- const doc=items.find(i=>i.type==='power'&&(i.system?.catalogKey==='dokujutsu'||normalize(i.name).startsWith('dokujutsu'))),dokujutsu=Math.max(0,numeric(doc?.system?.level));
+ const dokujutsu=Math.max(0,...items.filter(i=>i.type==='power'&&(i.system?.catalogKey==='dokujutsu'||
+  i.system?.powerData?.family==='dokujutsu'||normalize(i.name).startsWith('dokujutsu'))).map(i=>numeric(i.system.level)));
  const trained=numeric(system.skills?.veneficio?.points)>0,chemical=!!aptitudeOwned(items,'quimico','',rules),base=skillBase(system,'veneficio');
  return {trained,chemical,base,veneficio:base+(dokujutsu?2:0),dokujutsu};
 }
@@ -75,8 +77,9 @@ export function poisonCraftPlan(entry,system,items=[],values={},rules={}){
  if(ideal&&16+training.veneficio<difficulty)throw Error('Mesmo simulando dois dados, a precisão não alcança a dificuldade de fabricação.');
  return {...training,doses,route,ideal,difficulty,dc,cost:c.cost*doses,kitId:!ideal?(kit?.id??kit?._id):null,skill:medical?'medicina':'veneficio',adverse,minutes:!ideal&&entry.book==='avancado'?10:null,kind:values.antidote?'antidote':'poison'};
 }
-export function poisonLatency(entry,route,{dokujutsu=false,ingestionMinutes=1}={}){
- if(!entry.routes.includes(route))throw Error('Método de contágio incompatível.');
+export function poisonLatency(entry,route,{dokujutsu=false,ingestionMinutes=1,allowConvertedRoute=false}={}){
+ if(!entry.routes.includes(route)&&!(allowConvertedRoute&&['blood','touch','inhalation','ingestion'].includes(route)))
+  throw Error('Método de contágio incompatível.');
  if(entry.book==='basico')return {turns:dokujutsu?2:3,seconds:0};
  if(route==='ingestion'){const minutes=dokujutsu?Number(ingestionMinutes):10;if(!Number.isFinite(minutes)||minutes<1||minutes>1440)throw Error('Dokujutsu: escolha de 1 minuto a 24 horas.');return {turns:0,seconds:minutes*60};}
  return {turns:route==='blood'?0:route==='touch'?(dokujutsu?1:3):(dokujutsu?2:4),seconds:0};
@@ -86,7 +89,7 @@ export function createPoisonExposure(item,{id,now=0,scene='',route,damageGrade=0
  route=route??d.route??e.routes[0];const dok=!!d.dokujutsu;
  if(route==='blood'&&(!hit||!guaranteedInjection&&damageGrade<(e.book==='avancado'&&dok?2:3)))throw Error('A injeção sanguínea exige golpe de grau suficiente.');
  if(route==='touch'&&(!hit||(!usingPower&&damage<=0)))throw Error('O contato por ataque exige acertar e causar dano.');
- const latency=poisonLatency(e,route,{dokujutsu:dok,ingestionMinutes});
+ const latency=poisonLatency(e,route,{dokujutsu:dok,ingestionMinutes,allowConvertedRoute:usingPower&&dok});
  return {id:id??`${e.book}-${e.key}-${now}`,key:e.key,book:e.book,category:e.category,route,dc:numeric(d.dc,poisonResistanceDC(e,numeric(d.veneficio),{dokujutsu:dok,usingPower})),veneficio:numeric(d.veneficio),dokujutsu:dok,createdAt:now,startAt:now+latency.seconds,delay:latency.turns,elapsed:0,successes:0,failures:0,active:false,scene,suppressedScene:null,treated:false};
 }
 export function applyPoisonExposure(state,record,{tieRoll=null}={}){
@@ -136,19 +139,20 @@ export function poisonIsActive(record,{now=0,scene=''}={}){return !record.treate
 export function inventoryConditions(subject,{now=0,scene=''}={}){
  const state=subject?.system?.inventoryState??subject?.inventoryState??subject??{},conditions=[];
  for(const p of state.poisons??[]){const e=POISONS.find(e=>e.key===p.key&&e.book===p.book);if(!e||p.treated)continue;
-  if(poisonIsActive(p,{now,scene}))for(const effect of e.effects.filter(e=>e.condition!=='debilitado'))conditions.push({id:`inventory-${p.id}-${effect.condition}`,key:effect.condition,name:effect.condition,source:`${e.name} · ${e.book==='avancado'?'Guia':'Básico'} p. ${e.page}`,inventory:true,level:1});
-  const add=key=>conditions.push({id:`inventory-${p.id}-${key}`,key,name:key,source:e.name,inventory:true,level:1});
+  if(poisonIsActive(p,{now,scene}))for(const effect of e.effects.filter(e=>e.condition!=='debilitado'))conditions.push({id:`inventory-${p.id}-${effect.condition}`,key:effect.condition,name:effect.condition,source:`${e.name} · ${e.book==='avancado'?'Guia':'Básico'} p. ${e.page}`,inventory:true,level:1,mindInternal:true});
+  if(poisonIsActive(p,{now,scene}))for(const effect of e.effects.filter(e=>e.condition==='debilitado'))conditions.push({id:'inventory-reflection-'+p.id+'-'+effect.scope,key:'debilitado',name:'Debilitado',level:effect.level,inventoryScope:effect.scope,scope:'all',source:e.name,mindInternal:true,reflectionOnly:true});
+  const add=key=>conditions.push({id:`inventory-${p.id}-${key}`,key,name:key,source:e.name,inventory:true,level:1,mindInternal:true});
   if(p.sleepAt!==undefined&&p.sleepAt<=now&&p.sleepUntil>now)add('inconsciente');
   if(p.initialParalysis||p.collapseAt&&p.elapsed>=p.collapseAt-1)add('paralisado');
   if(p.collapsed)add('inconsciente');if(p.stunnedUntil&&p.elapsed<=p.stunnedUntil)add('atordoado');
   if(p.deathAt&&now>=p.deathAt)add('morto');
  }
  const ready=(state.conditions??[]).filter(c=>!c.disabled&&(!c.startsAt||now>=c.startsAt)&&(!c.expiresAt||now<c.expiresAt)&&(!c.sceneAfter||scene!==c.sceneAfter)),pillRank={fatigado:1,exausto:2,inconsciente:3},highestPill=Math.max(0,...ready.filter(c=>c.pillSideEffect).map(c=>pillRank[c.key]??0));
- for(const c of ready)if(!c.pillSideEffect||(pillRank[c.key]??0)===highestPill)conditions.push({...c,id:`inventory-${c.id}`,inventory:true});
+ for(const c of ready)if(!c.pillSideEffect||(pillRank[c.key]??0)===highestPill)conditions.push({...c,id:`inventory-${c.id}`,inventory:true,mindInternal:c.mindInternal===true||c.pillSideEffect===true});
  if(state.earplugs)conditions.push({id:'inventory-earplugs',key:'surdo',name:'Surdo',source:'Tampões de ouvido · Guia p. 68',inventory:true,level:1});
  return conditions.map(c=>({...c,name:CONDITIONS[c.key]?.name??c.name}));
 }
-function matchesScope(scope,context){const stat=context.stat,attr=SKILLS[stat]?.[1]??stat;
+export function matchesInventoryScope(scope,context){const stat=context.stat,attr=SKILLS[stat]?.[1]??stat;
  switch(scope){case'all':return true;case'social':return context.kind==='social';case'social-resistance':return context.kind==='social-resistance';case'suffocation':return context.suffocation===true;
   case'agility':return attr==='agi'||stat==='escapar';case'strength':return attr==='for';case'vigor':return stat==='vig';case'intelligence':return attr==='int';case'perception':return attr==='per'||stat==='lm';case'mental-perception':return ['int','per'].includes(attr)||stat==='lm';case'visual-perception':return context.vision!==false&&(attr==='per'||stat==='lm');default:return scope===stat;}
 }
@@ -160,24 +164,41 @@ export function inventoryBonuses(subject,context={},rules={}){
  // Kit absence is only checked in an explicit kit action, never inferred for every roll.
  if(context.kitRequired&&!items.some(i=>i.system?.catalogKey===context.kitRequired&&numeric(i.system.uses?.value,5)>0))penalties.push({key:'missing-kit',value:context.kitRequired==='artisan-kit'?-5:-4});
  for(const p of state.poisons??[]){if(!poisonIsActive(p,{now,scene}))continue;const e=POISONS.find(e=>e.key===p.key&&e.book===p.book);if(!e)continue;
-  if(context.kind!=='resistance'&&!context.bodyResistance&&!context.resistingId&&!context.poisonResistance)for(const effect of e.effects.filter(e=>e.condition==='debilitado'&&matchesScope(e.scope,context)))conditionPenalties.push({key:p.id,value:-effect.level});
+  if(context.kind!=='resistance'&&!context.bodyResistance&&!context.resistingId&&!context.poisonResistance)for(const effect of e.effects.filter(e=>e.condition==='debilitado'&&matchesInventoryScope(e.scope,context)))conditionPenalties.push({key:p.id,value:-effect.level});
   if(e.strengthDamage)strengthDamageModifier+=e.strengthDamage;if(context.kind==='attack')attackFailure=Math.max(attackFailure,e.attackFailure??0);
  }
  const marked=state.marked;if(marked&&['prontidao','procurar','rastrear'].includes(context.stat)&&context.locatingMarked)penalties.push({key:'marked',value:3});
  return {penalty:penalties.reduce((s,p)=>s+p.value,0),penalties,conditionPenalty:Math.max(-3,conditionPenalties.reduce((s,p)=>s+p.value,0)),conditionPenalties,movementPenalty:summary.movementPenalty,strengthDamageModifier,attackFailure,armor:summary.armor,capacity:summary.capacity,used:summary.used,excess:summary.excess};
 }
+export function applyPillIntoxication(state,now=0){
+ state.conditions=(state.conditions??[]).filter(c=>!c.pillSideEffect&&!String(c.id).startsWith('pill-overdose'));
+ state.conditions.push({id:'pill-overdose-unconscious',key:'inconsciente',name:'Inconsciente',startsAt:now,expiresAt:now+3600,source:'Intoxicação por pílulas · Básico p. 260'},
+  {id:'pill-overdose-exhaustion',key:'exausto',name:'Exausto',startsAt:now+3600,expiresAt:now+3600+20*86400,source:'Intoxicação por pílulas · Básico p. 260'});
+ return state;
+}
 export function soldierPillPlan(system,state,doses,{now=0,nonhuman=false,clone=false}={}){
  doses=Number(doses);if(!Number.isInteger(doses)||doses<1)throw Error('Escolha uma quantidade inteira positiva.');if(nonhuman||clone)throw Error('Pílulas do soldado não têm efeito em clones ou criaturas não humanas.');
  state=copy(state);state.pills??={count:0};const previous=numeric(state.pills.count),count=previous+doses,granted=Math.max(0,Math.min(3,count)-Math.min(3,previous));
  state.pills.count=count;state.conditions??=[];
- if(count>3){state.conditions=state.conditions.filter(c=>!c.pillSideEffect&&!String(c.id).startsWith('pill-overdose'));state.conditions.push({id:'pill-overdose-unconscious',key:'inconsciente',name:'Inconsciente',startsAt:now,expiresAt:now+3600,source:'Intoxicação por pílulas · Básico p. 260'},{id:'pill-overdose-exhaustion',key:'exausto',name:'Exausto',startsAt:now+3600,expiresAt:now+3600+20*86400,source:'Intoxicação por pílulas · Básico p. 260'});}
+ const overdose=count>3||state.pills.colored===true;
+ if(overdose)applyPillIntoxication(state,now);
  else {const key=count===1?'fatigado':count===2?'exausto':'inconsciente';state.conditions.push({id:`pill-${count}-${now}`,key,name:key,startsAt:now+3600,untilRest:true,pillSideEffect:true,source:'Pílulas do soldado · Básico p. 260'});}
  const current=numeric(system.resources?.chakra?.value),max=numeric(system.resources?.chakra?.max),gain=granted*Math.ceil(numeric(system.attributes?.esp)/2);
- return {state,count,granted,gain:Math.max(0,Math.min(max,current+gain)-current),chakra:Math.min(max,current+gain),overdose:count>3};
+ return {state,count,granted,gain:Math.max(0,Math.min(max,current+gain)-current),chakra:Math.min(max,current+gain),overdose};
 }
 export function clearInventoryRestEffects(state){state=copy(state);state.conditions=(state.conditions??[]).filter(c=>!c.untilRest);return state;}
-export function resetPillCounter(state){state=copy(state);state.pills={...(state.pills??{}),count:0};return state;}
+export function resetPillCounter(state){state=copy(state);state.pills={...(state.pills??{}),count:0,colored:false};return state;}
 export function weaponPoisonCoating(item,{now=0,energized=false,dokujutsu=false}={}){const c=item?.system?.inventoryData?.coating;if(!c||energized&&!dokujutsu||now-Number(c.appliedAt??0)>=30*86400)return null;return {...c};}
+// Usos de combate descritos no Básico, pp. 130–134 e 260, e no Guia, pp. 61–69.
+const combatUtilities=new Set(['smoke-bomb','flash-bomb','marking-bomb','thunder-bomb','caltrops','bolas','net','earplugs','soldier-pill','kousen']);
+export function utilityCombatModes(entry,{prepared=false}={}){
+ if(entry.key==='explosive-tag')return [
+  {mode:'remote',label:'Preparar tarja explosiva'},
+  {mode:'stick',label:'Colar tarja em inimigo'},
+  ...(prepared?[{mode:'detonate',label:'Detonar tarjas preparadas'}]:[]),
+ ];
+ return combatUtilities.has(entry.key)?[{}]:[];
+}
 export function utilityPlan(entry,system,items=[],values={},rules={}){
  const has=key=>!!aptitudeOwned(items,key,'',rules),a=system.attributes??{},n=numeric(values.quantity,1),revised=entry.book==='avancado'||inventoryRevision(rules)==='avancado';
  if(!Number.isInteger(n)||n<1)throw Error('Quantidade inválida.');const maximum=['flash-bomb','marking-bomb','caltrops'].includes(entry.key)&&revised?2:entry.key==='bolas'||entry.key==='net'?1:Infinity;

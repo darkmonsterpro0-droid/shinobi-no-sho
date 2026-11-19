@@ -1,24 +1,14 @@
 # Shinobi no Sho — Foundry VTT 14
 
-**Versão 0.9.1 local, ainda não publicada · ficha, rolagens e automações em desenvolvimento · português brasileiro**
+**Versão 0.9.4 · ficha, HUD e automações em português brasileiro**
 
-A [revisão da ficha 0.9.1](docs/FICHA-0.9.1.md) reúne regras globais nas Configurações de Jogo, reorganiza as seis abas e acrescenta a compra manual de Bakuton por origem. Consulte a prévia em `preview/ficha-visual.html`. Testes de código e validação nativa são evidências separadas.
+Esta atualização reúne o desenvolvimento preservado e os lotes [Akimichi](docs/AKIMICHI-0.9.3.md), [Inuzuka](docs/INUZUKA-0.9.3.md), [Nara](docs/NARA-0.9.3.md), [Hachimon](docs/HACHIMON-0.9.3.md) e [Yamanaka](docs/YAMANAKA-0.9.3.md). [Notas da versão](RELEASE-NOTES.md) descrevem o escopo e as partes assistidas.
 
-A [fundação RES-001](docs/RES-001.md) acrescenta catálogo de 139 definições restritas/especiais, acesso por origem, aquisição e evolução no motor existente, proveniência, suspensão e vínculos manuais de recursos. Há 39 definições com revisão de aquisição; efeitos individuais aguardam RES-002. Foram executados 207 testes de código (31 novos); validação no Foundry permanece pendente. O pacote local é o candidato atual; o manifesto público abaixo continua apontando à última versão publicada.
+515 testes automáticos aprovados e combates simulados no Foundry 14.370, com contas de mestre e jogador. Consulte [Validação](docs/VALIDACAO.md) para separar as provas nativas dos testes com documentos simulados. Os livros ainda não estão integralmente automatizados; [fila e pendências](docs/FILA-AUTOMACOES.md).
 
-A base de [recursos extras](docs/RECURSOS-EXTRAS.md) permite cadastrar reservas manuais separadas de Vitalidade e Chakra, com origem, unidade, usos e benefícios anotados. Reservas antigas são preservadas. Esta base não automatiza aptidões nem aplica seus benefícios.
+O HUD organiza ações padrão, movimento e parcial, usa os alvos marcados e pede a defesa antes dos dados. Não há contador de ações. A ficha mantém seis abas, recursos visíveis e temas marfim/grafite; configurações globais ficam na própria tela nativa de Configurações de Jogo. Compras, origens, concessões e reservas conservam seus registros e fontes.
 
-A ficha foi reformulada com identidade lateral, recursos sempre visíveis e novo Resumo, preservando os controles existentes. Veja [a reformulação visual](docs/FICHA-0.7.md) e abra [a prévia independente](preview/ficha-visual.html) para consultar as abas e os temas, sem conexão com o Foundry. A prévia não executa ações.
-
-As etapas 7–8 acrescentam HUD, atalhos pessoais para ações salvas e a extração inicial do Core. A etapa 9 está parcial: 164 testes de código aprovados; validação nativa/visual e publicação pendentes. Veja [entrega e roteiro de teste](docs/DESENVOLVIMENTO-0.6.md) e [arquitetura do Core](docs/NO-SHO-CORE.md).
-
-O piloto das etapas 4–6 acrescenta ações salvas na ficha e defesa declarada no cartão antes dos dados para armas/manobras. Reutiliza os cálculos existentes e preserva as fichas. Veja [escopo e limites da reformulação](docs/DESENVOLVIMENTO-0.5.md). Os demais serviços conservam seus caminhos anteriores.
-
-Fichas em marfim e grafite, com resumo calculado, distribuição de atributos por NC e condições do Livro Básico. A aba Mestre reúne livros, versões de regras, anotações e acesso ao avanço por EXP ou nível inteiro. Ela aparece somente para o mestre.
-
-Veja as [telas implementadas](docs/INTERFACE.md). Esta é uma versão inicial: código e prévia foram testados; execução dentro de um mundo real do Foundry 14 ainda não foi verificada. Detalhes em [Validação](docs/VALIDACAO.md).
-
-![Ficha de personagem](docs/images/automated-summary.png)
+Arquitetura em [No Sho Core](docs/NO-SHO-CORE.md). Os documentos das versões locais anteriores são históricos; planejamento antigo não prova implementação atual.
 
 ## Instalar pelo Foundry
 
@@ -60,7 +50,7 @@ Os campos editáveis salvam ao sair deles. Em personagens com cálculos ativos, 
 
 Escolha NC 4–20 no assistente ou na janela de distribuição aberta ao criar um personagem. Distribua todos os pontos da criação. Para evoluir, clique no NC ou em **Distribuir / subir NC**. O mestre pode elevar o NC; o jogador distribui o saldo respeitando os limites.
 
-Na aba **Mestre → Regras da casa**, o mestre escolhe nível inteiro (+6 pontos de atributos por NC) ou EXP concedida separadamente, inclusive fracionária. A alteração não concede pontos retroativamente. Subir de nível aumenta máximos sem curar ou restaurar chakra.
+Nas **Configurações de Jogo → Shinobi no Sho**, o mestre escolhe nível inteiro (+6 pontos de atributos por NC) ou EXP concedida separadamente, inclusive fracionária. A alteração não concede pontos retroativamente. Subir de nível aumenta máximos sem curar ou restaurar chakra.
 
 Fichas antigas continuam com seus valores manuais até usar **Conferir e ativar cálculos**. Revise os atributos comprados e bases; os recursos atuais são preservados. Criaturas e marionetes não recebem automaticamente a fórmula de criação humana.
 
@@ -123,3 +113,5 @@ Veja [AGENTS.md](AGENTS.md) para as instruções permanentes e [docs/VALIDACAO.m
 ## Créditos
 
 Projeto comunitário independente. Código e SVGs originais sob MIT; direitos dos livros, Naruto e Foundry permanecem com seus titulares. Veja [CREDITS.md](CREDITS.md). Não são distribuídos PDFs, ilustrações dos livros, credenciais ou mundos particulares.
+
+Após atualizar, recarregue todos os clientes do mundo para que mestres e jogadores usem o mesmo código.

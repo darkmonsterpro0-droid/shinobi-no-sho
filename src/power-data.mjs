@@ -1,6 +1,16 @@
 // Rule metadata and original interface summaries; full book text is not distributed.
 export const ELEMENTS=['doton','fuuton','katon','raiton','suiton'];
 export const POWER_FAMILIES={
+ shindenshin:{name:'Shindenshin',page:196,origins:['yamanaka'],requirement:'Clã Yamanaka',notes:'Livro Básico pp. 196–200. Sensor de Mentes disponível no nível 3; as técnicas de comunicação e controle têm fluxos próprios.'},
+ kagejutsu:{name:'Kagejutsu',page:168,origins:['nara']},
+ hachimon:{name:'Hachimon Tonkou',page:202,requirement:'Vigor 6; com outra origem, somente nível 1 salvo variante da mesa'},
+ shikakyu:{name:'Shikakyu',page:165,origins:['inuzuka'],requirement:'Hakken no Jutsu'},
+ 'baika-ninpou':{name:'Baika Ninpou',page:151,origins:['akimichi'],requirement:'Vigor 6 e Corpulência'},
+ mangekyou:{name:'Mangekyou Sharingan',page:187,derived:true},
+ dokujutsu:{name:'Dokujutsu',page:201,effects:true,range:[10,2],size:1,damage:0,hardness:0,
+  origins:['dokujutsu'],requirement:'Venefício 6 e Químico'},
+ 'hibon-ninpou':{name:'Hibon Ninpou',page:212,effects:true,range:[10,2],size:1,damage:0,hardness:0,
+  origins:['hibon-ninpou'],requirement:'Estilo próprio, um elemento de referência e duas bonificações'},
  ninpou:{name:'Ninpou',page:91,effects:true,range:[10,2],size:1,damage:0,hardness:0},
  doton:{name:'Doton',page:103,effects:true,range:[5,1],size:1,damage:0,hardness:2,solid:true},
  fuuton:{name:'Fuuton',page:105,effects:true,range:[10,2],size:1,damage:2,hardness:0},
@@ -10,12 +20,15 @@ export const POWER_FAMILIES={
  fuuinjutsu:{name:'Fuuinjutsu',page:114,requirement:'Inteligência 6'},
  'iryou-ninjutsu':{name:'Iryou Ninjutsu',page:120,requirement:'Ninja Médico; Espírito 6'},
  rasengan:{name:'Rasengan',page:121,requirement:'Espírito 8'},
+ 'kikai-ninpou':{name:'Kikai Ninpou',page:147,effects:true,range:[10,2],size:1,damage:0,hardness:0,origins:['aburame'],requirement:'Kikaichuu',notes:'Livro Básico 4.1.b, pp. 147–150. Usa somente Kikaichuu e calcula parâmetros pelo nível de Lidar com Animais.'},
+ juuken:{name:'Juuken',page:159,origins:['hyuuga'],requirement:'Espírito 1; Byakugan; Acuidade',notes:'Livro Básico 4.1.b, p. 159. A postura exige Byakugan ativo, usa ação livre e custa 0 chakra. Seus golpes desarmados causam dano letal, com dano base igual a metade da Destreza mais o dano de arma (1, ou 2/3/4 nos níveis 4/5/6). Ignore até 2 pontos, limitados à metade da dureza de corpo passiva.'},
  bakuton:{name:'Bakuton',page:19,book:'hijutsus2',manual:true,origins:['bakuton'],requirement:'Origem Bakuton; Espírito 3',notes:'Hijutsus II revisado, pp. 18–19. Técnicas, concessões de Doton/Raiton e uso de Canhão pelo nível de Bakuton exigem acompanhamento manual. Não aprende outros elementos além de Doton e Raiton.'}
 };
 const all=['ninpou',...ELEMENTS],solid=['ninpou','doton','suiton'],fluid=['ninpou','doton','fuuton','suiton'];
 const effect=(key,name,tiers,families,page,extra={})=>({key,name,tiers,families,page,book:'basico',...extra});
 export const POWER_EFFECTS=[
  effect('canhao','Canhão',[1],all,95),
+ effect('interferencia','Interferência',[3],['kikai-ninpou'],148,{duration:'sustained',area:'circle'}),
  effect('criar-arma','Criar Arma',[2,6],solid,95,{action:'partial',duration:'sustained',seals:false}),
  effect('orbe','Orbe',[2,7],all,96),effect('raio','Raio',[2,5,8],all,96),
  effect('restringente','Restringente',[2,6],solid,97,{duration:'continuous',area:'circle'}),
@@ -53,6 +66,41 @@ export const POWER_EFFECTS=[
  effect('desastre','Desastre',[9],['ninpou','doton','fuuton','raiton','suiton'],55,{book:'avancado',duration:'concentration',area:'circle'})
 ];
 export const POWER_TECHNIQUES={
+ shindenshin:[{key:'troca-mente',name:'Shintenshin no Jutsu · Troca de Mente',level:1,page:196,action:'standard'},
+  {key:'multipla-troca',name:'Shinten Bunshin no Jutsu · Múltipla Troca de Mente',level:5,page:199,action:'standard'},
+  {key:'desordem-mental',name:'Shinranshin no Jutsu · Desordem Mental',level:6,page:200,action:'standard'},
+  {key:'sensor-mentes',name:'Sensor de Mentes',level:3,page:199,action:'partial'},
+  {key:'transmissao-mental',name:'Shindenshin no Jutsu · Transmissão Mental',level:3,page:199,action:'standard'}],
+ hachimon:[{key:'hachimon',name:'Liberar Portões Celestiais',level:1,page:202,action:'partial'}],
+ kagejutsu:[{key:'kage-shibari',name:'Kage Shibari no Jutsu · Prisão das Sombras',level:1,page:168},
+  {key:'kage-mane',name:'Kage Mane no Jutsu · Imitação das Sombras',level:3,page:169},
+  {key:'kage-shuriken',name:'Kage Mane Shuriken no Jutsu · Shuriken das Sombras',level:4,page:170,action:'partial'},
+  {key:'kage-kubishibari',name:'Kage Kubishibari no Jutsu · Estrangulamento das Sombras',level:5,page:171,action:'movement'},
+  {key:'kageyose',name:'Kageyose no Jutsu · Coleção das Sombras',level:6,page:171,action:'movement'},
+  {key:'kage-nui',name:'Kage Nui · Costura das Sombras',level:6,page:172,action:'standard'},
+  {key:'kagezukami',name:'Kagezukami no Jutsu · Captura das Sombras',level:8,page:173,action:'standard'},
+  {key:'kage-guided',name:'Kage Mane · Sombra Guiada',level:8,page:170,action:'standard'}],
+ shikakyu:[{key:'shikakyu',name:'Shikakyu no Jutsu · Técnica Quadrúpede',level:1,page:165,action:'partial'},
+  {key:'juujin',name:'Juujin Bunshin · Clone do Homem-Besta',level:2,page:165,action:'movement'},
+  {key:'tsuuga',name:'Tsuuga · Presa Perfurante',level:3,page:166,action:'full'},
+  {key:'gatsuga',name:'Gatsuga · Dupla Presa Perfurante',level:3,page:166,action:'full'},
+  {key:'sotorou',name:'Sotorou · Lobo de Duas Cabeças',level:5,page:166,action:'movement'},
+  {key:'garouga',name:'Garouga · Presa do Lobo',level:6,page:167,action:'full'},
+  {key:'santorou',name:'Santorou · Lobo de Três Cabeças',level:7,page:167,action:'movement'},
+  {key:'ooiga-gatenga',name:'Ooiga Gatenga · Perseguição da Presa Giratória',level:8,page:167,action:'full'}],
+ 'baika-ninpou':[
+  {key:'baika',name:'Baika no Jutsu · Expansão',level:1,page:152},
+  {key:'nikudan',name:'Nikudan Sensha · Tanque Humano',level:2,page:152,action:'full'},
+  {key:'bunbun',name:'Bunbun Baika no Jutsu · Expansão Parcial',level:3,page:153,action:'free'},
+  {key:'choudan',name:'Choudan Bakugeki · Míssil Borboleta',level:4,page:153,action:'standard'}
+ ],
+ mangekyou:[{key:'amaterasu',name:'Amaterasu · Chamas Negras',level:10,page:187}],
+ juuken:[
+  {key:'ichigekishin',name:'Juukenpou Ichigekishin · Explosão do Corpo',level:2,page:160},
+  {key:'kaiten-offense',name:'Hakkeshou Kaiten · Rotação Divina (ofensivo)',level:3,page:160},
+  {key:'kuushou',name:'Hakke Kuushou · Palma Aérea do Octograma',level:5,page:161},
+  {key:'twin-lions',name:'Juuho Sou Shiken · Punho dos Leões Gêmeos',level:7,page:162}
+ ],
  fuuinjutsu:[
   {key:'armazenar',name:'Selo de Armazenamento',level:1,page:114},
   {key:'misshi',name:'Misshi · Mensageiro',level:3,page:115},
@@ -78,6 +126,6 @@ export const POWER_TECHNIQUES={
   {key:'elemental',name:'Rasengan Elemental',level:9,page:123}
  ]
 };
-export const POWER_ACTION_NAMES={standard:'Padrão',movement:'Movimento',partial:'Parcial',full:'Completa',round:'1 rodada',free:'Livre',reaction:'Reação',ritual:'3 dias'};
-export const POWER_DURATION_NAMES={instant:'Instantânea',continuous:'Contínua',sustained:'Sustentada',concentration:'Concentração',permanent:'Permanente',round:'Até o próximo turno'};
+export const POWER_ACTION_NAMES={standard:'Padrão',movement:'Movimento',partial:'Parcial',full:'Completa',round:'1 rodada',free:'Livre',reaction:'Reação',ritual:'3 dias',other:'Outras · conferir com a mesa'};
+export const POWER_DURATION_NAMES={instant:'Instantânea',continuous:'Contínua',sustained:'Sustentada',concentration:'Concentração',permanent:'Permanente',round:'Até o próximo turno',linked:'Enquanto durar o vínculo',prepared:'Preparada · prazo conferido pela mesa',recovery:'Recuperação dos Portões',consequence:'Consequência'};
 export function powerSource(entry){return `${entry.book==='avancado'?'Guia Avançado':'Livro Básico'} p. ${entry.page}`;}

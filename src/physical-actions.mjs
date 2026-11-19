@@ -1,3 +1,9 @@
+import {clanCapabilities} from './clan-capabilities.mjs';
+import {bodySource} from './body-state.mjs';
+import {recordMindDamage,settleMindDamage} from './yamanaka-damage.mjs';
+import {recordKey,readKeyedRecord} from './core/record-key.mjs';
+import {worldProfile} from './world-settings.mjs';
+import {breakFascinarOnDamage} from './automation.mjs';
 import {ID} from './config.mjs';
 import {lethalDamage} from './conditions.mjs';
 import {elementalConfrontation} from './power-rules.mjs';
@@ -10,27 +16,41 @@ import {readFields} from './interactions.mjs';
 const queues=new Map();
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const PHYSICAL_ACTIONS=new Set(['physical','save-physical','physical-impact','apply-physical-impact','physical-object','save-physical-object','damage-physical-object']);
-export function bodyHardness(actor,{element,conditionalHardness}={}){
- const s=actor.system??actor,manual=strongestHardness([s.physical?.bodyHardness??0,s.structure?.hardness??0]),powers=(s.powerState?.active??[]).filter(e=>e.active!==false).map(e=>{let value=Math.max(e.bodyHardness??0,e.burstBodyHardness??0)*elementalConfrontation(element,e.family).defense;if(conditionalHardness==='fuuton-normal-raiton-half')value*=e.family==='fuuton'?1:e.family==='raiton'?.5:0;return Math.ceil(value);});
+export function bodyHardness(actor,{element,conditionalHardness,juuken=false}={}){
+ const s=actor.system??actor,passive=strongestHardness([s.physical?.bodyHardness??0,
+  actor.system?clanCapabilities(actor,{books:worldProfile()?.books,rules:houseRules()}).resiliencia?.hardness??0:0]),manual=strongestHardness([passive-(juuken?Math.min(2,Math.ceil(passive/2)):0),s.structure?.hardness??0]),powers=(s.powerState?.active??[]).filter(e=>e.active!==false).map(e=>{let value=Math.max(e.bodyHardness??0,e.burstBodyHardness??0)*elementalConfrontation(element,e.family).defense;if(conditionalHardness==='fuuton-normal-raiton-half')value*=e.family==='fuuton'?1:e.family==='raiton'?.5:0;return Math.ceil(value);});
  return strongestHardness([conditionalHardness?0:manual,...powers]);
 }
-export function camouflageSources(actor,{personal=false,distance=2}={}){
+export function camouflageSources(actor,{personal=false,distance=null}={}){
  const s=actor?.system??actor??{},sources=[...(s.physical?.camouflage??[])].filter(c=>personal?c.group==='personal':c.group!=='personal');
  for(const e of s.powerState?.active??[]){
   if(e.active===false||!e.camouflage)continue;
   const c=typeof e.camouflage==='string'?{level:e.camouflage,group:'environment'}:{...e.camouflage};
   if(personal?c.group!=='personal':c.group==='personal')continue;
-  if(c.near!==undefined){if(e.effect==='nevoa'&&!e.areaMembership)continue;const chance=Number(distance)<=Number(c.nearDistance??1)?c.near:c.far;if(!chance)continue;c.level=chance>=50?'total':'partial';}
+  if(c.near!==undefined){if(e.effect==='nevoa'&&!e.areaMembership)continue;const chance=distance==null?Math.max(c.near,c.far):Number(distance)<=Number(c.nearDistance??1)?c.near:c.far;if(!chance)continue;c.level=chance>=50?'total':'partial';}
   sources.push({id:e.id,...c});
  }
  if(personal&&actor?.system&&conditionRecords(actor).some(c=>c.key==='cego'))sources.push({id:'blindness',level:'total',group:'personal',visualImpairment:true});
  return sources;
 }
 async function resolveConcealment(actor,{critical=false,attackerUuid,camouflageContext={}}={}){
+ // Guia Avançado do Shinobi, 10 anos, pp. 32–33. Independente de camuflagem e sensores.
+ const zui=camouflageContext.directAttack&&attackerUuid&&attackerUuid!==actor.uuid&&activeAptitudes(actor)['estilo-zui-quan'];
+ const checks=[];
+ if(zui){
+  const roll=await new foundry.dice.Roll('1d8').evaluate(),passed=roll.total>2;
+  checks.push({source:'estilo-zui-quan',first:roll.total,threshold:2,passed});
+  if(!passed)return {passed:false,checks,reason:'Zui Quan'};
+ }
  const attacker=attackerUuid?await fromUuid(attackerUuid):null,items=[...(attacker?.items??[])],active=attacker?activeAptitudes(attacker):{},precise=aptitudeOwned(items,'tiro-preciso','',houseRules());
- const plan=camouflagePlan([...camouflageSources(actor,{distance:camouflageContext.distance??2}),...camouflageSources(attacker,{personal:true})],{...camouflageContext,critical,sensor:!!active.sensor||camouflageContext.sensor,blindFight:!!aptitudeOwned(items,'lutar-as-cegas','',houseRules()),preciseShotLevel:Number(precise?.system.level??0)});
- if(!plan.allowed)return {passed:false,checks:[],blocked:true,notes:plan.notes};
- const results=[];for(const c of plan.checks){let roll=await new foundry.dice.Roll('1d8').evaluate(),first=roll.total,second=null,passed=first>c.threshold;
+ const sense=active.sensor,context={books:worldProfile()?.books,rules:houseRules()};
+ const kagura=attacker&&clanCapabilities(attacker,context).kagura;
+ const range=Math.max(sense?.sense==='chakra'?Number(sense.range):0,kagura?.range??0);
+ const chakraDetected=range>0&&Number.isFinite(camouflageContext.distance)&&camouflageContext.distance<=range&&
+  Number(actor.system.resources?.chakra?.max)>0&&clanCapabilities(actor,context).kagura?.suppressionDC==null;
+ const plan=camouflagePlan([...camouflageSources(actor,{distance:camouflageContext.distance}),...camouflageSources(attacker,{personal:true})],{...camouflageContext,critical,sensor:chakraDetected||camouflageContext.sensor,blindFight:!!aptitudeOwned(items,'lutar-as-cegas','',houseRules()),preciseShotLevel:Number(precise?.system.level??0)});
+ if(!plan.allowed)return {passed:false,checks,blocked:true,notes:plan.notes};
+ const results=checks;for(const c of plan.checks){let roll=await new foundry.dice.Roll('1d8').evaluate(),first=roll.total,second=null,passed=first>c.threshold;
   await roll.toMessage({speaker:ChatMessage.getSpeaker({actor:attacker??actor}),flavor:`Camuflagem ${c.level==='total'?'total':'parcial'}: ${passed?'ultrapassada':'falha'} (1d8; falha até ${c.threshold}).`});
   if(!passed&&c.reroll){roll=await new foundry.dice.Roll('1d8').evaluate();second=roll.total;passed=second>c.threshold;await roll.toMessage({speaker:ChatMessage.getSpeaker({actor:attacker??actor}),flavor:`Lutar às Cegas: ${passed?'camuflagem ultrapassada':'falha mantida'}.`});}
   results.push({...c,first,second,passed});
@@ -38,25 +58,54 @@ async function resolveConcealment(actor,{critical=false,attackerUuid,camouflageC
  return {passed:results.every(r=>r.passed),checks:results};
 }
 export async function applyPhysicalDamage(actor,input={}){
+ const original=actor;
+ actor=bodySource(actor);
+ // A retry after separation still belongs to the body that received the hit.
+ // Store the original participant on the payer's atomic damage receipt.
+ if(original&&actor===original&&input.sourceId!=null){
+  const originUuid=original.getFlag?.(ID,'companion')?.origin??original.getFlag?.(ID,'clone')?.origin;
+  const source=(game.actors?.contents??[]).find(a=>a.uuid===originUuid),receipt=source&&readKeyedRecord(source.getFlag?.(ID,'aptitudes')?.damageReceipts,String(input.sourceId));
+  if(receipt?.bodyTargetUuid===original.uuid)actor=source;
+ }
  if(!actor?.isOwner)throw Error('Somente o dono da ficha ou o mestre pode aplicar este resultado.');
  const key=actor.uuid??actor.id,previous=queues.get(key)??Promise.resolve(),job=previous.catch(()=>{}).then(async()=>{
   if(input.postDivisionBonus!=null&&(!Number.isFinite(Number(input.postDivisionBonus))||Number(input.postDivisionBonus)<0))throw Error('Bônus de dano inválido.');
-  const sourceId=String(input.sourceId??foundry.utils.randomID()),prior=actor.getFlag(ID,'aptitudes')?.damageReceipts?.[sourceId];
+  const multiplier=Number(input.damageMultiplier??1);
+  if(!Number.isFinite(multiplier)||multiplier<=0)throw Error('Multiplicador de dano inválido.');
+  const sourceId=String(input.sourceId??foundry.utils.randomID()),keyedId=recordKey(sourceId),prior=readKeyedRecord(actor.getFlag(ID,'aptitudes')?.damageReceipts,sourceId);
   if(prior?.complete)return {...prior.result,duplicate:true};
   let receipt=prior;
   if(!receipt){
-   const camouflage=await resolveConcealment(actor,input),elementalFactor=Math.min(1,...(actor.system.powerState?.active??[]).filter(e=>e.bodyHardness||e.burstBodyHardness).map(e=>elementalConfrontation(input.attackerElement,e.family).attack)),hardness=bodyHardness(actor,{element:input.attackerElement,conditionalHardness:input.conditionalHardness}),resolved=resolveHardness({kind:'body',hardness,base:Math.ceil(Number(input.base??0)*elementalFactor),fixed:Math.ceil(Number(input.fixed??0)*elementalFactor),degree:input.degree??1,ignore:input.ignoreBodyHardness??[],divisions:input.divisionCount??1});
+   const camouflage=await resolveConcealment(actor,input),elementalFactor=Math.min(1,...(actor.system.powerState?.active??[]).filter(e=>e.bodyHardness||e.burstBodyHardness).map(e=>elementalConfrontation(input.attackerElement,e.family).attack)),hardness=bodyHardness(actor,{element:input.attackerElement,conditionalHardness:input.conditionalHardness,juuken:input.juuken}),resolved=resolveHardness({kind:'body',hardness,base:Math.ceil(Number(input.base??0)*elementalFactor),fixed:Math.ceil(Number(input.fixed??0)*elementalFactor),degree:input.degree??1,ignore:input.ignoreBodyHardness??[],divisions:input.divisionCount??1,partnerDivisor:input.partnerDivisor??1});
    const index=Number(input.divisionIndex??0);if(!Number.isInteger(index)||index<0||index>=resolved.divided.length)throw Error('Parcela de ataque inválida.');
-   const damage=camouflage.passed?Math.ceil((resolved.divided[index]+Math.max(0,Number(input.postDivisionBonus??0)))*Number(input.degree??1))+resolved.fixed:0;
+   const damage=camouflage.passed?Math.ceil((Math.ceil((resolved.divided[index]+Math.max(0,Number(input.postDivisionBonus??0)))*Number(input.degree??1))+resolved.fixed)*multiplier):0;
    const armor=armorSummary(actor,undefined,houseRules()),absorbed=consumeAbsorption(armor,damage,{ignoreAbsorption:!!input.ignoreAbsorption}),path=actor.type==='puppet'?'structure.absorption.value':'resources.vitality.value',current=actor.type==='puppet'?actor.system.structure?.absorption?.value:actor.system.resources?.vitality?.value;
    if(current===null||current===undefined||!Number.isFinite(Number(current)))throw Error('Preencha a vitalidade ou absorção atual do alvo.');
-   receipt={complete:false,armorId:absorbed.armorId,armorChanges:absorbed.changes,result:{sourceId,hit:camouflage.passed,camouflage,bodyHardness:hardness,baseAfterHardness:resolved.divided[index],absorbed:absorbed.absorbed,damage:absorbed.damage,before:Number(current),after:lethalDamage(Number(current),absorbed.damage),reason:input.reason??'Ataque'}};
+   receipt={complete:false,...(original!==actor?{bodyTargetUuid:original.uuid}:{}),armorId:absorbed.armorId,armorChanges:absorbed.changes,result:{sourceId,hit:camouflage.passed,camouflage,bodyHardness:hardness,baseAfterHardness:resolved.divided[index],absorbed:absorbed.absorbed,damage:absorbed.damage,before:Number(current),after:lethalDamage(Number(current),absorbed.damage),reason:input.reason??'Ataque'}};
    if(actor.type==='puppet')receipt.result.after=Math.max(0,Number(current)-absorbed.damage);
-   await mutateRuntime(actor,state=>{state.damageReceipts??={};state.damageReceipts[sourceId]=receipt;return {changes:{['system.'+path]:receipt.result.after}};});
+   await mutateRuntime(actor,state=>{state.damageReceipts??={};state.damageReceipts[keyedId]=receipt;recordMindDamage(state,actor,sourceId,receipt.result.damage,{after:receipt.result.after});return {changes:{['system.'+path]:receipt.result.after}};});
   }
   if(receipt.armorId&&Object.keys(receipt.armorChanges).length){const armor=actor.items.get(receipt.armorId);if(!armor)throw Error('A armadura mudou durante a resolução. Restaure-a antes de concluir o recibo de dano.');await armor.update(receipt.armorChanges);}
+  if(input.area&&receipt.result.hit){
+   const broken=await mutateRuntime(actor,state=>{
+    const damageReceipt=state.damageReceipts[keyedId];
+    if(damageReceipt.restraintImpacts)return {broken:damageReceipt.restraintImpacts.broken};
+    const objects=structuredClone(actor.system.physical?.objects??[]),broken=[];
+    for(const object of objects.filter(o=>o.restraint&&!o.broken)){
+     const elemental=elementalConfrontation(input.attackerElement,object.element),impact=resolveHardness({kind:'object',hardness:Math.ceil(object.hardness*elemental.defense),base:Math.ceil(Number(input.base??0)*elemental.attack),fixed:Math.ceil(Number(input.fixed??0)*elemental.attack),degree:input.degree??1,area:true});
+     object.hardness=impact.broken?0:Math.max(0,object.hardness-((Number(input.base??0)>0||Number(input.fixed??0)>0)?2:0));
+     object.broken=impact.broken||object.hardness===0;
+     if(object.broken&&object.powerExecution)broken.push(object.powerExecution);
+    }
+    damageReceipt.restraintImpacts={broken};return {broken,changes:{'system.physical.objects':objects}};
+   });
+   for(const id of broken.broken??[]){const {endPower}=await import('./power-actions.mjs');await endPower(actor,id);}
+  }
+  await settleMindDamage(actor,sourceId);
+  if(receipt.result.damage>0)await breakFascinarOnDamage(actor);
+  if(receipt.result.damage>0){const {resolvePowerConcentration}=await import('./power-actions.mjs');await resolvePowerConcentration(actor,{sourceId,damage:receipt.result.damage,privateRecipients:input.privateRecipients});}
   if(receipt.result.damage>0)for(const c of conditionRecords(actor).filter(c=>c.key==='estavel'&&!c.automatic))await saveCondition(actor,c,{remove:true});
-  await mutateRuntime(actor,state=>{state.damageReceipts[sourceId].complete=true;});
+  await mutateRuntime(actor,state=>{state.damageReceipts??={};state.damageReceipts[keyedId]={...receipt,complete:true};});
   return receipt.result;
  });queues.set(key,job);try{return await job;}finally{if(queues.get(key)===job)queues.delete(key);}
 }

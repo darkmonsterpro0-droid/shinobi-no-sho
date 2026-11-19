@@ -83,6 +83,24 @@ test('physical damage applies body hardness, grade, armor then HP and repeated c
  const [first,again]=await Promise.all([applyPhysicalDamage(a,{sourceId:'hit',base:6,degree:2,camouflageContext:{located:true}}),applyPhysicalDamage(a,{sourceId:'hit',base:6,degree:2,camouflageContext:{located:true}})]);
  assert.equal(first.absorbed,5);assert.equal(first.damage,3);assert.equal(a.system.resources.vitality.value,97);assert.equal(armor.system.absorption.value,0);assert.equal(again.duplicate,true);
 });
+
+test('damage receipts survive native recursive dot expansion and resume a legacy paid hit without repeating damage',async()=>{
+ const a=actor(),sourceId='ChatMessage.hit:Actor.target';
+ const expand=value=>{
+  if(Array.isArray(value))return value.map(expand);
+  if(!value||typeof value!=='object')return value;
+  const result={};for(const [key,item]of Object.entries(value))set(result,key,expand(item));return result;
+ };
+ a.update=async patch=>{const expanded=expand(patch);const merge=(target,change)=>{for(const [key,value]of Object.entries(change))if(value&&typeof value==='object'&&!Array.isArray(value))merge(target[key]??={},value);else target[key]=structuredClone(value);};merge(a,expanded);};
+ const first=await applyPhysicalDamage(a,{sourceId,base:11,degree:2,camouflageContext:{located:true}});
+ assert.equal(first.damage,22);assert.equal(a.system.resources.vitality.value,78);
+ assert.equal((await applyPhysicalDamage(a,{sourceId,base:11,degree:2})).duplicate,true);
+ const pending={complete:false,armorId:null,armorChanges:{},result:first};
+ a.flags[ID].aptitudes.damageReceipts={};set(a.flags[ID].aptitudes.damageReceipts,sourceId,pending);
+ await applyPhysicalDamage(a,{sourceId,base:11,degree:2});
+ assert.equal(a.system.resources.vitality.value,78);
+ assert.equal((await applyPhysicalDamage(a,{sourceId,base:11,degree:2})).duplicate,true);
+});
 test('weapon result is stored on the owned target without needing permission to change another player chat message',async()=>{
  const a=actor(),message={id:'other-player',getFlag:(_id,key)=>key==='weaponAttack'?{actorUuid:a.uuid,name:'Golpe',natural:10,degree:2,size:'medium',plan:{base:7}}:undefined,setFlag:async()=>{throw Error('Chat message is not owned');}};
  const result=await resolveWeaponAttack(message,a.uuid,{hit:true});assert.equal(result.damage,14);assert.equal((await resolveWeaponAttack(message,a.uuid,{hit:true})).duplicate,true);assert.equal(a.system.resources.vitality.value,86);

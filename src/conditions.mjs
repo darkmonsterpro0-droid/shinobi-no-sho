@@ -1,6 +1,8 @@
 // Catalog and context-sensitive rules: Livro Básico, printed pp. 276–278.
 // No condition writes to purchased attributes or permanently reduces precision.
 export const CONDITIONS=Object.fromEntries([
+ ['acelerado','Acelerado',205,'Iniciativa +2; Agilidade dobrada para deslocamento; Finta livre durante movimento. Não acumula com Super Acelerado.'],
+ ['superacelerado','Super Acelerado',205,'Iniciativa +4; Agilidade dobrada para deslocamento; adversários sem Super Acelerado ficam fintados contra seus ataques.'],
  ['debilitado','Debilitado',276,'Precisão reduzida no contexto indicado; máximo conjunto de −3.'],
  ['agarrado','Agarrado',276,'Aplica os efeitos de Impedido enquanto o agarramento persistir.'],
  ['amedrontado','Amedrontado',276,'Debilitado; não ataca. Fuga depende da presença de aliados e da fonte.'],
@@ -34,13 +36,13 @@ export const CONDITIONS=Object.fromEntries([
 ].map(([key,name,page,description])=>[key,{key,name,page,description,source:`Livro Básico p. ${page}`,icon:`systems/shinobi-no-sho/assets/conditions/${key}.svg`} ]));
 export function conditionKey(record) {return record.key||Object.keys(CONDITIONS).find(k=>CONDITIONS[k].name.toLocaleLowerCase('pt-BR')===String(record.name).toLocaleLowerCase('pt-BR'))||'';}
 const num=n=>Number.isFinite(Number(n))?Number(n):0;
-export function resolveConditions(records=[],{vitality=null,chakra=null,chakraMax=0,forcedDrain=false,puppet=false,hasChakraReserve=true}={}) {
-  const active=records.filter(r=>!r.disabled&&!(conditionKey(r)==='estavel'&&vitality!==null&&(vitality> -11||vitality< -20))).map(r=>({...r,key:conditionKey(r),level:Math.max(1,num(r.level)||1)}));
+export function resolveConditions(records=[],{vitality=null,chakra=null,chakraMax=0,forcedDrain=false,puppet=false,hasChakraReserve=true,fatigueImmune=false}={}) {
+  const active=records.filter(r=>!r.disabled&&(!fatigueImmune||!['fatigado','exausto'].includes(conditionKey(r)))&&!(conditionKey(r)==='estavel'&&vitality!==null&&(vitality> -11||vitality< -20))).map(r=>({...r,key:conditionKey(r),level:Math.max(1,num(r.level)||1)}));
   const keys=new Set(active.map(r=>r.key));const auto=[];
   const add=(key,why)=>{if(!keys.has(key)){keys.add(key);auto.push({id:`auto-${key}`,key,name:CONDITIONS[key]?.name??key,source:why,automatic:true,level:1});}};
-  if(!puppet&&hasChakraReserve&&chakra!==null&&chakra<=0)add('exausto','Chakra esgotado · Básico p. 260');
+  if(!fatigueImmune&&!puppet&&hasChakraReserve&&chakra!==null&&chakra<=0)add('exausto','Chakra esgotado · Básico p. 260');
   if(!puppet&&hasChakraReserve&&forcedDrain&&chakra!==null&&chakra<=-Math.ceil(chakraMax/2)&&chakraMax>0)add('morto','Drenagem forçada de chakra · Básico p. 260');
-  const fatigue=active.filter(r=>r.key==='fatigado').reduce((s,r)=>s+r.level,0),exhaust=active.filter(r=>r.key==='exausto').reduce((s,r)=>s+r.level,0)+(!puppet&&hasChakraReserve&&chakra!==null&&chakra<=0?1:0);
+  const fatigue=active.filter(r=>r.key==='fatigado').reduce((s,r)=>s+r.level,0),exhaust=active.filter(r=>r.key==='exausto').reduce((s,r)=>s+r.level,0)+(!fatigueImmune&&!puppet&&hasChakraReserve&&chakra!==null&&chakra<=0?1:0);
   if(fatigue>=2)add('exausto','Acúmulo de fadiga · Básico p. 277');
   if(fatigue>=3||exhaust>=2||(exhaust>=1&&fatigue>=1))add('inconsciente','Acúmulo de fadiga/exaustão · Básico p. 277');
   if(!puppet&&vitality!==null) {
@@ -68,8 +70,8 @@ export function conditionContext(records,context={},resources={}) {
   if(keys.has('ofuscado')&&(attack||((context.kind==='attribute'||context.kind==='skill')&&vision)))penalize('ofuscado',-1);
   const unseen=!!context.unseenOpponent||(keys.has('cego')&&context.unseenOpponent!==false);
   if(attack&&unseen&&!context.targetLocated&&!context.sensor)reasons.push('Localize o alvo por outro sentido ou informação de um aliado antes de atacar (Básico p. 273).');
-  if(defense&&(keys.has('desprevenido')||unseen))penalize('desprevenido',-3);
-  if(defense&&keys.has('fintado'))penalize('fintado',-2);
+  if(defense&&(keys.has('desprevenido')||unseen||context.offGuard))penalize('desprevenido',-3);
+  if(defense&&(keys.has('fintado')||context.feintAttacker))penalize('fintado',-2);
   if(defense&&keys.has('flanqueado')&&context.flankingAttacker)penalize('flanqueado',-1);
   if(keys.has('caido')){if(context.stat==='cc')penalize('caido-cc',-3);if(defense&&['melee','area'].includes(context.attackType))penalize('caido-defesa',-3);if(defense&&context.attackType==='ranged')bonuses.push({key:'cobertura-parcial',value:3});}
   if(keys.has('surdo')&&context.kind==='initiative')penalize('surdo',-3);
@@ -88,7 +90,7 @@ export function conditionContext(records,context={},resources={}) {
   if(!context.manualContext&&[1,2].includes(confusion)&&!context.reaction&&!context.fleeing)reasons.push('Confuso: neste turno deve fugir.');
   if(!context.manualContext&&[3,4].includes(confusion)&&attack&&!context.nearestTarget)reasons.push('Confuso: o ataque deve ter como alvo a criatura mais próxima.');
   if(context.attackType==='area'&&keys.has('impedido')&&defense&&['esq','lm'].includes(context.stat))reasons.push('Contra área, Impedido não permite Esquiva/Antecipar: defesa fixa 9.');
-  return {state,penalties,bonuses,penalty:Math.max(-3,penalties.reduce((s,p)=>s+p.value,0)),bonus:bonuses.reduce((s,p)=>s+p.value,0),loseDodgeBonus:keys.has('desprevenido')||unseen||state.immobile,reasons,allowed:!reasons.length,camouflage:unseen&&attack&&!context.sensor&&!context.areaCoversCamouflage?50:0};
+  return {state,penalties,bonuses,penalty:Math.max(-3,penalties.reduce((s,p)=>s+p.value,0)),bonus:bonuses.reduce((s,p)=>s+p.value,0),loseDodgeBonus:keys.has('desprevenido')||unseen||!!context.offGuard||state.immobile,reasons,allowed:!reasons.length,camouflage:unseen&&attack&&!context.sensor&&!context.areaCoversCamouflage?50:0};
 }
 export function conditionHistory(from,to) {
   if(!from||from===to)return [];
@@ -98,7 +100,8 @@ export function conditionHistory(from,to) {
   return path.slice(path.indexOf(from),path.indexOf(to));
 }
 export function lethalDamage(current,damage) {if(current===null)return null;damage=Math.max(0,num(damage));return current>0?Math.max(0,current-damage):current-damage;}
-export function conditionTurn(records,phase='start',nc=4) {
+export function conditionTurn(records,phase='start',nc=4,phaseKey='') {
+  records=records.filter(r=>!r.mindReflected);
   const bleeding=records.filter(r=>!r.disabled&&conditionKey(r)==='sangrando').reduce((s,r)=>s+Math.max(1,num(r.level)||1),0);
   const expired=[],updates=[],prompts=[];let suffocationDamage=0;const unconscious=records.some(r=>!r.disabled&&['inconsciente','morto'].includes(conditionKey(r)));
   for(const r of records.filter(r=>!r.disabled)) {
@@ -108,6 +111,11 @@ export function conditionTurn(records,phase='start',nc=4) {
     if(phase==='start'&&key==='confuso'&&!prompts.some(p=>p.key==='confuso'))prompts.push({id:r.id,key});
     const timing=r.timing==='Fim do turno'?'end':!r.timing||r.timing==='Início do turno'?'start':null;
     if(r.remaining!==null&&r.remaining!==undefined&&timing===phase){if(num(r.remaining)<=1)expired.push(r.id);else updates.push({id:r.id,remaining:num(r.remaining)-1});}
+    if(phase==='start'&&phaseKey.startsWith('manual:')&&r.manualStartsRemaining!=null){
+      if(r.manualStartsRemaining<=1)expired.push(r.id);
+      else updates.push({id:r.id,manualStartsRemaining:r.manualStartsRemaining-1});
+    }
+    if(phase==='start'&&key==='fascinado'&&r.fascinarRequest)updates.push({id:r.id,elapsed:num(r.elapsed)+1});
     if(phase==='start'&&key==='sufocamento')updates.push({id:r.id,elapsed:num(r.elapsed)+1});
   }
   const merged=new Map();for(const update of updates)merged.set(update.id,{...merged.get(update.id),...update});

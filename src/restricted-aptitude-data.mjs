@@ -1618,7 +1618,7 @@ export const RESTRICTED_APTITUDES = [
     "grantPlans": [],
     "resources": [],
     "restrictions": [
-      "Benefícios individuais e concessões não são aplicados pela RES-001."
+      "Até três compras com duas manobras diferentes; pré-requisitos na compra. Benefícios disponíveis somente com Hachimon ativo."
     ],
     "relationships": [
       "Hachimon 1."
@@ -1626,10 +1626,10 @@ export const RESTRICTED_APTITUDES = [
     "futureAutomation": [
       "Implementar e validar efeitos individuais, concessões e recursos conforme a fonte em RES-002."
     ],
-    "automation": "manual",
-    "status": "catalogado",
+    "automation": "contextual",
+    "status": "implementado; validação nativa pendente",
     "review": false,
-    "repeatable": false,
+    "repeatable": true,
     "coverage": {
       "catalogue": "source-identified",
       "acquisition": "numeric-and-origin-checks",

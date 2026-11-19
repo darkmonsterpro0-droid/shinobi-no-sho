@@ -2,19 +2,32 @@ import {createActionStore,validActionId} from './core/action-store.mjs';
 import {actionRows} from './core/action-controls.mjs';
 import {ID} from './config.mjs';
 import {MANEUVERS} from './maneuvers.mjs';
-import {prepareWeaponAction} from './weapon-actions.mjs';
+import {prepareWeaponAction,OCTOGRAMS} from './weapon-actions.mjs';
 import {readFields} from './interactions.mjs';
+import {measureTokenDistance} from './core/token-distance.mjs';
+import {bodySource} from './body-state.mjs';
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const keyOk=validActionId;
 export const actionStore=createActionStore(ID);
-const storedKeys=['maneuver','count','mode','units','offhand','dual','electricStat','sizeSweep','aggressive','object'];
+const storedKeys=['maneuver','count','mode','units','offhand','dual','electricStat','sizeSweep','mercy','mercyOutcome','fightDefensively','aggressive','throwTarget','object','juuken','shikakyu','kyoudo','hachimonHeavy','octogram','twinLions','insectGroups','insectSpecies','convertedChakra'];
 export const SAVED_ACTIONS=new Set(['action-save','action-edit','action-use','action-once','action-duplicate','action-delete','action-favorite','action-declare','action-shortcut']);
 export const savedActions=actionStore.list;
 export function savedDefaults(options={}){
  const result={};for(const k of storedKeys)if(Object.hasOwn(options,k))result[k]=options[k];
+ if(result.convertedChakra!=null){result.convertedChakra=Number(result.convertedChakra);if(!Number.isSafeInteger(result.convertedChakra)||result.convertedChakra<0||result.convertedChakra>10)throw Error('Conversão de chakra inválida.');}
+ if(result.mercyOutcome!=null&&!['knockout','kill'].includes(result.mercyOutcome))throw Error('Desfecho de Misericórdia inválido.');
  for(const k of ['count','units'])if(result[k]!==undefined){result[k]=Number(result[k]);if(!Number.isInteger(result[k])||result[k]<1||result[k]>6)throw Error('Quantidade inválida na ação salva.');}
- for(const k of ['offhand','dual','sizeSweep','aggressive','object'])if(result[k]!==undefined&&typeof result[k]!=='boolean')throw Error('Opção inválida.');
+ for(const k of ['offhand','dual','sizeSweep','mercy','fightDefensively','aggressive','throwTarget','object','juuken','shikakyu','kyoudo','hachimonHeavy','twinLions'])if(result[k]!==undefined&&typeof result[k]!=='boolean')throw Error('Opção inválida.');
+ if(result.insectGroups!==undefined){
+  result.insectGroups=Number(result.insectGroups);
+  if(!Number.isInteger(result.insectGroups)||result.insectGroups<0)throw Error('Quantidade inválida de Kikaichuu.');
+ }
+ if(result.octogram){
+  if(!Object.hasOwn(OCTOGRAMS,result.octogram))throw Error('Sequência do Octograma inválida.');
+  Object.assign(result,{juuken:true,maneuver:'ataque-multiplo',count:3});
+ }
+ if(result.twinLions)Object.assign(result,{juuken:true,maneuver:'ataque-multiplo',count:result.count??2});
  if(result.maneuver&&!Object.hasOwn(MANEUVERS,result.maneuver))throw Error('Manobra desconhecida.');
  return result;
 }
@@ -36,30 +49,49 @@ export function attackTargets(){
  if(tokens?.length)return tokens.filter(t=>t.visible!==false&&t.actor).map(t=>({uuid:t.actor.uuid,name:t.name??t.actor.name}));
  return (globalThis.game?.actors?.contents??[]).filter(a=>a.visible!==false).map(a=>({uuid:a.uuid,name:a.name}));
 }
-export function selectedTargets(){return [...(globalThis.game?.user?.targets??[])].filter(t=>t.actor).map(t=>t.actor.uuid);}
+export function selectedTargets(){return [...new Set([...(globalThis.game?.user?.targets??[])].filter(t=>t.actor).map(t=>bodySource(t.actor).uuid))];}
+export function tokenDistance(actor,targetUuid){
+ const layer=globalThis.canvas?.tokens,grid=globalThis.canvas?.grid;
+ if(!layer||!grid?.measurePath)return null;
+ const tokens=layer.placeables??[];
+ const find=(uuid,preferred)=>{
+  const matches=[...preferred].filter(token=>token.actor?.uuid===uuid);
+  if(matches.length)return matches.length===1?matches[0]:null;
+  const candidates=tokens.filter(token=>token.actor?.uuid===uuid&&token.visible!==false);
+  return candidates.length===1?candidates[0]:null;
+ };
+ const source=find(actor.uuid,layer.controlled??[]),target=find(targetUuid,globalThis.game?.user?.targets??[]);
+ if(!source||!target||source.document.elevation!==target.document.elevation)return null;
+ if(grid.getOffsetRange&&grid.getCenterPoint)return measureTokenDistance(source.document,target.document,grid);
+ if([source,target].some(token=>token.document?.width!==1||token.document?.height!==1))return null;
+ const distance=grid.measurePath([source.center,target.center]).distance;
+ return Number.isFinite(distance)&&distance>=0?distance:null;
+}
 export function selectedDistance(actor){
- const tokens=globalThis.canvas?.tokens?.placeables??[],selected=[...(globalThis.game?.user?.targets??[])];
- const source=(globalThis.canvas?.tokens?.controlled??[]).find(t=>t.actor?.uuid===actor.uuid)??tokens.find(t=>t.actor?.uuid===actor.uuid);
- if(!source||selected.length!==1||!globalThis.canvas?.grid?.measurePath)return null;
- const target=selected[0];
- // Complex footprints/elevations remain an explicit distance choice for the table.
- if([source,target].some(t=>t.document?.width!==1||t.document?.height!==1)||source.document.elevation!==target.document.elevation)return null;
- const measured=canvas.grid.measurePath([source.center,target.center]).distance;
- return Number.isFinite(measured)&&measured>=0?measured:null;
+ const targets=selectedTargets();
+ return targets.length===1?tokenDistance(actor,targets[0]):null;
 }
 export function targetFields(env){
  const values=Object.fromEntries(Object.entries(env.values??{}).map(([k,v])=>[k.startsWith('weapon.')?k.slice(7):k,v]));
  const options={...env.options,...values},targets=env.attackTargets??[],chosen=env.selectedTargets??[],maneuver=options.maneuver??env.maneuver??'golpear';
  if(['ataque-giratorio','chute-giratorio'].includes(maneuver)||options.sizeSweep)return `<fieldset><legend>Alvos no alcance — confirme todos os afetados, inclusive aliados</legend>${targets.map(t=>`<label class="sns-check"><input type="checkbox" name="weapon.target.${esc(t.uuid)}" ${options['target.'+t.uuid]??chosen.includes(t.uuid)?'checked':''}>${esc(t.name)}</label>`).join('')}</fieldset>`;
- const count=['ataque-multiplo','chute-duplo','soco-em-gancho'].includes(maneuver)?maneuver==='chute-duplo'?2:Number(options.count??2):1;
+ const count=options.octogram?1:options.twinLions?Number(options.count??2):['ataque-multiplo','ataque-progressivo','chute-duplo','soco-em-gancho'].includes(maneuver)?maneuver==='chute-duplo'?2:Number(options.count??2):1;
+ if(env.hudInline&&(count===1||chosen.length===1)){
+  const marked=chosen.length===1?targets.find(target=>target.uuid===chosen[0]):null;
+  return marked?Array.from({length:count},(_,i)=>`<input type="hidden" name="weapon.target${i+1}" value="${esc(marked.uuid)}">`).join(''):
+   '<p class="sns-hint">Marque um único alvo no mapa para declarar o ataque.</p>';
+ }
  return Array.from({length:count},(_,i)=>`<label class="sns-field"><span>Alvo${count>1?' do golpe '+(i+1):''}</span><select name="weapon.target${i+1}"><option value="">Escolha um alvo</option>${targets.map(t=>`<option value="${esc(t.uuid)}" ${t.uuid===(options['target'+(i+1)]??chosen[i]??chosen[0])?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label>`).join('');
 }
 export async function declareWeaponFromForm(actor,itemId,options,app){
- const {attacks}=prepareWeaponAction(actor,itemId,options),wide=['ataque-giratorio','chute-giratorio'].includes(options.maneuver)||options.sizeSweep;
- const groups=wide?[Object.entries(options).filter(([k,v])=>k.startsWith('target.')&&v===true).map(([k])=>k.slice(7))]:attacks.map((_,i)=>[options['target'+(i+1)]]);
+ const {attacks,opts}=prepareWeaponAction(actor,itemId,{...options,distance:0}),wide=['ataque-giratorio','chute-giratorio'].includes(opts.maneuver)||opts.sizeSweep;
+ const groups=wide?[Object.entries(options).filter(([k,v])=>k.startsWith('target.')&&v===true).map(([k])=>k.slice(7))]:attacks.map((attack,i)=>[options['target'+(options.octogram||attack.fusionExtra?1:i+1)]]);
  if(groups.some(g=>!g.length||g.some(v=>!v)))throw Error('Escolha os alvos antes de declarar.');
  const {requestAction}=await import('./action-executions.mjs');
- await requestAction({op:'declare',actorUuid:actor.uuid,itemId,options:{...savedDefaults(options),distance:Number(options.distance??1),targetKind:options.targetKind??'normal'},targets:groups});
+ const distances=groups.map(group=>group.map(uuid=>tokenDistance(actor,uuid)));
+ const measured=distances.flat();
+ const shared=measured.every(distance=>distance!==null&&distance===measured[0])?measured[0]:null;
+ await requestAction({op:'declare',quickResolution:true,actorUuid:actor.uuid,itemId,options:{...savedDefaults(options),...(shared===null?{}:{distance:shared}),targetKind:options.targetKind??'normal'},targets:groups,distances});
  await app?.close?.();
 }
 export async function savedActionEvent(app,op,data,root,{actor,show}){
@@ -97,7 +129,7 @@ export async function useSavedAction(actor,id,{show=(kind,config)=>game.shinobi.
  const chosen=selectedTargets(),distance=selectedDistance(actor),wide=['ataque-giratorio','chute-giratorio'].includes(preset.defaults.maneuver)||preset.defaults.sizeSweep;
  const plan=prepareWeaponAction(actor,preset.source.itemId,{...preset.defaults,distance:1});
  if(!wide&&chosen.length===1&&distance!==null){
-  const opts={...preset.defaults,distance};for(let i=0;i<plan.attacks.length;i++)opts['target'+(i+1)]=chosen[0];
+  const opts={...preset.defaults};for(let i=0;i<plan.attacks.length;i++)opts['target'+(i+1)]=chosen[0];
   return declareWeaponFromForm(actor,preset.source.itemId,opts);
  }
  return show('action-targets',panel);

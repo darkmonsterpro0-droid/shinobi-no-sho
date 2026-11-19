@@ -53,10 +53,26 @@ const acquire=(w,key,extra={},id='request-1')=>processCapabilityCommand(w.actor,
 test('RES catalogue has unique source-scoped definitions from all four books, with manual benefits and sources',()=>{
  assert.equal(entries.length,139);assert.equal(new Set(entries.map(e=>e.id)).size,entries.length);
  assert.deepEqual([...new Set(entries.map(e=>e.book))].sort(),['avancado','basico','hijutsus1','hijutsus2']);
- for(const e of entries){assert.ok(e.page>0&&e.pdfPage>=e.page);assert.ok(e.benefits&&e.requirements);assert.equal(e.automation,'manual');assert.equal(e.costSource.page,56);assert.equal(e.levels.length,e.maxLevel);for(const s of e.levels){assert.equal(s.cost,2);assert.ok(s.checks||s.review);}}
+ for(const e of entries){assert.ok(e.page>0&&e.pdfPage>=e.page);assert.ok(e.benefits&&e.requirements);assert.equal(e.automation,e.key==='res-basico-estilo-da-lotus'?'contextual':'manual');assert.equal(e.costSource.page,56);assert.equal(e.levels.length,e.maxLevel);for(const s of e.levels){assert.equal(s.cost,2);assert.ok(s.checks||s.review);}}
  assert.equal(definition('hitokugutsu').maxLevel,1,'free Complete stage must not become a paid second level');
  assert.equal(definition('senjutsu').book,'avancado');
 });
+test('Lotus acquisition uses the shared coordinator, costs two points per pair and preserves chosen provenance on retries',async()=>{
+ const w=world('Hachimon Tonkou');
+ w.actor.items.push({id:'gates',name:'Hachimon',type:'power',system:{level:8,powerData:{family:'hachimon'}}});
+ w.actor.items.push({id:'fighter',type:'aptitude',system:{catalogKey:'lutador',catalogBook:'basico',acquisition:'Comprada'}});
+ const before=pointBudgets(w.actor.system,w.actor.items,w.rules).powers.spent;
+ const selection='ataque-multiplo|ataque-poderoso';
+ const source=await acquire(w,'estilo-da-lotus',{selection},'lotus-1');
+ assert.equal(source.system.selection,selection);assert.equal(source.parent,w.actor);
+ assert.equal(pointBudgets(w.actor.system,w.actor.items,w.rules).powers.spent,before+2);
+ assert.equal(await acquire(w,'estilo-da-lotus',{selection},'lotus-1'),source);
+ await assert.rejects(acquire(w,'estilo-da-lotus',{selection:'ataque-multiplo|soco-agarrado'},'lotus-2'),/outra compra/);
+ await acquire(w,'estilo-da-lotus',{selection:'ataque-giratorio|derrubar-agressivo'},'lotus-2');
+ await acquire(w,'estilo-da-lotus',{selection:'soco-em-gancho|ataque-atordoante'},'lotus-3');
+ await assert.rejects(acquire(w,'estilo-da-lotus',{selection:'desarme-agressivo|soco-agarrado'},'lotus-4'),/três compras/);
+});
+
 test('existing aptitudeEntry and prerequisiteStatus support the catalogue while common validation remains intact',()=>{
  const common=aptitudeEntry('acuidade','basico');assert.equal(prerequisiteStatus(common,{attributes:{des:2}}).allowed,false);assert.equal(prerequisiteStatus(common,{attributes:{des:3}}).allowed,true);
  assert.equal(aptitudeEntry(definition('byakugan').key,'basico').id,definition('byakugan').id);
@@ -100,7 +116,7 @@ test('Nan no Kaizou requires Tensai without clan and keeps the two alternatives 
 test('acquisition uses existing budget and Item validators without applying an individual benefit',async()=>{
  const w=world(),before=clone(w.actor.system),budget=pointBudgets(w.actor.system,[]).powers.remaining;
  const item=await acquire(w,'byakugan');assert.equal(item.system.level,1);assert.equal(pointBudgets(w.actor.system,w.actor.items).powers.remaining,budget-2);
- assert.deepEqual(w.actor.system,before);assert.equal(w.actor.effects.length,0);assert.equal(capabilityStatus(w.actor,item).activation.available,false);
+ assert.deepEqual(w.actor.system,before);assert.equal(w.actor.effects.length,0);assert.equal(capabilityStatus(w.actor,item).activation.available,true);assert.equal(capabilityStatus(w.actor,item).activation.active,false);
 });
 test('replayed purchase requests return the same Item; a fresh request cannot duplicate a non-repeatable purchase',async()=>{
  const w=world();const first=await acquire(w,'byakugan');assert.equal((await acquire(w,'byakugan')).id,first.id);assert.equal(w.actor.items.length,1);
@@ -168,7 +184,7 @@ test('capability grant adapter rejects arbitrary benefits not described by the s
 });
 test('restricted catalogue and existing sheet expose categories, reasons, source pages, levels and manual coverage with escaped data',async()=>{
  const w=world();let html=restrictedCatalogView({actor:w.actor,isGM:false,profile:w.books,houseRules:{}});assert.match(html,/Categoria/);assert.match(html,/Exibindo aptidões das origens/);assert.match(html,/Níveis:/);assert.match(html,/efeitos/);
- html=actorView(w.actor,'techniques',{isGM:true,profile:w.books});assert.match(html,/data-panel="learn"/);
+ html=actorView(w.actor,'aptitudes',{isGM:true,profile:w.books});assert.match(html,/data-panel="learn"/);
  const item=await acquire(w,'byakugan');item.name='<script>x</script>';html=restrictedUseView({actor:w.actor,isGM:true,profile:w.books},item);assert.ok(html.includes('&lt;script&gt;'));assert.ok(!html.includes('<script>'));assert.match(html,/Suspensão/);assert.match(html,/Ativação/);
 });
 test('shared coordinator authenticates the original requester, serializes duplicate purchases and marks requests completed',async()=>{
@@ -232,7 +248,7 @@ test('structured origins override legacy identity and include all explicitly sel
 test('missing, unknown and future origins show an empty catalogue without falling back to all entries',()=>{
  for(const data of [undefined,{schemaVersion:1,origins:[]},{schemaVersion:1,origins:['nao-catalogada']},{schemaVersion:99,origins:['hyuuga']}]){
   const w=world('');w.actor.system.capabilityData=data;const before=clone(w.actor.system);
-  const html=restrictedCatalogView({actor:w.actor,isGM:true,profile:w.books});assert.deepEqual(catalogKeys(html),[]);assert.match(html,/Nenhuma aptidão restrita catalogada/);assert.deepEqual(w.actor.system,before);
+  const html=restrictedCatalogView({actor:w.actor,isGM:true,profile:w.books});assert.deepEqual(catalogKeys(html),[]);assert.match(html,/class="sns-catalog-empty"/);assert.doesNotMatch(html,/data-sns-search/);assert.deepEqual(w.actor.system,before);
  }
 });
 
@@ -267,8 +283,17 @@ test('power catalogue follows source and explicit origin, while manual Bakuton h
 });
 test('one acquisition entry replaces repeated buttons and sheet rendering preserves all character data',()=>{
  const w=world(),before=clone(w.actor.system);
- const html=actorView(w.actor,'techniques',{isGM:true,profile:w.books});assert.equal((html.match(/data-panel="learn"/g)||[]).length,1);assert.doesNotMatch(html,/data-sns="power-catalog"|data-catalog="aptitudes"|data-catalog="restricted"/);
- const menu=panelView('learn',{actor:w.actor});assert.match(menu,/data-sns="power-catalog"/);assert.match(menu,/data-catalog="restricted"/);assert.match(menu,/data-kind="technique"/);assert.deepEqual(w.actor.system,before);
+ const powers=actorView(w.actor,'techniques',{isGM:true,profile:w.books});
+ assert.match(powers,/data-sns="power-catalog"/);
+ assert.doesNotMatch(powers,/data-panel="learn"/);
+ const aptitudes=actorView(w.actor,'aptitudes',{isGM:true,profile:w.books});
+ assert.match(aptitudes,/data-panel="learn"/);
+ assert.doesNotMatch(aptitudes,/data-sns="power-catalog"/);
+ const menu=panelView('learn',{actor:w.actor});
+ assert.match(menu,/data-catalog="aptitudes"/);
+ assert.match(menu,/data-catalog="restricted"/);
+ assert.doesNotMatch(menu,/data-sns="power-catalog"|data-kind="technique"/);
+ assert.deepEqual(w.actor.system,before);
 });
 test('all sheets follow the same world power budget while retaining their own state',()=>{
  const w=world(),before=clone(w.actor.system);
@@ -276,4 +301,153 @@ test('all sheets follow the same world power budget while retaining their own st
   const html=actorView(a,'techniques',{houseRules:{powerRate:rate},profile:w.books});assert.ok(html.includes(pointBudgets(a.system,a.items,{powerRate:rate}).powers.remaining+' pontos disponíveis'));
  }
  assert.deepEqual(w.actor.system,before);
+});
+
+ test('RES-002 authority validates controller and activation preserves manual action marks',async()=>{
+  const w=world(),item=await acquire(w,'byakugan'),actions=clone(w.actor.system.actions);
+  await assert.rejects(processCapabilityCommand(w.actor,{operation:'activate',itemId:item.id},{user:w.stranger,requestId:'a1'}),/controla/);
+  await processCapabilityCommand(w.actor,{operation:'activate',itemId:item.id},{user:w.player,requestId:'a2'});
+  assert.equal(w.actor.system.resources.chakra.value,16);assert.equal(capabilityStatus(w.actor,item).activation.active,true);assert.deepEqual(w.actor.system.actions,actions);
+  const html=restrictedUseView({actor:w.actor,isGM:false,profile:w.books},item);assert.match(html,/Desativar doujutsu/);assert.match(html,/capability-deactivate/);
+  await processCapabilityCommand(w.actor,{operation:'deactivate',itemId:item.id},{user:w.player,requestId:'a3'});assert.equal(capabilityStatus(w.actor,item).activation.active,false);assert.equal(w.actor.system.resources.chakra.value,16);
+ });
+ test('RES-002 Aburame linking rejects sharing a reserve between species and keeps existing data',async()=>{
+  const w=world('Aburame'),kika=await acquire(w,'kikaichuu',{},'ka'),shoka=await acquire(w,'shokaichuu',{},'sh');
+  await processCapabilityCommand(w.actor,{operation:'link',itemId:kika.id,resourceKey:'aburame.reserve',resourceId:'reserveA'},{user:w.player,requestId:'l1'});
+  const before=clone(w.actor.flags);
+  await assert.rejects(processCapabilityCommand(w.actor,{operation:'link',itemId:shoka.id,resourceKey:'aburame.reserve',resourceId:'reserveA'},{user:w.player,requestId:'l2'}),/independente/);assert.deepEqual(w.actor.flags,before);
+ });
+
+ test('RES-002 derived Intuition never stacks with own purchase, which survives deactivation',async()=>{
+  const {derivedSummary}=await import('../src/automation.mjs');
+  const w=world('Uchiha'),base=await acquire(w,'sharingan',{},'base'),nidan=await acquire(w,'nidan-sharingan',{},'nidan');w.actor.system.combat={cc:19,cd:19,esq:19,lm:19};
+  const command=(operation,id)=>processCapabilityCommand(w.actor,{operation,itemId:base.id},{user:w.player,requestId:id});
+  assert.equal(derivedSummary(w.actor).combat.lm,19);await command('activate','ac1');assert.equal(derivedSummary(w.actor).combat.lm,20);
+  const own=new w.Item({id:'own-intuition',name:'Intuição',type:'aptitude',system:{catalogKey:'intuicao',level:1}},w.actor);w.actor.items.push(own);assert.equal(derivedSummary(w.actor).combat.lm,20);
+  await command('deactivate','ac2');assert.equal(derivedSummary(w.actor).combat.lm,20);assert.ok(w.actor.items.includes(own));assert.ok(w.actor.items.includes(nidan));
+  w.actor.items.splice(w.actor.items.indexOf(own),1);assert.equal(derivedSummary(w.actor).combat.lm,19);
+ });
+
+test('Juuken uses the existing catalogue and purchase route with the published prerequisites',async()=>{
+ const w=world('Hyuuga');
+ const fields=form({'power.family':'juuken','power.level':1});
+ const buy=()=>powerAction({close:async()=>{}},'power-save',{},fields,{actor:w.actor});
+ assert.match(panelView('power-catalog',{actor:w.actor,profile:w.books}),/data-family="juuken"/);
+ await assert.rejects(buy(),/Byakugan/);
+ await acquire(w,'byakugan');
+ await assert.rejects(buy(),/Acuidade/);
+ w.actor.items.push(new w.Item({id:'acu',name:'Acuidade',type:'aptitude',system:{catalogKey:'acuidade',level:1}},w.actor));
+ w.actor.system.attributes.esp=0;
+ await assert.rejects(buy(),/Espírito 1/);
+ w.actor.system.attributes.esp=1;
+ await buy();
+ const power=w.actor.items.find(i=>i.type==='power');
+ assert.equal(power.system.powerData.family,'juuken');
+ assert.equal(power.system.source.page,'159');
+ await assert.rejects(buy(),/já foi adquirido/);
+ w.actor.system.identity.clan='Uchiha';
+ assert.doesNotMatch(panelView('power-catalog',{actor:w.actor,profile:w.books}),/data-family="juuken"/);
+ assert.match(validatePowerPurchase(w.actor,power).join(' '),/Origem necessária: hyuuga/);
+});
+
+
+test('Juuken in the normal attack flow requires active Byakugan and uses Dexterity and its own weapon damage',async()=>{
+ const {prepareWeaponAction}=await import('../src/weapon-actions.mjs');
+ const {savedDefaults}=await import('../src/saved-actions.mjs');
+ const {bodyHardness}=await import('../src/physical-actions.mjs');
+ const w=world('Hyuuga'),eye=await acquire(w,'byakugan');
+ w.actor.items.push(new w.Item({id:'acu',name:'Acuidade',type:'aptitude',system:{catalogKey:'acuidade',level:1}},w.actor));
+ w.actor.items.push(new w.Item({id:'iron',name:'Punho de Ferro',type:'aptitude',system:{catalogKey:'punho-de-ferro',level:1}},w.actor));
+ await powerAction({close:async()=>{}},'power-save',{},form({'power.family':'juuken','power.level':5}),{actor:w.actor});
+ w.actor.system.attributes.for=8;
+ w.actor.system.attributes.des=14;
+ const opts=savedDefaults({juuken:true,maneuver:'golpear'});
+ const prepare=()=>prepareWeaponAction(w.actor,'unarmed',opts);
+ assert.throws(prepare,/Byakugan ativo/);
+ await processCapabilityCommand(w.actor,{operation:'activate',itemId:eye.id},{user:w.player,requestId:'juuken-activate'});
+ assert.equal(prepare().plan.base,10);
+ assert.equal(prepare().attacks[0].juuken,true);
+ assert.equal(prepareWeaponAction(w.actor,'unarmed').plan.base,6);
+ assert.throws(()=>prepareWeaponAction(w.actor,'unarmed',{...opts,maneuver:'chute-duplo'}),/chutes/);
+ assert.equal(bodyHardness({system:{physical:{bodyHardness:5}}},{juuken:true}),3);
+ assert.equal(bodyHardness({system:{physical:{bodyHardness:5},powerState:{active:[{bodyHardness:4}]}}},{juuken:true}),4);
+ await processCapabilityCommand(w.actor,{operation:'deactivate',itemId:eye.id},{user:w.player,requestId:'juuken-deactivate'});
+ assert.throws(prepare,/Byakugan ativo/);
+});
+
+
+test('Hakke Kuushou uses the power panel, fixed chakra cost and selectable resistance',async()=>{
+ const {powerPlan}=await import('../src/power-rules.mjs');
+ const w=world('Hyuuga'),eye=await acquire(w,'byakugan');
+ w.actor.items.push(new w.Item({id:'acu',name:'Acuidade',type:'aptitude',system:{catalogKey:'acuidade',level:1}},w.actor));
+ await powerAction({close:async()=>{}},'power-save',{},form({'power.family':'juuken','power.level':6}),{actor:w.actor});
+ const item=w.actor.items.find(i=>i.type==='power');
+ const plan=(options={})=>powerPlan(item,w.actor.system,w.actor.items,{effect:'kuushou',level:5,distance:20,...options},{actor:w.actor,books:w.books.books});
+ assert.throws(plan,/Byakugan ativo/);
+ await processCapabilityCommand(w.actor,{operation:'activate',itemId:eye.id},{user:w.player,requestId:'kuushou-active'});
+ w.actor.system.attributes.des=14;
+ const result=plan();
+ assert.equal(result.cost,5);
+ assert.equal(result.stat,'cc');
+ assert.equal(result.damage,10);
+ assert.equal(result.range,20);
+ assert.deepEqual(result.resistances[0],{stat:['acrobacia','for'],difficulty:19,onFail:['caido'],push:3});
+ assert.throws(()=>plan({distance:21}),/20 m/);
+ assert.throws(()=>plan({level:4}),/não disponível neste nível/);
+ assert.match(panelView('power-use',{actor:w.actor,itemId:item.id,profile:w.books}),/Hakke Kuushou/);
+ const chakra=w.actor.system.resources.chakra.value;
+ const execute=distance=>powerAction({values:{},close:async()=>{}},'power-execute',{},form({
+  'power.id':item.id,'power.effect':'kuushou','power.level':5,'power.distance':distance
+ }),{actor:w.actor});
+ await assert.rejects(execute(21),/20 m/);
+ await assert.rejects(execute(20),/Escolha o alvo/);
+ assert.equal(w.actor.system.resources.chakra.value,chakra);
+});
+
+
+test('Aburame deployment and losses preserve independent species reserves and are retry safe',async()=>{
+ const w=world('Aburame');
+ const kika=await acquire(w,'kikaichuu',{},'kika');
+ const shoka=await acquire(w,'shokaichuu',{},'shoka');
+ await processCapabilityCommand(w.actor,{operation:'link',itemId:kika.id,resourceKey:'aburame.reserve',resourceId:'reserveA'},{user:w.player,requestId:'link-kika'});
+ const execute=(operation,amount,requestId)=>processCapabilityCommand(w.actor,{operation,itemId:kika.id,amount},{user:w.player,requestId});
+ await execute('insects-deploy',2,'deploy-two');
+ await execute('insects-deploy',2,'deploy-two');
+ assert.equal(w.actor.system.special.find(r=>r.id==='reserveA').value,2);
+ assert.equal(capabilityStatus(w.actor,kika).clan.insects.find(r=>r.itemId===kika.id).deployed,2);
+ await assert.rejects(execute('insects-return',3,'over-return'),/excede/);
+ await execute('insects-loss',1,'loss');
+ await execute('insects-return',1,'return');
+ assert.equal(w.actor.system.special.find(r=>r.id==='reserveA').value,3);
+ await assert.rejects(execute('insects-recover',1,'too-early'),/dois dias/);
+ game.time={worldTime:172800};
+ await execute('insects-recover',1,'recover-one');
+ assert.equal(w.actor.system.special.find(r=>r.id==='reserveA').value,4);
+ assert.equal(w.actor.system.special.find(r=>r.id==='reserveB').value,5);
+ assert.equal(capabilityStatus(w.actor,shoka).clan.insects.find(r=>r.itemId===shoka.id).deployed,0);
+ await powerAction({close:async()=>{}},'power-save',{},form({'power.family':'kikai-ninpou','power.level':1,'power.choice.0':'canhao:1'}),{actor:w.actor});
+ assert.equal(w.actor.items.find(i=>i.type==='power').system.powerData.family,'kikai-ninpou');
+});
+
+
+test('Natural Katon grants Sopro 4 at NC 4 and derives tiers without replacing purchased choices',async()=>{
+ const {powerPlan,powerUseItem,knownPowerEffects}=await import('../src/power-rules.mjs');
+ const w=world('Uchiha');
+ const apt=await acquire(w,'elemento-natural-katon');
+ const virtual=powerUseItem(apt);
+ w.actor.system.campaign.level=4;
+ w.actor.system.attributes.esp=5;
+ const plan=powerPlan(virtual,w.actor.system,w.actor.items,{effect:'sopro',level:4},{actor:w.actor,books:w.books.books});
+ assert.equal(plan.cost,3);
+ assert.equal(plan.damage,7);
+ assert.equal(plan.tier,4);
+ w.actor.system.campaign.level=20;
+ const katon={type:'power',id:'katon7',name:'Katon',system:{level:7,powerData:{family:'katon',choices:[{effect:'canhao',tier:1}]}}};
+ w.actor.items.push(katon);
+ assert.equal(knownPowerEffects(katon,{actor:w.actor}).get('sopro'),7);
+ assert.equal(katon.system.powerData.choices.length,1);
+ assert.throws(()=>powerPlan(virtual,w.actor.system,w.actor.items,{effect:'sopro',level:4},{actor:w.actor}),/poder Katon/);
+ w.actor.items.splice(w.actor.items.indexOf(apt),1);
+ assert.equal(knownPowerEffects(katon,{actor:w.actor}).has('sopro'),false);
+ assert.equal(knownPowerEffects(katon,{actor:w.actor}).get('canhao'),1);
 });

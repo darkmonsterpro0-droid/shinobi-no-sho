@@ -1,6 +1,16 @@
 import {aptitudeOwned,normalize} from './aptitudes.mjs';
+import {SKILLS} from './config.mjs';
 import {skillBase} from './build-rules.mjs';
 export const META_APTITUDES=['potencializar','tecnica-eficiente','tecnica-elevada','tecnica-poderosa','tecnica-de-controle-de-chakra','tecnica-de-impacto'];
+export const skillResistanceDifficulty=(plan,stat,difficulty)=>difficulty+
+ (Object.hasOwn(SKILLS,stat)?Number(plan.skillResistanceBonus??0):0);
+export function hasNinpouDomain(items,family,rules={}){
+ return ['ninpou','hibon-ninpou'].includes(family)&&!!aptitudeOwned(items,'dominio-ninpou','',rules);
+}
+export function eligibleEfficientTechnique(plan){
+ return ['cc','cd'].includes(plan?.stat)&&Number(plan.cost)>=1&&Number(plan.damage)>0&&
+  plan.metaAllowed!==false&&!plan.noMeta&&!plan.noOtherBenefits&&!plan.noOtherDamageBonuses&&!plan.touchDamage;
+}
 export function modifyTechnique(frame,keys,system,items=[],choices={},rules={}){
  const t={...frame,notes:[],extraMovement:0,degreeBonus:0,waterCreated:0,waterSpent:0,precisionBonus:0},has=k=>!!aptitudeOwned(items,k,'',rules),a=system.attributes??{},power=normalize(frame.power),nv=Number(frame.level??0);
  for(const k of ['cost','damage','hardness','difficulty','range','width','length','height'])if(frame[k]!=null&&(!Number.isFinite(Number(frame[k]))||Number(frame[k])<0))throw Error(`Parâmetro inválido: ${k}.`);

@@ -1,3 +1,5 @@
+import {clanCapabilities,corpulenciaPayment} from './clan-capabilities.mjs';
+import {worldProfile} from './world-settings.mjs';
 import {ID,SKILLS} from './config.mjs';
 import {clonePlan,CLONE_PASSIVES,CLONE_TYPES,kageReturn} from './clone-rules.mjs';
 import {aptitudeOwned} from './aptitudes.mjs';
@@ -10,7 +12,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 export const linkedClones=actor=>(game.actors?.contents??[]).filter(c=>c.getFlag(ID,'clone')?.origin===actor.uuid&&!c.getFlag(ID,'clone')?.dismissed);
 export function cloneView(actor,item,{esc,field,select,button},values={}){
  const level=Number(item.system.level??1),list=actor.clones??[],count=Number(values['clone.count']??1),limit=level>=2?6:2;
- return `<p>Cria réplicas vinculadas à ficha. Ação padrão · duração contínua. Limite conjunto entre todos os tipos; recriação bloqueada no turno em que uma cópia foi desfeita.</p><p>Até 2 clones ativos: −3 nos testes. Com 3 a 6 clones ativos: todos falham automaticamente nos testes de combate. Clone nível 1 permite no máximo 2 cópias.</p><div class="sns-form-grid">${field('Quantidade a criar','clone.count',count,'number',`min="1" max="${Math.max(0,limit-list.length)}" step="1"`)}</div>${button('Criar clones','create-clones',`data-id="${esc(item.id)}" ${list.length>=limit?'disabled':''}`,'primary')}<h4>Clones ativos (${list.length} / ${limit})</h4><p role="status">${list.length>2?'Todos os clones falham automaticamente nos testes de combate.':'Até duas cópias: −3 nos testes, com as exceções próprias de cada tipo.'}</p>${list.length?list.map(c=>`<p>${esc(c.name)} ${button('Desfazer','dismiss-clone',`data-uuid="${esc(c.uuid)}"`)}</p>`).join(''):'<p>Nenhum clone ativo.</p>'}`;
+ return `<p>Cria réplicas vinculadas à ficha. Ação padrão · duração contínua. Limite conjunto entre todos os tipos; recriação bloqueada no turno em que uma cópia foi desfeita.</p><p>Até 2 clones ativos: −3 nos testes. Com 3 a 6 clones ativos: todos falham automaticamente nos testes de combate. Clone nível 1 permite no máximo 2 cópias.</p><div class="sns-form-grid">${field('Quantidade a criar','clone.count',count,'number',`min="1" max="${Math.max(0,limit-list.length)}" step="1"`)}</div>${actor.system&&clanCapabilities(actor,{books:worldProfile()?.books,rules:houseRules()}).corpulenciaId?`<details><summary>Corpulência · pagar com Vitalidade</summary>${field('Chakra substituído por 2 Vitalidade','clone.convertedChakra',values['clone.convertedChakra']??0,'number','min="0" step="1"')}</details>`:''}${button('Criar clones','create-clones',`data-id="${esc(item.id)}" ${list.length>=limit?'disabled':''}`,'primary')}<h4>Clones ativos (${list.length} / ${limit})</h4><p role="status">${list.length>2?'Todos os clones falham automaticamente nos testes de combate.':'Até duas cópias: −3 nos testes, com as exceções próprias de cada tipo.'}</p>${list.length?list.map(c=>`<p>${esc(c.name)} ${button('Desfazer','dismiss-clone',`data-uuid="${esc(c.uuid)}"`)}</p>`).join(''):'<p>Nenhum clone ativo.</p>'}`;
 }
 export async function cloneAction(app,op,data,root,{actor}){
  if(!actor?.isOwner)throw Error('Você não pode usar esta ficha.');
@@ -23,11 +25,15 @@ export async function cloneAction(app,op,data,root,{actor}){
  if(actor.getFlag(ID,'clone'))throw Error('Um clone comum não pode criar clones.');
  if(!game.user.isGM&&!game.user.can?.('ACTOR_CREATE'))throw Error('O mestre precisa permitir criar Atores para gerar as fichas dos clones.');
  const item=actor.items.get(data.id);if(!item||!aptitudeOwned([...actor.items],'clone',item.system.selection,houseRules()))throw Error('Aptidão Clone não encontrada.');
- const fields=readFields(root,'clone.'),count=Number(fields['clone.count']??1);
+ const fields=readFields(root,'clone.'),count=Number(fields['clone.count']??1),converted=Number(fields['clone.convertedChakra']??0);
+ if(!Number.isSafeInteger(converted)||converted<0||converted>count||item.system.selection==='kage-bunshin'&&converted)throw Error('A conversão aplica-se somente ao custo em chakra dos clones comuns, sem alterar a divisão do Kage Bunshin.');
  const summary=derivedSummary(actor),check=statPrecision(actor,'esp',{kind:'attribute',manualContext:true});if(!check.allowed)throw Error(check.reasons.join(' '));
  let created=[];
  await mutateRuntime(actor,async state=>{
-  const existing=linkedClones(actor),plan=clonePlan({knownLevel:Number(item.system.level??1),count,type:item.system.selection,existing:existing.map(c=>c.getFlag(ID,'clone')),vitality:actor.system.resources.vitality.value,maximumVitality:summary.vitality,chakra:actor.system.resources.chakra.value,spirit:actor.system.attributes.esp,turn:periodKey(actor,'turn'),dismissedTurn:state.cloneDismissedTurn});
+  if((actor.system.powerState?.active??[]).some(e=>e.effect==='baika'&&e.active!==false))
+   throw Error('A expansão do Baika no Jutsu impede usar Clone.');
+  const existing=linkedClones(actor),plan=clonePlan({knownLevel:Number(item.system.level??1),count,type:item.system.selection,existing:existing.map(c=>c.getFlag(ID,'clone')),vitality:actor.system.resources.vitality.value,maximumVitality:summary.vitality,chakra:actor.system.resources.chakra.value+converted,spirit:actor.system.attributes.esp,turn:periodKey(actor,'turn'),dismissedTurn:state.cloneDismissedTurn});
+  const payment=corpulenciaPayment(actor,plan.chakraCost,converted,{books:worldProfile()?.books,rules:houseRules()});
   const raw=actor.toObject(),system=structuredClone(raw.system);
   system.automation.enabled=false;system.campaign.draft=false;system.conditions=[];system.links={origin:actor.uuid,controller:actor.uuid,payer:actor.uuid,kind:'Clone'};
   system.resources={vitality:{value:plan.cloneVitality,max:plan.cloneVitality},chakra:{value:plan.cloneChakra,max:plan.cloneChakra}};
@@ -38,7 +44,7 @@ export async function cloneAction(app,op,data,root,{actor}){
   const batch=Array.from({length:count},(_,n)=>({name:`${actor.name} · ${CLONE_TYPES[plan.type]} ${existing.length+n+1}`,type:'creature',img:actor.img,ownership:raw.ownership,prototypeToken:{...raw.prototypeToken,actorLink:true},system:structuredClone(system),items:structuredClone(items),effects:[],flags:{[ID]:{clone:{...plan,origin:actor.uuid,sourceItems:[...actor.items].map(i=>i.toObject()),createdAt:game.time?.worldTime??0,dismissed:false}}}}));
   created=await CONFIG.Actor.documentClass.createDocuments(batch,{snsSkipAllocation:true});
   if(created.length!==count){for(const c of created)await c.delete({snsCloneRollback:true});throw Error('Não foi possível criar todas as cópias; nenhum custo foi cobrado.');}
-  return {changes:{'system.resources.chakra.value':plan.sourceChakra,'system.resources.vitality.value':plan.sourceVitality}};
+  return {changes:plan.type==='kage-bunshin'?{'system.resources.chakra.value':plan.sourceChakra,'system.resources.vitality.value':plan.sourceVitality}:payment};
  }).catch(async error=>{for(const c of created)if(game.actors.get(c.id))await c.delete({snsCloneRollback:true});throw error;});
  await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:`<p>${esc(actor.name)} criou ${count} clone(s). ${linkedClones(actor).length<=2?'Até duas cópias ativas: −3 nos testes, além do limite comum de penalidades.':'Há mais de duas cópias ativas: todos os clones falham automaticamente nos testes de combate.'} Básico pp. 76–80.</p>`});
  return app.render({force:true});

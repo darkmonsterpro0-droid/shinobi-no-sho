@@ -1,10 +1,19 @@
+import {clanCapabilities,juukenWeaponDamage} from './clan-capabilities.mjs';
+import {periodKey,runtimeState,runtimeBonuses} from './aptitude-runtime.mjs';
+import {WEAPONS,weaponAttack} from './weapons.mjs';
 import {characterOrigins} from './restricted-aptitudes.mjs';
 import {POWER_FAMILIES,POWER_EFFECTS,POWER_TECHNIQUES,ELEMENTS,powerSource} from './power-data.mjs';
 import {aptitudeOwned,normalize} from './aptitudes.mjs';
 import {skillBase} from './build-rules.mjs';
+import {effectiveAttributes} from './physical-rules.mjs';
+import {fusionParticipants} from './inuzuka-fusion.mjs';
+import {naraBindingPlan} from './nara.mjs';
+import {yamanakaPlan} from './yamanaka.mjs';
+import {gateOpening,hachimonProfile,HACHIMON_GATES,heavyAttackPlan} from './hachimon-rules.mjs';
 const n=v=>Number(v??0),ceil=Math.ceil;
 const apt=(items,key,choice)=>!!aptitudeOwned(items,key,choice);
-const familyOf=i=>i.system?.powerData?.family??Object.keys(POWER_FAMILIES).find(k=>normalize(i.name)===k);
+const familyOf=i=>i.system?.powerData?.family??(i.system?.catalogKey==='hibon-ninpou'||
+ normalize(i.name).startsWith('hibon-ninpou')?'hibon-ninpou':null)??(i.system?.catalogKey==='dokujutsu'||normalize(i.name).startsWith('dokujutsu')?'dokujutsu':null)??Object.keys(POWER_FAMILIES).find(k=>normalize(i.name)===k);
 export {familyOf as powerFamily};
 export function affinityStatus(system,items=[],proposal=null){
  const explicit=system.powerState?.affinity??{},excluded=explicit.approved&&explicit.reason?explicit.excluded??[]:[],override=explicit.approved&&explicit.reason&&Number.isInteger(explicit.limit)?explicit.limit:null;
@@ -12,11 +21,45 @@ export function affinityStatus(system,items=[],proposal=null){
  const blocked=explicit.approved&&explicit.reason?explicit.blocked??[]:[];
  return {families,counted,excluded,limit,allowed:counted.length<=limit&&!families.some(k=>blocked.includes(k)),source:'Livro Básico p. 89',reason:counted.length>limit?`Afinidade elemental: máximo ${limit} elemento(s) básico(s)${limit===1?'; o segundo exige Espírito 10':''}.`:families.some(k=>blocked.includes(k))?'O clã/hijutsu registrado pelo mestre impede este elemento.':''};
 }
-export function availablePowerEffects(family,{books=['basico','avancado'],rules={}}={}){
- return POWER_EFFECTS.filter(e=>(books.includes(e.book)||e.book==='basico')&&(e.families.includes(family)||family==='ninpou'&&e.key==='nevoa'&&rules.ninpouMist)).map(e=>family==='ninpou'&&e.key==='nevoa'?{...e,tiers:[2]}:e);
+const DOKUJUTSU_EFFECTS=new Set(['canhao','orbe','raio','flechas','energizar','sopro','coluna','lanca','nuvem',
+ 'missil','onda-explosiva','ricochete','correnteza']);
+function dokujutsuRequirements(system,items,rules){
+ return aptitudeOwned(items,'quimico','',rules)&&skillBase(system,'veneficio')>=6;
 }
-export function knownPowerEffects(item){
- const levels=new Map();for(const c of item.system?.powerData?.choices??[])levels.set(c.effect,Math.max(levels.get(c.effect)??0,n(c.tier)));return levels;
+const KIKAI_EFFECTS=new Set(['canhao','orbe','raio','barreira','flechas','ricochete','coluna','nuvem','sopro','missil','interferencia']);
+// Livro Básico 4.1.b, p. 212. The reference unlocks effects; the style remains a separate element.
+export const HIBON_BONUSES={damage:'Dano +1',hardness:'Dureza +2',difficulty:'Dificuldade de resistência +1'};
+function validHibon(style){
+ return !!style&&ELEMENTS.includes(style.element)&&typeof style.manifestation==='string'&&
+  !!style.manifestation.trim()&&style.manifestation.length<=500&&Array.isArray(style.bonuses)&&style.bonuses.length===2&&
+  style.bonuses.every(bonus=>Object.hasOwn(HIBON_BONUSES,bonus))&&
+  (style.bonuses[0]!==style.bonuses[1]||style.bonuses[0]==='damage');
+}
+const sameHibon=(a,b)=>a.element===b.element&&[...a.bonuses].sort().join()===[...b.bonuses].sort().join();
+export function availablePowerEffects(family,{books=['basico','avancado'],rules={},hibonElement}={}){
+ if(family==='hibon-ninpou')return POWER_EFFECTS.filter(e=>(books.includes(e.book)||e.book==='basico')&&
+  (e.families.includes('ninpou')||ELEMENTS.includes(hibonElement)&&e.families.includes(hibonElement)||
+   e.key==='nevoa'&&rules.ninpouMist)).map(e=>e.key==='nevoa'&&hibonElement!=='suiton'?{...e,tiers:[2]}:e);
+
+ return POWER_EFFECTS.filter(e=>(books.includes(e.book)||e.book==='basico')&&(family==='dokujutsu'?DOKUJUTSU_EFFECTS.has(e.key):family==='kikai-ninpou'?KIKAI_EFFECTS.has(e.key):e.families.includes(family)||family==='ninpou'&&e.key==='nevoa'&&rules.ninpouMist)).map(e=>family==='ninpou'&&e.key==='nevoa'?{...e,tiers:[2]}:e);
+}
+export function powerUseItem(item){
+ if(item?.type==='aptitude'&&item.system?.catalogKey==='res-basico-mangekyou-sharingan'){
+  return {id:item.id,name:item.name,type:'power',system:{level:10,powerData:{family:'mangekyou'}}};
+ }
+ if(item?.type!=='aptitude'||item.system?.catalogKey!=='res-basico-elemento-natural-katon')return item;
+ return {id:item.id,name:item.name,type:'power',system:{level:4,naturalKaton:true,powerData:{family:'katon',choices:[{effect:'sopro',tier:4}]}}};
+}
+
+export function knownPowerEffects(item,{actor,books,rules}={}){
+ const levels=new Map();
+ for(const c of item.system?.powerData?.choices??[])levels.set(c.effect,Math.max(levels.get(c.effect)??0,n(c.tier)));
+ if(actor&&familyOf(item)==='katon'&&!item.system.naturalKaton&&Number(item.system.level)>=4&&clanCapabilities(actor,{books,rules}).naturalKatonId){
+  const level=Number(item.system.level);
+  const tier=level>=10?10:level>=7?7:4;
+  levels.set('sopro',Math.max(levels.get('sopro')??0,tier));
+ }
+ return levels;
 }
 export function powerPurchaseCost(item,items=[]){
  const family=familyOf(item),all=[...items];if(!all.includes(item)&&!all.some(i=>(i.id??i._id)&&((i.id??i._id)===(item.id??item._id))))all.push(item);
@@ -27,9 +70,35 @@ export function powerPurchaseCost(item,items=[]){
 export function validatePowerPurchase(actor,item,{previous=null,rules={},books=['basico','avancado'],isGM=false}={}){
  const s=item.system??{},p=s.powerData??{},family=p.family,entry=POWER_FAMILIES[family];if(!family)return [];
  const errors=[],system=actor.system??{},items=[...(actor.items??[])].filter(i=>(i.id??i._id)!==(item.id??item._id)),level=n(s.level),attrs=system.attributes??{};
- if(!entry)return ['Poder de catálogo desconhecido.'];
+ if(!entry||entry.derived)return ['Poder de catálogo indisponível para compra.'];
  if(!books.includes(entry.book??'basico'))errors.push('Livro deste poder desabilitado.');
  if(entry.origins&&!entry.origins.some(key=>characterOrigins(system).keys.includes(key)))errors.push('Origem necessária: '+entry.origins.join(' ou ')+'.');
+ if(family==='hibon-ninpou'){
+  const style=p.hibonStyle;
+  if(!validHibon(style))errors.push('Defina a manifestação, o elemento de referência e duas bonificações. Só Dano pode ser repetido.');
+  else{
+   const peers=[previous,...items].filter(i=>i?.type==='power'&&familyOf(i)===family);
+   if(peers.some(i=>validHibon(i.system.powerData?.hibonStyle)&&!sameHibon(style,i.system.powerData.hibonStyle)))
+    errors.push('Outras compras e evoluções preservam o elemento de referência e as bonificações de Hibon Ninpou.');
+  }
+  if(items.some(i=>i.type==='power'&&[i.system?.powerData?.family,i.system?.catalogKey,i.name].some(v=>normalize(v)==='versatilidade')))
+   errors.push('Hibon Ninpou não pode ser comprado em conjunto com Versatilidade.');
+ }
+ if(family==='dokujutsu'&&!dokujutsuRequirements(system,items,rules))errors.push('Dokujutsu exige Venefício 6 e Químico.');
+ if(family==='hachimon'){
+  if(n(attrs.vig)<6)errors.push('Hachimon Tonkou exige Vigor 6.');
+  if(level>1&&!rules.twoHijutsus&&characterOrigins(system).keys.some(key=>key&&key!=='hachimon-tonkou'))
+   errors.push('Com outro clã ou hijutsu, Hachimon Tonkou permite somente nível 1, salvo a variante de múltiplas origens.');
+ }
+ if(family==='kikai-ninpou'&&!apt(items,'res-basico-kikaichuu'))errors.push('Kikai Ninpou exige Kikaichuu.');
+ if(family==='shikakyu'&&!clanCapabilities(actor,{books,rules}).hakken)errors.push('Shikakyu exige Hakken no Jutsu disponível.');
+ if(family==='juuken'){
+  if(n(attrs.esp)<1)errors.push('Juuken exige Espírito 1.');
+  if(!apt(items,'res-basico-byakugan'))errors.push('Juuken exige Byakugan.');
+  if(!apt(items,'acuidade'))errors.push('Juuken exige Acuidade.');
+ }
+ if(family==='baika-ninpou'&&(n(attrs.vig)<6||!clanCapabilities(actor,{books,rules}).corpulenciaId))
+  errors.push('Baika Ninpou exige Vigor 6 e Corpulência.');
  if(family==='bakuton'&&n(attrs.esp)<3)errors.push('Bakuton exige Espírito 3.');
  const hasBakuton=family==='bakuton'||items.some(i=>i.type==='power'&&familyOf(i)==='bakuton'&&n(i.system.level)>0);
  if(hasBakuton&&[...items,item].some(i=>i.type==='power'&&ELEMENTS.includes(familyOf(i))&&!['doton','raiton'].includes(familyOf(i))&&n(i.system.level)>0))errors.push('Bakuton permite somente Doton e Raiton como outros elementos (Hijutsus II p. 19).');
@@ -38,14 +107,14 @@ export function validatePowerPurchase(actor,item,{previous=null,rules={},books=[
  if(!Number.isInteger(track)||track<1||others.some(i=>Number(i.system.powerData?.track??1)===track))errors.push('Compra repetida do poder precisa de uma sequência própria.');
  if(previous&&(track!==Number(previous.system.powerData?.track??1)||level<Number(previous.system.level)))errors.push('A evolução preserva a compra e não reduz o nível.');
  if(!entry.effects&&others.length)errors.push('Este poder já foi adquirido; evolua o registro existente.');
- if(previous&&family!==previous.system.powerData?.family)errors.push('A família do poder automatizado não pode ser alterada.');
+ if(previous&&family!==familyOf(previous))errors.push('A família do poder automatizado não pode ser alterada.');
  if(family==='fuuinjutsu'&&n(attrs.int)<6)errors.push('Fuuinjutsu exige Inteligência 6.');
  if(family==='iryou-ninjutsu'&&(n(attrs.esp)<6||!apt(items,'ninja-medico')))errors.push('Iryou Ninjutsu exige Ninja Médico e Espírito 6.');
  if(family==='rasengan'&&n(attrs.esp)<8)errors.push('Rasengan exige Espírito 8.');
  const affinity=affinityStatus(system,[...items,item]);if(!affinity.allowed)errors.push(affinity.reason);
- if(entry.manual&&(p.choices??[]).length)errors.push('Este poder tem técnicas próprias; não selecione efeitos de Ninpou.');
+ if((entry.manual||family==='juuken')&&(p.choices??[]).length)errors.push('Este poder tem técnicas próprias; não selecione efeitos de Ninpou.');
  if(entry.effects){
-  const available=availablePowerEffects(family,{books,rules}),choices=p.choices??[],prior=new Map();
+  const available=availablePowerEffects(family,{books,rules,hibonElement:p.hibonStyle?.element}),choices=p.choices??[],prior=new Map();
   if(choices.length!==level)errors.push('Escolha exatamente um efeito ou evolução para cada nível comprado.');
   choices.forEach((c,index)=>{const e=available.find(e=>e.key===c.effect),tier=n(c.tier),evolution=e?.tiers.indexOf(tier)??-1;
    if(!e||evolution<0||tier>index+1){errors.push(`Escolha inválida no nível ${index+1}.`);return;}
@@ -60,44 +129,110 @@ export function validatePowerPurchase(actor,item,{previous=null,rules={},books=[
  }
  return [...new Set(errors)];
 }
+export function isDamagingNinpou(plan){
+ return !!POWER_FAMILIES[plan?.family]?.effects&&['cc','cd'].includes(plan.stat)&&Number.isFinite(plan.damage)&&plan.damage>0;
+}
+export function canCoordinateArea(plan){
+ return !!plan?.area&&['cc','cd'].includes(plan.stat)&&(!!POWER_FAMILIES[plan.family]?.effects||plan.family==='shikakyu'&&plan.effect==='ooiga-gatenga')&&
+  !['kikai-ninpou'].includes(plan.family)&&!['meteoros','desastre','colisao-ondas'].includes(plan.effect)&&
+  !plan.trap&&!plan.sequence&&(!plan.followupRolls||plan.effect==='missil')&&!plan.rerollAfterDefense&&!plan.splitDamage;
+}
+export function canCoordinateSinglePower(plan){
+ return canCoordinateNinpou(plan)||!!plan&&!plan.area&&plan.targets===1&&
+  (plan.family==='baika-ninpou'&&['nikudan','choudan'].includes(plan.effect)||
+  plan.family==='shikakyu'&&['tsuuga','gatsuga','garouga'].includes(plan.effect)||
+  ['algemar','prisao-agua','dano-continuo'].includes(plan.effect));
+}
+export function canCoordinateNinpou(plan){
+ return isDamagingNinpou(plan)&&!plan.area&&plan.targets===1&&!plan.sequence&&!plan.followupRolls&&
+  !plan.rerollAfterDefense&&!plan.splitDamage&&!plan.trap&&!plan.resistances?.some(r=>r.beforeDefense||r.appliesEvenMiss)&&
+  plan.family!=='kikai-ninpou'&&!plan.active;
+}
+export function techniqueCounterOutcome(incoming,counter){
+ const {attack,defense}=elementalConfrontation(incoming.element??incoming.family,counter.element??counter.family);
+ const excess=Math.max(0,Math.ceil(counter.damage*defense)-Math.ceil(incoming.damage*attack));
+ return {hit:false,cancelledTechnique:true,counterExcess:incoming.stat===counter.stat?excess:0};
+}
+
 export function elementalConfrontation(attacking,defending,{mist=false}={}){
  const beats={katon:'fuuton',fuuton:'raiton',raiton:'doton',doton:'suiton',suiton:'katon'},a=String(attacking??'').toLowerCase(),d=String(defending??'').toLowerCase();
  if(mist&&defending==='suiton')return attacking==='fuuton'?{attack:1,defense:.5}:{attack:1,defense:1};
  return {attack:beats[d]===a?.5:1,defense:beats[a]===d?.5:1};
 }
+export const requiresPowerMaintenance=active=>!active.automaticMaintenance&&(['concentration','sustained'].includes(active.duration)||Number(active.plan?.maintenanceCost)>0);
 export function powerParameters(family,level,spirit,{small=false,solid=false}={}){
  const f=POWER_FAMILIES[family];if(!f?.effects)throw Error('Poder sem parâmetros de Ninpou.');const parameter=small?level:spirit;
  return {damage:level+ceil(spirit/2)+f.damage,difficulty:9+level+ceil(spirit/2),hardness:level+ceil(spirit/2)+f.hardness,range:f.range[0]+f.range[1]*parameter,size:ceil(f.size*parameter),solid:solid||f.solid||false};
 }
 function resist(stat,difficulty,onFail,extra={}){return {stat,difficulty,onFail,...extra};}
 export function powerPlan(item,system,items=[],options={},context={}){
+ const plan=basePowerPlan(item,system,items,options,context);
+ return context.actor?heavyAttackPlan(plan,context.actor,{requested:options.hachimonHeavy,
+  turn:periodKey(context.actor,'turn'),scene:periodKey(context.actor,'scene')}):plan;
+}
+function basePowerPlan(item,system,items=[],options={},context={}){
  if(POWER_FAMILIES[familyOf(item)]?.manual)throw Error('Este poder possui execução manual; suas técnicas não estão automatizadas.');
  const family=familyOf(item),familyData=POWER_FAMILIES[family];if(!familyData)throw Error('Poder comum não reconhecido.');
- const known=Math.max(n(item.system.level),...items.filter(i=>i.type==='power'&&familyOf(i)===family).map(i=>n(i.system.level))),level=n(options.level??item.system.level),attrs=context.attributes??system.attributes??{},spirit=n(attrs.esp),intel=n(attrs.int),rules=context.rules??{};
- if(!Number.isInteger(level)||level<1||level>known||level>Math.floor(n(system.campaign?.level??4)/2))throw Error('Nível usado acima do conhecido ou do limite da campanha.');
+ const known=Math.max(n(item.system.level),...items.filter(i=>i.type==='power'&&familyOf(i)===family).map(i=>n(i.system.level))),level=n(options.level??item.system.level),attrs=context.attributes??system.attributes??{},spirit=family==='kikai-ninpou'?skillBase(system,'lidar'):family==='dokujutsu'?n(attrs.int):n(attrs.esp),intel=n(attrs.int),rules=context.rules??{};
+ const naturalKaton=item.system.naturalKaton===true;
+ if(naturalKaton){
+  const actor=context.actor;
+  if(!actor||clanCapabilities(actor,context).naturalKatonId!==item.id||!['sopro',undefined].includes(options.effect)||level!==4)throw Error('Sopro de Elemento Natural exige a aptidão válida e nível fixo 4.');
+  if(items.some(i=>i.type==='power'&&familyOf(i)==='katon'&&n(i.system.level)>=4))throw Error('Use o Sopro concedido no seu poder Katon.');
+ }
+ if(!Number.isInteger(level)||level<1||level>known||!naturalKaton&&family!=='mangekyou'&&level>Math.floor(n(system.campaign?.level??4)/2))throw Error('Nível usado acima do conhecido ou do limite da campanha.');
+ const hibon=family==='hibon-ninpou'?item.system.powerData?.hibonStyle:null;
+ if(family==='hibon-ninpou'&&(!(context.books??['basico']).includes('basico')||
+    !characterOrigins(system).keys.includes('hibon-ninpou')||!validHibon(hibon)))
+  throw Error('Hibon Ninpou exige a origem e um estilo configurado no Livro Básico.');
+ if(family==='dokujutsu'){
+  if(!(context.books??['basico']).includes('basico')||!characterOrigins(system).keys.includes('dokujutsu')||
+     !dokujutsuRequirements(system,items,rules))throw Error('Dokujutsu exige origem, Venefício 6, Químico e o Livro Básico.');
+  if(options.effect==='criacao-livre')throw Error('Dokujutsu usa somente os efeitos listados no Livro Básico.');
+ }
  if(!familyData.effects)return specialPlan(item,system,items,{...options,level},context);
- const key=options.effect??'canhao',knownEffects=knownPowerEffects(item),entry=key==='criacao-livre'?{key,name:'Criação Livre',tiers:[1],page:94}:availablePowerEffects(family,{rules,books:context.books}).find(e=>e.key===key),ownedTier=knownEffects.get(key),tier=n(options.tier??ownedTier);
+ if(family==='kikai-ninpou'){
+  const actor=context.actor;
+  if(!actor)throw Error('Abra Kikai Ninpou pela ficha para conferir os insetos.');
+  if(!characterOrigins(system).keys.includes('aburame')||!(context.books??['basico']).includes('basico'))throw Error('Kikai Ninpou exige origem Aburame e Livro Básico habilitado.');
+  if(options.effect==='criacao-livre')throw Error('Kikai Ninpou usa apenas os efeitos publicados para os insetos.');
+  const colony=clanCapabilities(actor,context).insects.find(r=>r.key==='res-basico-kikaichuu');
+  if(!colony?.available||!colony.bindingValid)throw Error('Kikai Ninpou exige Kikaichuu e uma reserva vinculada.');
+ }
+ const key=options.effect??(naturalKaton?'sopro':'canhao'),knownEffects=knownPowerEffects(item,context),entry=key==='criacao-livre'?{key,name:'Criação Livre',tiers:[1],page:94}:availablePowerEffects(family,{rules,books:context.books,hibonElement:hibon?.element}).find(e=>e.key===key),ownedTier=knownEffects.get(key),tier=n(options.tier??ownedTier);
  if(!entry||key!=='criacao-livre'&&(!ownedTier||tier>ownedTier||!entry.tiers.includes(tier)||tier>level))throw Error('Este efeito ou evolução não foi aprendido, ou exige um nível usado maior.');
- const p=powerParameters(family,level,spirit,{small:!!options.small,solid:!!item.system.powerData?.solid}),advanced=context.books?.includes('avancado')??true,extra=POWER_FAMILIES[family].damage;
+ const p=powerParameters(family,level,spirit,{small:!naturalKaton&&!['kikai-ninpou','dokujutsu'].includes(family)&&!!options.small,solid:!!item.system.powerData?.solid}),advanced=context.books?.includes('avancado')??true,
+  hibonDamage=hibon?.bonuses.filter(bonus=>bonus==='damage').length??0,extra=POWER_FAMILIES[family].damage+hibonDamage;
+ p.damage+=hibonDamage;
  const result={family,effect:key,name:entry.name,level,tier,source:powerSource(entry),cost:level,action:entry.action??'standard',duration:entry.duration??'instant',seals:entry.seals!==false,range:p.range,size:p.size,damage:null,hardness:null,difficulty:p.difficulty,common:p,stat:null,precisionBonus:0,penalty:0,area:entry.area??null,targets:1,resistances:[],notes:[],conditions:[],metaAllowed:true,critical:15,minimumDegree:0};
  const attack=()=>{result.stat='cd';result.damage=p.damage;};
  const persistent=(extra={})=>{result.active={family,effect:key,tier,level,duration:result.duration,...extra};};
  switch(key){
+ case 'interferencia':
+  result.range=1;result.size=30+3*spirit;
+  result.notes.push('Sensor na área testa Rastrear contra a dificuldade comum. Uma falha produz assinaturas indistinguíveis.');
+  persistent({interference:true,excludeSource:true});
+  break;
  case 'canhao':attack();result.damage=2*level+extra;if(options.mode==='free'){if(level<2)throw Error('Canhão sem chakra exige nível usado 2.');result.cost=0;result.damage=ceil(result.damage/2);result.metaAllowed=false;result.noOtherBenefits=true;}break;
  case 'criar-arma':result.cost=1;result.duration=p.solid?'permanent':'sustained';result.notes.push('Cria até um compartimento. Armas leves, medianas, longas ou de arremesso; exclui Kage Fushā, Lâmina Reta e Leque Gigante. Requisitos da arma continuam obrigatórios.',tier>=6?'Permite armas pesadas e tamanhos acima de Médio.':'Somente armas para tamanho Médio ou menor.');persistent({createdWeapon:true,element:family});break;
  case 'orbe':attack();if(tier>=7){result.cost=ceil(level/2);result.metaAllowed=false;result.noOtherBenefits=true;if(advanced)result.noBlock=true;}break;
  case 'raio':attack();result.damage=2*level+extra;result.noBlock=true;if(tier>=5)result.targets=Math.floor(level/2);if(options.mode==='charged'){if(tier<8)throw Error('Raio concentrado exige evolução 8.');result.action='full';result.targets=1;result.damage+=2;}if(result.targets>1)result.notes.push('Alvos a no máximo 4 m entre si.');break;
  case 'restringente':result.stat='cd';result.conditions=[tier>=6?'impedido':'lento'];result.resistances=[resist(['for','escapar'],p.difficulty,[],{action:'free',endsUntil:'end'})];persistent({conditions:result.conditions,groundOnly:true});result.notes.push('Voo ignora a área. A defesa inicial bem-sucedida só protege até o próximo turno. Ataque em área desfaz o efeito.');break;
  case 'barreira':result.hardness=p.hardness+(tier>=9?2:0);result.size=ceil(p.size/2);result.duration=p.solid?'permanent':'sustained';if(options.mode==='cage'){if(tier<6)throw Error('Enjaular exige Barreira 6.');result.action='standard';result.stat='cd';result.penalty=-2;}else{result.stat='lm';result.precisionBonus=2;result.defensive=true;}result.notes.push('Não protege contra inimigo adjacente. Ao quebrar, transmite apenas o dano que supera a dureza.');persistent({hardness:result.hardness,barrier:true,shape:tier>=6?'hemisphere':'wall'});break;
- case 'flechas':attack();result.projectiles=level;result.damage=2*level+extra;result.targets=level;result.notes.push('Distribua projéteis por alvo: 2 de dano por projétil; bônus aplicados uma vez por alvo. Cada alvo faz uma única defesa.');if(options.mode==='feint'){result.cost=2;result.damage=null;result.stat='prestidigitacao';result.kind='skill';result.feint=true;}if(tier>=6)result.rerollAfterDefense={multiplier:tier>=9?1:.5,defenses:['esq','lm'],singleTarget:true};break;
+ case 'flechas':attack();result.projectiles=level;result.damage=2*level+extra;result.targets=level;result.notes.push('Distribua projéteis por alvo: 2 de dano por projétil; bônus aplicados uma vez por alvo. Cada alvo faz uma única defesa.');if(['feint','domain-feint'].includes(options.mode)){result.cost=2;result.damage=null;result.stat='prestidigitacao';result.kind='skill';result.feint=true;}if(tier>=6)result.rerollAfterDefense={multiplier:tier>=9?1:.5,defenses:['esq','lm'],singleTarget:true};break;
  case 'lanca':attack();result.ignoreHardness=advanced?3:2;result.ignoreBodyHardness=advanced?(tier>=6?2:1):0;result.targets=Number(options.targets??1);if(!Number.isInteger(result.targets)||result.targets<1)throw Error('Número de alvos inválido.');if(result.targets>1)result.splitDamage=true;if(tier>=6)result.notes.push('Surge sob o alvo; ignora cobertura anterior e bônus defensivo de alvo caído.');if(tier>=9){result.resistances=[resist('prontidao',p.difficulty,['desprevenido'],{beforeDefense:true})];if(advanced){result.ignoreAllHardness=true;result.ignoreAllBodyHardness=true;}}break;
  case 'ricochete':attack();result.targets=1+Math.floor(level/2);result.sequence=true;result.notes.push('Cada alvo a até 10 m do original. Interrompe no primeiro alvo que se defender.');if(tier>=9)result.damagePerPreviousHit={step:1,max:5};break;
  case 'coluna':attack();result.damage=2*level+extra;if(tier>=7)result.notes.push('Pode distribuir a área em colunas de 1 m, dentro da área original.');if(tier>=10)result.resistances=[resist('prontidao',p.difficulty,['debilitado'],{scope:'defense',level:2,beforeDefense:true})];break;
- case 'energizar':result.cost=3;result.notes.push('Pode usar Espírito no lugar de Força/Destreza no dano; não recebe bônus elemental de dano/dureza. Sustenta enquanto empunhada; projéteis duram até o fim do turno em que lançados. Suportes que alteram o ataque corporal não acumulam.');persistent({weaponId:options.weaponId??'unarmed',damageAttribute:'esp',element:family,projectileBlock:true,ironFistSpirit:advanced});break;
+ case 'energizar':result.cost=3;
+  if(family==='dokujutsu'){
+   persistent({weaponId:options.weaponId});
+   result.notes.push('Fixa uma dose em uma arma enquanto o efeito durar.');
+   break;
+  }result.notes.push('Pode usar Espírito no lugar de Força/Destreza no dano; não recebe bônus elemental de dano/dureza. Sustenta enquanto empunhada; projéteis duram até o fim do turno em que lançados. Suportes que alteram o ataque corporal não acumulam.');persistent({weaponId:options.weaponId??'unarmed',damageAttribute:'esp',element:family,projectileBlock:true,ironFistSpirit:advanced});break;
  case 'nuvem':result.area='circle';result.size=p.size*2;result.hardness=p.hardness+(tier>=10?3:0);result.duration=tier>=7?'sustained':'concentration';result.fixedDamage=level*(tier>=10?2:1);result.resistances=[resist('vig',p.difficulty-2,['lento'],{eachStart:true,damage:result.fixedDamage})];persistent({imaginaryHardness:result.hardness,excludeSource:true,periodic:'cloud'});break;
  case 'sopro':attack();if(tier>=7)result.resistances=[resist('acrobacia',p.difficulty,[],{afterSuccessfulDefense:true,residualDegree:tier>=10?2:1,acceleratedAutoSuccess:true})];break;
  case 'correnteza':attack();result.resistances=[resist('vig',p.difficulty-2,tier>=8&&options.collision?['atordoado']:[],{push:'end-of-wave',collisionDamage:1,remaining:1,timing:'Fim do turno'})];if(options.collision)result.damage+=1;if(advanced)result.notes.push('Pode se originar em qualquer ponto dentro do alcance, em qualquer direção exceto para cima.');break;
- case 'missil':attack();result.followupRolls=tier>=10?4:tier>=8?2:1;result.notes.push('Após acertar, repita o ataque sem refazer a defesa: +1 de dano base por novo acerto.');if(options.mode==='fire-dragon'){if(family!=='katon'||!options.kousenSameTurn)throw Error('Dragão de Fogo exige Katon e alvo amarrado por kousen neste turno.');result.action='partial';result.notes.push('O kousen é destruído.');}break;
+ case 'missil':attack();result.followupRolls=tier>=10?4:tier>=8?2:1;result.notes.push('Após acertar, repita o ataque sem refazer a defesa: +1 de dano base por novo acerto.');if(options.mode==='fire-dragon'){if((hibon?.element??family)!=='katon'||!options.kousenSameTurn)throw Error('Dragão de Fogo exige Katon e alvo amarrado por kousen neste turno.');result.action='partial';result.notes.push('O kousen é destruído.');}break;
  case 'onda-explosiva':attack();result.size=p.size*2;result.range=0;result.noPotentialize=true;result.resistances=[resist('vig',p.difficulty-2,tier>=8?['caido']:[],{push:'edge'})];if(options.mode==='safe-nearby'){if(!advanced)throw Error('Esta opção exige o Guia Avançado.');result.action='full';result.ignoreNearby=true;result.metaAllowed=false;}break;
  case 'algemar':result.stat='cd';result.hardness=p.hardness;result.conditions=['impedido'];result.duration=tier>=8?'sustained':'concentration';result.targets=tier>=10?3:1;result.resistances=[resist(['for','escapar'],p.difficulty,[],{action:'standard',escape:true})];persistent({hardness:result.hardness,conditions:result.conditions});if(tier>=10)result.notes.push('Até três alvos a até 5 m entre si; duas aplicações no mesmo alvo o deixam indefeso.');break;
  case 'imergir':result.notes.push('Exige meio compatível grande o suficiente. Não concede proteção pela dureza do meio. Atacar pode revelar sua posição. Sair usa movimento.');persistent({skillBonus:{furtividade:2},movementMultiplier:tier>=4?.5:0,senses:tier>=4?'normal':'10m'});break;
@@ -121,11 +256,38 @@ export function powerPlan(item,system,items=[],options={},context={}){
  case 'repelir':result.stat='lm';result.precisionBonus=1;result.hardness=p.hardness;result.defensive=true;result.notes.push('Somente contra projétil, técnica de toque ou Golpear. Absorção total repele adjacentes 1 m.');if(tier>=7&&options.mode==='repeat'){result.action='free';result.cost=ceil(level/2);result.notes.push('Somente após uso anterior e antes do início do seu próximo turno.');}else if(tier<7)result.notes.push('Inimigo adjacente exige teste de Concentração.');break;
  case 'cegante':attack();result.range=ceil(p.range/2);result.camouflagePenalty=tier>=8?50:25;result.conditionTurns=tier>=8?5:3;result.resistances=[resist(['for','des'],p.difficulty,[],{action:'movement',escape:true,standardNoTest:true})];break;
  case 'flutuar':result.cost=5;result.seals=true;persistent({flightSkill:spirit,alado:true,weaponId:options.weaponId});result.notes.push('Leque Gigante empunhado e sem inimigo/obstáculo adjacente; o leque fica indisponível enquanto sustenta. Pode reagir a queda com movimento disponível.');break;
- case 'desastre':result.metaAllowed=false;result.cost=3*level;result.damage=3*level;result.range=p.range*2;result.size=ceil(POWER_FAMILIES[family].size*spirit)*3;result.stat='cd';result.periodic={damage:result.damage,total:skillBase(system,'concentracao'),eachTargetStart:true};result.resistances=[resist('concentracao',9+2*level,[],{sourceProtectsAlly:true})];persistent({onceScene:true,periodic:'disaster',conditions:['lento'],lingerRounds:1});result.notes.push('Cada criatura, exceto usuário, fica lenta e recebe ataque no início do próprio turno; estruturas recebem dano a cada turno. Uma vez por cena. Ao cessar concentração, persiste uma rodada sem proteger aliados.');break;
+ case 'desastre':result.metaAllowed=false;result.cost=3*level;result.damage=3*level+hibonDamage;result.range=p.range*2;result.size=ceil(POWER_FAMILIES[family].size*spirit)*3;result.stat='cd';result.periodic={damage:result.damage,total:skillBase(system,'concentracao'),eachTargetStart:true};result.resistances=[resist('concentracao',9+2*level,[],{sourceProtectsAlly:true})];persistent({onceScene:true,periodic:'disaster',conditions:['lento'],lingerRounds:1});result.notes.push('Cada criatura, exceto usuário, fica lenta e recebe ataque no início do próprio turno; estruturas recebem dano a cada turno. Uma vez por cena. Ao cessar concentração, persiste uma rodada sem proteger aliados.');break;
  case 'criacao-livre':result.cost=level;result.duration=p.solid?'continuous':'sustained';result.range=ceil(p.range/2);result.size=ceil(p.size/2);result.hardness=ceil(p.hardness/2);result.metaAllowed=true;result.notes.push('Uso não ofensivo. Não cria armas/armaduras nem substitui efeitos próprios.');persistent({hardness:result.hardness,freeCreation:true});break;
  default:throw Error('Efeito não implementado.');
  }
+ if(hibon){
+  if(hibon.bonuses.includes('hardness')){
+   result.common.hardness+=2;
+   if(result.hardness!=null&&key!=='pele-pedra')result.hardness+=2;
+   if(result.active?.imaginaryHardness!=null)result.active.imaginaryHardness+=2;
+  }
+  if(hibon.bonuses.includes('difficulty')){
+   result.common.difficulty++;
+   result.difficulty++;
+   for(const check of result.resistances){
+    check.difficulty++;
+    if(check.alternateDifficulty!=null)check.alternateDifficulty++;
+   }
+  }
+  result.notes.push('Hibon Ninpou · '+hibon.manifestation);
+ }
  if(result.active)Object.assign(result.active,{hardness:result.hardness??result.active.hardness,range:result.range,size:result.size});
+ if(naturalKaton){
+  result.cost=ceil(spirit/2);
+  result.damage=spirit+2;
+  result.source='Livro Básico pp. 180–181';
+ }
+ if(family==='kikai-ninpou'){
+  result.noBlock=true;
+  result.insectGroups=key==='interferencia'?1:level;
+  result.kikaiDrain=result.cost>0&&key!=='interferencia'?level:0;
+  result.notes.push(`Requer ${result.insectGroups} grupo(s) de Kikaichuu. Bloqueio não é permitido.`);
+ }
  return result;
 }
 export function medicalHealing(system,items,level,{self=false}={}){
@@ -136,7 +298,231 @@ function specialPlan(item,system,items,options,context){
  const family=familyOf(item),key=options.effect??POWER_TECHNIQUES[family][0].key,entry=POWER_TECHNIQUES[family].find(e=>e.key===key),level=n(options.level),attrs=context.attributes??system.attributes??{},spirit=n(attrs.esp),intel=n(attrs.int),med=skillBase(system,'medicina');
  if(!entry||level<entry.level)throw Error('Técnica não disponível neste nível.');
  const r={family,effect:key,name:entry.name,level,tier:entry.level,source:powerSource(entry),cost:level,action:'standard',duration:'instant',seals:family==='fuuinjutsu',range:family==='rasengan'||family==='iryou-ninjutsu'?1:1,size:null,damage:null,hardness:null,difficulty:null,stat:null,precisionBonus:0,penalty:0,area:null,targets:1,resistances:[],notes:[],conditions:[],metaAllowed:false,critical:15,minimumDegree:0};
- if(family==='iryou-ninjutsu'){
+ if(family==='shindenshin'){
+  if(!context.actor)throw Error('Abra Shindenshin pela ficha para conferir sua origem.');
+  const errors=validatePowerPurchase(context.actor,item,{books:context.books??['basico'],rules:context.rules});
+  if(errors.length)throw Error(errors.join(' '));
+  if(context.actor.getFlag?.('shinobi-no-sho','capabilities')?.suspensions?.[item.id])throw Error('Shindenshin está suspenso.');
+  return yamanakaPlan(r,system,options,attrs);
+ }
+ if(family==='hachimon'){
+  if(!context.actor)throw Error('Abra Hachimon pela ficha para conferir a compra.');
+  const errors=validatePowerPurchase(context.actor,item,{books:context.books??['basico'],rules:context.rules});
+  if(errors.length)throw Error(errors.join(' '));
+  if(context.actor.getFlag?.('shinobi-no-sho','capabilities')?.suspensions?.[item.id])throw Error('Hachimon Tonkou está suspenso.');
+  const current=hachimonProfile(system),benefits=gateOpening(Number(item.system.level),level,current?.gate??0);
+  return {...r,name:HACHIMON_GATES[level-1],cost:0,seals:false,targets:0,range:0,duration:'continuous',action:benefits.action,
+   hachimon:benefits,active:{family:'hachimon',effect:'hachimon',hachimon:{known:benefits.known,gate:level},remaining:current?.remaining??benefits.duration},
+   notes:[`Força +${benefits.strength} nos testes; parcela deste bônus dobrada no dano. Agilidade +${benefits.agility} em testes e deslocamento, sem alterar Esquiva.`,
+    `${benefits.damagePerTurn} de desgaste imediato e no início dos turnos seguintes; não liberta de genjutsu. Abrir mais portões não renova a duração.`,
+    benefits.immuneFatigue?'Enquanto ativo, suprime fadiga e exaustão; suas origens retornam ao fechar.':'Acelerado enquanto ativo.',
+    benefits.fatal?'Após fechar o oitavo portão: Exausto e Paralisado por três turnos; depois morre.':`Ao fechar: cansaço ${benefits.fatigueTurns} turno(s), com agravamento pelo uso repetido na cena.`]};
+ }
+ if(family==='kagejutsu'){
+  if(!context.actor)throw Error('Abra Kagejutsu pela ficha para conferir sua origem.');
+  const errors=validatePowerPurchase(context.actor,item,{books:context.books??['basico'],rules:context.rules});
+  if(errors.length)throw Error(errors.join(' '));
+  if(context.actor.getFlag?.('shinobi-no-sho','capabilities')?.suspensions?.[item.id])throw Error('Kagejutsu está suspenso.');
+  return naraBindingPlan(r,context.actor,options,attrs,item.id,context.rules,context.books);
+ }
+ if(family==='shikakyu'){
+  const actor=context.actor;
+  if(!actor)throw Error('Abra Shikakyu pela ficha para conferir sua origem.');
+  const errors=validatePowerPurchase(actor,item,{books:context.books??['basico'],rules:context.rules});
+  if(errors.length)throw Error(errors.join(' '));
+  if(actor.getFlag?.('shinobi-no-sho','capabilities')?.suspensions?.[item.id])throw Error('Shikakyu está suspenso.');
+  if(['sotorou','santorou'].includes(key)){
+   if(!clanCapabilities(actor,context).companion)throw Error('A união exige Companheiro Animal disponível.');
+   if(skillBase(system,'disfarce')<(key==='sotorou'?8:12))throw Error(`${entry.name} exige Disfarces ${key==='sotorou'?8:12}.`);
+   if((system.powerState?.active??[]).some(p=>p.active!==false&&(p.bodyFusion||p.baikaSize)))throw Error('Encerre a transformação de tamanho atual antes desta união.');
+   const participants=fusionParticipants(actor,key,options.participants);
+   if(participants.some(a=>Number(a.system.resources?.vitality?.value??0)<=-21))throw Error('Um participante morto não pode integrar esta união.');
+   const cost=key==='sotorou'?3:4,fusionSize=key==='sotorou'?'huge':'gargantuan';
+   return {...r,cost,maintenanceCost:cost,action:'movement',duration:'continuous',range:1,bodyFusion:true,
+    participants:participants.map(a=>a.uuid),active:{family,effect:key,bodyFusion:true,fusionSize,automaticMaintenance:true,extraBasicAttack:true},
+    notes:['Uma única criatura, inclusive contra ataques mentais; usa Vitalidade e Chakra do Inuzuka.',
+     `${cost} chakra por turno, cobrados automaticamente; a união encerra quando faltar chakra. A conversão de Vitalidade da ativação não autoriza conversões futuras.`,
+     'O tamanho é temporário, sem aumentar a Vitalidade máxima nem alterar atributos comprados. A mesa configura a ocupação do token na grade.',
+     'Golpear corporal concede outro ataque contra o mesmo alvo, com metade do dano base normal e sem manobras ou aptidões no ataque extra.',
+     'Ao separar, os participantes reaparecem na posição atual do corpo. A mesa ajusta suas células; o livro não define essa distribuição.']};
+  }
+  if(key==='juujin'){
+   if(!clanCapabilities(actor,context).companion)throw Error('Juujin Bunshin exige Companheiro Animal disponível.');
+   const animal=(globalThis.game?.actors?.contents??[]).find(a=>a.uuid===options.targetUuid);
+   const record=animal?.getFlag?.('shinobi-no-sho','companion');
+   if(!animal?.isOwner||record?.origin!==actor.uuid||record.suspended||record.retired)throw Error('Marque um companheiro vinculado ao Inuzuka.');
+   if(record.transformation)throw Error('Este companheiro já está transformado.');
+   if(record.juujinBlockedScene===periodKey(actor,'scene'))throw Error('Este companheiro não pode repetir Juujin Bunshin nesta cena.');
+   if(options.distance==null&&options.touchConfirmed!==true)throw Error('Aproxime os tokens ou confirme o toque quando o mapa não permitir medir.');
+   if(options.distance!=null&&(!Number.isFinite(Number(options.distance))||Number(options.distance)>1||Number(options.distance)<0))throw Error('Juujin Bunshin exige toque no companheiro.');
+   return {...r,cost:2,action:'movement',duration:'continuous',range:1,companionTransform:true,
+    active:{family,effect:key,companionTransform:true},notes:['Transforma o companheiro com os atributos, precisões e tamanho original do Inuzuka; recursos atuais e máximos do animal são preservados.',
+     'Não usa efeitos especiais das armas copiadas, explosivos ou itens dependentes de chakra. Inconsciência ou Vitalidade abaixo da metade encerram e impedem nova transformação nesta cena.']};
+  }
+  if(['tsuuga','gatsuga','garouga','ooiga-gatenga'].includes(key)){
+   const companion=actor.getFlag?.('shinobi-no-sho','companion')??actor.flags?.['shinobi-no-sho']?.companion;
+   const source=companion?(globalThis.game?.actors?.contents??[]).find(a=>a.uuid===companion.origin):actor;
+   const transformed=companion?.transformation&&source?.system.powerState?.active?.some(p=>p.id===companion.transformation.executionId&&p.companionTransform&&p.active!==false);
+   if(companion&&!transformed)throw Error('O companheiro precisa estar sob Juujin Bunshin para usar Tsuuga com o Inuzuka.');
+   const active=(system.powerState?.active??[]).find(p=>p.effect==='shikakyu'&&p.itemId===item.id&&p.active!==false)??
+    (transformed?(source.system.powerState?.active??[]).find(p=>p.effect==='shikakyu'&&p.active!==false):null);
+   const fusion=(system.powerState?.active??[]).find(p=>p.bodyFusion&&p.effect==='sotorou'&&p.active!==false);
+   if(key==='garouga'&&(!fusion||companion))throw Error('Garouga exige a forma Sotorou no próprio Inuzuka.');
+   if(key==='ooiga-gatenga'&&(companion||!(system.powerState?.active??[]).some(p=>p.bodyFusion&&p.effect==='santorou'&&p.fusionReady&&p.active!==false)))throw Error('Ooiga Gatenga exige a forma Santorou no próprio Inuzuka.');
+   if(!active||!aptitudeOwned(items,'lutador','',context.rules))throw Error('Tsuuga exige Shikakyu ativo e Lutador.');
+   if(key==='gatsuga'){
+    const participants=(globalThis.game?.actors?.contents??[]).filter(a=>{
+     const record=a.getFlag?.('shinobi-no-sho','companion');
+     return record?.origin===source.uuid&&!record.retired&&!record.suspended&&record.transformation&&
+      source.system.powerState?.active?.some(p=>p.id===record.transformation.executionId&&p.active!==false);
+    });
+    const declared=runtimeState(source).partnerPlan;
+    if(!participants.length||!declared||declared.round!==periodKey(source,'round')||declared.divisor<2)
+     throw Error('Gatsuga exige companheiro transformado e a declaração de que ambos usam suas ações nesta rodada.');
+   }
+   const unarmed=WEAPONS.find(w=>w.key==='unarmed');
+   const damageActor=transformed?source:actor;
+   const attack=weaponAttack({...unarmed,damage:Number(active?.naturalWeaponDamage??juukenWeaponDamage(level))},damageActor.system,transformed?[...source.items]:items,context.rules,
+    {shikakyu:true,attributes:transformed?effectiveAttributes(source.system):context.attributes});
+   const line=key==='ooiga-gatenga';
+   return {...r,cost:line?3:key==='garouga'?2:1,action:'full',stat:'cc',damage:attack.base+(line?level:key==='garouga'?6:0)+(transformed?runtimeBonuses(source).damage:0),damageType:'Letal',
+    ...(line?{area:'line',size:5,chargeLine:true}:{}),
+    damageMultiplier:key==='gatsuga'&&!companion?2:1,
+    critical:attack.critical,range:attack.range,precisionBonus:attack.bonus+1,penalty:attack.penalty,
+    physicalAttack:true,charge:true,chargeDefensePenalty:1,specialManeuver:'atropelar',
+    resistances:[resist('vig',2+n(system.attributes?.for)+n(system.automation?.bases?.cc??3),['caido'])],
+    notes:['Atropelar com Investida: avance ao menos 3 m em linha reta; +1 no ataque e −1 nas defesas até seu próximo turno. Vigor evita Caído.',
+     ...(key==='gatsuga'?['O Inuzuka e o companheiro executam separadamente nesta ação conjunta: cada um paga 1 chakra, usa sua ação completa e recebe sua própria defesa. Depois da divisão de parceiros, o dano do Inuzuka é dobrado; o do animal permanece normal.']:[]),
+     ...(line?['Linha de 5 m de largura: a região da cena define a trajetória escolhida pela mesa. Cada alvo declara sua própria defesa antes dos dados.',
+      'O livro não define o comprimento da linha nem a repercussão de um Bloqueio sobre os alvos posteriores. A mesa confere essas decisões e ajusta o avanço no mapa; não há deslocamento automático nesta técnica.']:[])]};
+  }
+  return {...r,cost:1,action:'partial',duration:'continuous',range:0,
+   active:{family,effect:key,naturalWeaponDamage:juukenWeaponDamage(level),initiativeBonus:2,socialBonus:{intimidar:1}},
+   notes:['Garras e mordida letais usam Força no dano. Escolha as armas naturais no ataque corporal. +1 em Intimidar e +2 em iniciativa enquanto ativo.']};
+ }
+ if(family==='baika-ninpou'){
+  const actor=context.actor;
+  if(!actor||!(context.books??['basico']).includes('basico')||n(system.attributes?.vig)<6||
+     !clanCapabilities(actor,context).corpulenciaId)throw Error('Baika Ninpou exige Vigor 6 e Corpulência válida.');
+  const clan=clanCapabilities(actor,context);
+  if(actor.getFlag?.('shinobi-no-sho','capabilities')?.suspensions?.[item.id])throw Error('Baika Ninpou está suspenso.');
+  if(['nikudan','bunbun'].includes(key)&&!aptitudeOwned(items,'lutador','',context.rules))throw Error('Esta técnica exige Lutador.');
+  if(key==='bunbun')return {...r,cost:0,range:null,action:'free',prepareBunbun:true,
+   notes:['Prepare antes do próximo ataque corporal: alcance mínimo 2 m e Força do tamanho Grande. +1 em Atropelar, Empurrar, Agarrar e Derrubar, sem acumular bônus de outras manobras.']};
+  if(['nikudan','choudan'].includes(key)){
+   const expanded=(system.powerState?.active??[]).some(a=>a.effect==='baika'&&a.active!==false);
+   if(key==='choudan'&&(!clan.resiliencia||!clan.chou))throw Error('Choudan Bakugeki exige Resiliência e Modo Chou ativos.');
+   if(key==='choudan'&&expanded&&level<7)throw Error('Choudan com Baika no Jutsu exige nível 7.');
+   const attributes=effectiveAttributes(system);
+   attributes.for=n(attributes.for)+2*n(clan.calorie?.level);
+   if(clan.bunbun)attributes.for=Math.max(attributes.for,n(system.attributes?.for)+1+2*n(clan.calorie?.level));
+   const attack=weaponAttack(WEAPONS.find(w=>w.key==='unarmed'),system,items,context.rules??{}, {attributes});
+   const bonus=key==='choudan'?3+(expanded&&level>=8?level-7:0):0;
+   Object.assign(r,{cost:key==='nikudan'?1+(expanded?0:1):3,action:key==='nikudan'?'full':'standard',
+    stat:'cc',damage:attack.base+bonus,critical:attack.critical,range:Math.max(attack.range,clan.bunbun?2:0),
+    precisionBonus:attack.bonus,penalty:attack.penalty,bunbunId:clan.bunbun?.id,physicalAttack:true});
+   if(key==='nikudan'){
+    const mode=options.mode??'normal';
+    if(!['normal','kunai','hair'].includes(mode))throw Error('Variação de Nikudan inválida.');
+    if(mode==='hair')r.cost++;
+    if(mode==='kunai'&&options.kunaiPrepared!==true)throw Error('Prepare e enrole a corrente de kunais com ação parcial antes de usar Hari Sensha.');
+    r.damageType=mode==='normal'?'Esmagamento':'Esmagamento e Corte';
+    r.resistances=[resist('vig',2+n(system.attributes?.for)+n(system.automation?.bases?.cc??3),['caido'])];
+    r.specialManeuver='atropelar';
+    r.charge=true;
+    r.precisionBonus++;
+    r.chargeDefensePenalty=1;
+    r.immuneSound=true;
+    r.notes.push('Atropelar com Investida: corrida em linha reta, mínimo 3 m; +1 no ataque e −1 nas defesas até seu próximo turno. Imune a efeitos sonoros durante a execução; confira o trajeto no mapa.');
+    if(!expanded)r.notes.push('Inclui Baika abdominal: ação parcial, 1 chakra, duração instantânea.');
+    if(mode==='hair')r.notes.push('Hari Sensha: cabelo preparado com ação livre e 1 chakra incluído.');
+    if(mode==='kunai')r.notes.push('Hari Sensha: corrente de kunais preparada com ação parcial.');
+   }
+   return r;
+  }
+  const modes={normal:[1,1,null],large:[4,3,'large'],huge:[5,4,'huge'],gargantuan:[6,5,'gargantuan']};
+  const mode=options.mode??'normal',choice=Object.hasOwn(modes,mode)?modes[mode]:null;
+  if(!choice||level<choice[0])throw Error('O nível usado não permite essa expansão.');
+  const [,cost,baikaSize]=choice;
+  if(baikaSize&&(system.powerState?.active??[]).some(p=>p.bodyFusion&&p.active!==false))throw Error('Encerre a união antes de combinar outra transformação de tamanho; o livro não define esse acúmulo.');
+  return {...r,cost,range:null,action:'movement',duration:'continuous',active:{family,effect:key,baikaSize},
+   notes:[baikaSize?'Armas e itens acompanham a expansão. O dano da arma segue seu valor normal.':'A expansão abdominal preserva a categoria de tamanho.',
+    'A aptidão Clone fica indisponível durante a expansão.']};
+ }
+ if(family==='mangekyou'){
+  const actor=context.actor;
+  const clan=actor&&clanCapabilities(actor,context);
+  const source=items.find(i=>i.id===item.id&&i.system?.catalogKey==='res-basico-mangekyou-sharingan');
+  const katon=Math.max(0,...items.filter(i=>i.type==='power'&&familyOf(i)==='katon').map(i=>n(i.system.level)));
+  if(!source||!clan?.mangekyou||!['tsukuyomi-amaterasu','kagutsuchi-amaterasu'].includes(clan.vision.pair)||katon<8)throw Error('Amaterasu exige Mangekyou ativo, o par escolhido com Amaterasu e Katon 8.');
+  if(clan.vision.remaining<2)throw Error('Amaterasu exige 2 pontos de visão disponíveis.');
+  const distance=Number(options.distance??0);
+  if(!Number.isFinite(distance)||distance<0||distance>9)throw Error('Amaterasu exige distância de até 9 m.');
+  r.stat='lm';
+  r.cost=10;
+  r.visionCost=2;
+  r.range=9;
+  r.element='amaterasu';
+  r.fixedDamage=2*katon;
+  r.blackFlames=4;
+  r.notes.push('Confirme campo de visão e as defesas especiais do Livro Básico p. 187. Em acerto, as chamas persistem até selamento ou consumo do alvo.');
+  return r;
+ }
+ if(family==='juuken'){
+  const actor=context.actor;
+  if(!actor)throw Error('Abra o poder pela ficha para conferir o Byakugan.');
+  const books=context.books??['basico','avancado'];
+  const errors=validatePowerPurchase(actor,item,{books,rules:context.rules});
+  if(errors.length)throw Error(errors.join(' '));
+  if(!clanCapabilities(actor,{books,rules:context.rules}).byakugan)throw Error(`${entry.name} exige Byakugan ativo.`);
+  if(key==='ichigekishin'){
+   r.stat='cd';
+   r.range=3;
+   r.area='sphere';
+   r.size=6;
+   r.cost=2;
+   r.difficulty=13;
+   r.resistances=[resist('acrobacia',13,['caido'])];
+   r.notes.push('Confira cada alvo dentro de 3 m. Alvos de tamanho Enorme ou maior ficam fora do efeito.');
+   r.notes.push('Quem não vê nem sente chakra fica desprevenido para a defesa. Quem continuar agarrando o usuário é atingido automaticamente.');
+   r.notes.push(`Contra amarras ou prisões sobre o corpo: ${2*level} de dano base. Confira na mesa os efeitos imateriais que podem ser repelidos.`);
+   return r;
+  }
+  if(key==='twin-lions'){
+   if(!apt(items,'ataque-multiplo'))throw Error('Punho dos Leões Gêmeos exige Ataque Múltiplo.');
+   r.action='movement';
+   r.duration='sustained';
+   r.cost=ceil(level/2);
+   r.maintenanceCost=r.cost;
+   r.range=0;
+   r.active={family,effect:key,level,duration:'sustained'};
+   r.notes.push('Selecione Punho dos Leões Gêmeos no ataque desarmado: 2 golpes com ação padrão ou 3 com ação completa.');
+   return r;
+  }
+  const distance=Number(options.distance??1);
+  if(key==='kuushou'&&(!Number.isFinite(distance)||distance<0||distance>20))throw Error('Hakke Kuushou exige distância de até 20 m.');
+  const unarmed=WEAPONS.find(w=>w.key==='unarmed');
+  const attack=weaponAttack({...unarmed,damage:juukenWeaponDamage(level)},system,items,context.rules,{juuken:true});
+  r.stat='cc';
+  r.damage=attack.base;
+  if(key==='kaiten-offense'){
+   // The book specifies Juuken damage and a self-centred area, but leaves the attack stat unstated.
+   r.cost=2;
+   r.range=level>=6?5:2;
+   r.area='hemisphere';
+   r.size=2*r.range;
+   r.requiresFreeMovement=true;
+   r.difficulty=7+2*level;
+   r.resistances=[resist(['acrobacia','vig'],r.difficulty,['caido'])];
+   r.notes.push(`Confira as defesas e aplique a mesma rolagem a cada criatura até ${r.range} m, incluindo aliados. O usuário fica fora dos alvos.`);
+   return r;
+  }
+  r.range=20;
+  r.cost=5;
+  r.difficulty=9+2*level;
+  r.resistances=[resist(['acrobacia','for'],r.difficulty,['caido'],{push:3})];
+  r.notes.push('Em caso de falha na resistência, aplique Caído e mova o alvo 3 m para trás no mapa.');
+ }else if(family==='iryou-ninjutsu'){
   if(!apt(items,'ninja-medico')||spirit<6)throw Error('Iryou Ninjutsu exige Ninja Médico e Espírito 6.');
   if(key==='cura'||key==='shousen'&&options.mode!=='offense'){r.duration='concentration';r.healing=medicalHealing(system,items,level,{self:!!options.self});r.cleanse=['sangrando','bisturi'];r.active={family,effect:key,level,duration:'concentration',healing:r.healing,targetUuid:options.targetUuid,requiresImmobile:true};r.notes.push('Usuário e paciente imóveis. Cura no fim de cada turno do paciente; primeiro turno remove sangramento e tecidos cortados pelo bisturi. O chakra é pago uma vez.');}
   else if(key==='bisturi'){r.action='movement';r.duration='sustained';r.active={family,effect:key,level,duration:'sustained',touchDamage:2*level,seals:false,bisturi:true,difficulty:7+level+ceil(med/2)};r.notes.push('Ataques de toque com CC e ação padrão; dano 2 × nível. Permite Ataque Múltiplo. Terceiro acerto força Vigor para evitar Lento + Debilitado por dois meses. Não permite Bloqueio desarmado.');}
@@ -169,4 +555,4 @@ function specialPlan(item,system,items,options,context){
  }
  return r;
 }
-export function powerAttackResult(plan,natural,{hit=true}={}){const critical=natural>=n(plan.critical??15),failed=natural<=3;const degree=failed?0:Math.max(hit?n(plan.minimumDegree):0,critical?4:natural<=8?1:natural<=11?2:3)+(failed?0:n(plan.degreeBonus));return {natural,critical,failed,degree,damage:plan.damage==null?null:ceil(plan.damage*degree),fixedDamage:plan.fixedDamage??null};}
+export function powerAttackResult(plan,natural,{hit=true}={}){const critical=!!plan.automaticCritical||natural>=n(plan.critical??15),failed=natural<=3&&!plan.automaticHit;const degree=failed&&!plan.hachimonHeavy?0:Math.max(hit?n(plan.minimumDegree):0,critical?4:natural<=8?1:natural<=11?2:3)+(failed?0:n(plan.degreeBonus));return {natural,critical,failed,degree,damage:plan.damage==null?null:ceil(plan.damage*degree),fixedDamage:plan.fixedDamage??null};}

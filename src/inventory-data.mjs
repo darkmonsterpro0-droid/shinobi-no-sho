@@ -23,6 +23,7 @@ export const UTILITIES=[
  ['special-tag','Tarja especial (selos)',10,6,1,140,{consumable:true}],['sleeping-bag','Saco de dormir',1,1,2,140,{}],
  ['travel-ration','Ração de viagem',1,6,1,140,{consumable:true}],
  ['soldier-pill','Pílulas do soldado',5,10,1,260,{consumable:true}],
+ ['akimichi-pills','Sanshoku no Gan’yaku · três pílulas coloridas',0,1,1,155,{consumable:true}],
  ['strong-drink','Bebida forte',1,1,0,140,{consumable:true}]
 ].map(([key,name,price,capacity,slots,page,extra])=>({key,name,kind:'utility',price,capacity,slots,book:'basico',page,...extra}));
 for(const[key,name,price,capacity,page,extra]of [

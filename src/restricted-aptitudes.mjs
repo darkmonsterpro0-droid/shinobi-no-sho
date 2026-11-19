@@ -14,7 +14,7 @@ export function characterOrigins(system) {
 export function originCompatibility(keys,rules={}) {
   if(keys.length<=1||rules.twoHijutsus)return {allowed:true,missing:[],review:[]};
   const routes=['hatake','sarutobi','fuuma','yotsuki'];
-  if(keys.length===2&&keys.includes('tensai')&&keys.some(k=>routes.includes(k)))return {allowed:true,missing:[],review:[]};
+  if(keys.length===2&&keys.includes('tensai')&&keys.some(k=>routes.includes(k)||k==='hibon-ninpou'))return {allowed:true,missing:[],review:[]};
   // Complementary Hachimon/Senjutsu and graft exceptions have their own limits.
   // An explicit table review is safer than inferring that every combination works.
   return {allowed:null,missing:[],review:['Combinação de origens: habilite a regra de dois ou mais hijutsus ou peça conferência da exceção publicada ao mestre.']};
@@ -22,7 +22,8 @@ export function originCompatibility(keys,rules={}) {
 export function restrictedFacts(system,items=[]) {
   const facts={},attrs=effectiveAttributes(system,{permanentOnly:true});
   for(const [key,value]of Object.entries(attrs))facts['attribute.'+key]=Number(value??0);
-  for(const [key,[,attribute]]of Object.entries(SKILLS)){facts['skill.'+key]=Math.ceil(Number(attrs[attribute]??0)/2)+Number(system.skills?.[key]?.points??0);facts['training.'+key]=Number(system.skills?.[key]?.points??0);}
+  for(const [key,[,attribute]]of Object.entries(SKILLS)){const manual=system.automation?.enabled===false&&!system.campaign?.draft&&system.skills?.[key]?.value!=null;
+    facts['skill.'+key]=manual?Number(system.skills[key].value):Math.ceil(Number(attrs[attribute]??0)/2)+Number(system.skills?.[key]?.points??0);facts['training.'+key]=Number(system.skills?.[key]?.points??0);}
   for(const [key,attribute]of Object.entries({cc:'for',cd:'des',esq:'agi',lm:'per'}))facts['combat.'+key]=Number(attrs[attribute]??0)+Number(system.automation?.bases?.[key]??3);
   for(const i of items){const s=i.system??{},key=s.catalogKey??'',name=normalize(i.name),n=Number(s.level??1);
     if(i.type==='aptitude'){facts['aptitude.'+key]=true;facts['aptitudeLevel.'+key]=Math.max(facts['aptitudeLevel.'+key]??0,n);facts['aptitude.'+key+'.'+normalize(s.selection)]=true;}

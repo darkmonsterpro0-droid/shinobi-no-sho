@@ -32,7 +32,7 @@ test('common summary uses actual full attributes and rounds movement upward',()=
   const created=creationSystem(sys);assert.equal(created.resources.vitality.value,36);assert.equal(created.resources.chakra.value,13);assert.equal(created.automation.enabled,true);
 });
 test('every listed condition and resource state has explicit source and identifier',()=>{
-  assert.equal(Object.keys(CONDITIONS).length,30);for(const c of Object.values(CONDITIONS)){assert.ok(c.name&&c.description&&c.source&&c.icon);}
+  assert.equal(Object.keys(CONDITIONS).length,32);for(const c of Object.values(CONDITIONS)){assert.ok(c.name&&c.description&&c.source&&c.icon);}
 });
 test('fatigue escalates without deleting source records or stacking inherited penalties',()=>{
   const f=[{id:'a',key:'fatigado'},{id:'b',key:'fatigado'}];assert.ok(resolveConditions(f).keys.includes('exausto'));assert.ok(!resolveConditions(f).keys.includes('inconsciente'));

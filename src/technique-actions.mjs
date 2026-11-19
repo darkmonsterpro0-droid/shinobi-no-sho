@@ -1,4 +1,6 @@
 import {ID} from './config.mjs';
+import {corpulenciaPayment} from './clan-capabilities.mjs';
+import {worldProfile} from './world-settings.mjs';
 import {normalize,aptitudeOwned} from './aptitudes.mjs';
 import {modifyTechnique,riskyHealing,efficientDegree} from './technique-aptitudes.mjs';
 import {mutateRuntime,periodKey,claimUsage,runtimeBonuses} from './aptitude-runtime.mjs';
@@ -36,8 +38,8 @@ export async function techniqueAction(app,op,data,root,{actor,show}){
   const bonus=runtimeBonuses(actor);if(result.damage!=null)result.damage+=bonus.damage;if(result.difficulty!=null)result.difficulty+=bonus.difficulty;
   if(result.waterCreated||result.waterSpent)state.water={stamp,value:choices.waterPoints+result.waterCreated-result.waterSpent};
   if(!risky&&!efficient&&result.damage>0){const check=statPrecision(actor,frame.ranged?'cd':'cc',{kind:'attack',manualContext:true});if(!check.allowed)throw Error(check.reasons.join(' '));}
-  const cost=efficient?0:Math.ceil(result.cost),chakra=actor.system.resources.chakra.value;if(chakra==null||chakra<cost)throw Error('Chakra insuficiente.');
-  return {changes:{'system.resources.chakra.value':chakra-cost}};
+  const cost=efficient?0:Math.ceil(result.cost);
+  return {changes:corpulenciaPayment(actor,cost,Number(frame.convertedChakra??0),{books:worldProfile()?.books,rules})};
  });
  let roll,extra='',kind='technique-modifiers';
  if(risky){const rate=Number(frame.healingRate);if(!Number.isFinite(rate)||rate<0)throw Error('Informe a taxa de cura original.');roll=await new foundry.dice.Roll('2d8').evaluate();const healing=riskyHealing(rate,roll.total);extra=`<p>${healing<0?'Dano':'Cura'}: ${Math.abs(healing)} (taxa original ${rate}).</p>`;}

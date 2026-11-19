@@ -1,3 +1,31 @@
+# 0.9.4 — 2026-11-19 — automações e combate
+
+- Consolida os desenvolvimentos locais de ficha, configurações nativas, aquisição restrita, HUD, áreas e defesa declarada antes dos dados.
+- Integra os lotes Akimichi, Inuzuka, Nara, Hachimon e Yamanaka aos serviços compartilhados; escopo e assistência documentados por família.
+- Troca/Múltipla: reação inicial antes dos dados, controle temporário sem propriedade, precisões separadas, técnicas comuns no menor nível e recursos do corpo, reflexo de dano/condições, resistência posterior, duração e limpeza.
+- Decisões da mesa: reação na Múltipla libera somente aquele corpo; morte do corpo possuído mata o Yamanaka; condições internas refletidas terminam com a ligação; Atordoado até fim do próximo turno próprio e encerra Desordem; divisão do dano base como Parceiros; Kage Nui soma agulhas por alvo antes das proteções.
+- Corrige restauração do HUD, filtros sobre campos vazios, formulário de capacidade comum e leitura das coleções nativas protegidas. Poderes ofensivos dos corpos também respeitam o divisor escolhido.
+- 515 testes automáticos aprovados; combates nativos Foundry 14.370 com mestre/jogador registrados em docs/VALIDACAO.md e documentos por família. Limites nativos e demais automações permanecem explícitos.
+
+Os registros abaixo descrevem entregas locais históricas; suas antigas restrições de escopo/publicação foram ampliadas pelos pedidos posteriores do usuário.
+
+# 0.9.2 — configurações na própria tela nativa, candidato local
+
+## 0.9.3 — Piloto RES-002 local, sem publicação
+
+- Byakugan e Sharingan: ativação explícita, 1 chakra, duração por cena, encerramento e pedidos repetidos sem novo gasto enquanto ativos.
+- Nidan: Intuição derivada enquanto Sharingan estiver ativo, sem duplicar compra própria e com suspensão por origem/livro/requisito.
+- Aburame: capacidade publicada por espécie, vínculo por ID e recusa de reserva compartilhada entre espécies; sem gasto/recuperação automáticos.
+- Validação nativa e Cartographer adiados pelo usuário; técnicas e efeitos contextuais seguem assistidos.
+
+
+- Remove o submenu Regras do mundo e registra livros/variantes/regras com `config: true`, escopo de mundo e tipos nativos.
+- Preserva profile/houseRules antigos como fallback; campos individuais passam a orientar consultas, orçamento e validação sem copiar regras para personagens.
+- Leituras compartilhadas e escritores de compatibilidade mantêm dados desconhecidos, decisões e fontes futuras. Nenhuma migração de Actor/Item.
+- Atalhos antigos de configuração encaminham para o formulário nativo; aparência permanece individual.
+- Contadores de cena/dia permanecem disponíveis como campos nativos; não renovam ações nem reservas.
+- Ver docs/CONFIGURACOES-0.9.2.md. Sem publicação ou automações RES-002.
+
 # 0.9.1 — organização da ficha e aquisição de Bakuton, candidato local
 
 - Retira a aba Mestre e o atalho global da ficha. Configurações de Jogo concentram livros, variantes, regras opcionais, decisões e renovação de períodos.

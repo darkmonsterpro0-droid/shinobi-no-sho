@@ -35,10 +35,14 @@ export function levelGrant(system,target,mode='level') {
   if(target<old.nc)throw Error('A evolução não reduz o NC.');
   return mode==='xp'?granted:granted+6*(p.nc-old.nc);
 }
+export function combatTotals(attributes={},bases={}) {
+  return {cc:numeric(attributes.for)+numeric(bases.cc??3),cd:numeric(attributes.des)+numeric(bases.cd??3),esq:numeric(attributes.agi)+numeric(bases.esq??3),lm:numeric(attributes.per)+numeric(bases.lm??3)};
+}
+export const baseMovement=agility=>10+Math.ceil(numeric(agility)/2);
 export function basicSummary(system) {
   const p=progression(system.campaign.level),a=Object.fromEntries(ATTRIBUTE_KEYS.map(k=>[k,numeric(system.attributes?.[k])]));
   const b=system.automation?.bases??{cc:3,cd:3,esq:3,lm:3};
-  return {combat:{cc:a.for+numeric(b.cc),cd:a.des+numeric(b.cd),esq:a.agi+numeric(b.esq),lm:a.per+numeric(b.lm)},vitality:10+3*a.vig+5*p.nc,chakra:10+3*a.esp,movement:10+Math.ceil(a.agi/2),attributeGranted:numeric(system.automation?.attributeGranted??p.attributes),attributeSpent:spentAttributes(a),minimum:p.min,maximum:p.max};
+  return {combat:combatTotals(a,b),vitality:10+3*a.vig+5*p.nc,chakra:10+3*a.esp,movement:baseMovement(a.agi),attributeGranted:numeric(system.automation?.attributeGranted??p.attributes),attributeSpent:spentAttributes(a),minimum:p.min,maximum:p.max};
 }
 export function creationSystem(system={}) {
   const copy=structuredClone(system);copy.campaign={...copy.campaign,level:Number(copy.campaign?.level??4),draft:false};

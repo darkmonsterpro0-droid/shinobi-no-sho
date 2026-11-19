@@ -94,10 +94,16 @@ test('world controls live exclusively in Game Settings, with no GM tab for any r
  for(const isGM of [false,true]){
   const sheet=actorView(actor,'gm',{isGM});assert.ok(!sheet.includes('data-tab="gm"'));assert.ok(!sheet.includes('name="profile.notes"'));assert.ok(!sheet.includes('data-sns="settings"'));assert.ok(!sheet.includes('data-sns="save-world-rules"'));
  }
- const settings=panelView('settings',{isGM:true});assert.ok(settings.includes('name="profile.books.basico"'));assert.ok(settings.includes('name="world.powerRate"'));assert.ok(settings.includes('data-sns="new-aptitude-scene"'));assert.ok(!panelView('settings',{isGM:false}).includes('name="profile.books.basico"'));
+ const settings=panelView('settings',{isGM:true});assert.ok(settings.includes('tela nativa'));assert.ok(!settings.includes('name="profile.books.basico"'));assert.ok(!settings.includes('data-sns="review-profile"'));
 });
 
 test('players cannot open the world settings menu or save optional rules through direct dispatch',async()=>{
  const {apps,writes}=runtime();assert.throws(()=>new apps.ShinobiPanel('settings'),/Somente o mestre/);
  const panel=new apps.ShinobiPanel('learn');await assert.rejects(()=>panel._snsAction('save-world-rules',{},fields({'world.powerRate':4})),/Somente o mestre/);assert.equal(writes.length,0);
+});
+
+test('legacy settings shortcuts open the native settings singleton without constructing a second system panel',async()=>{
+ const {apps}=runtime();game.user.isGM=true;let renders=0;game.settings.sheet={render:()=>{renders++;return 'native';}};
+ assert.equal(apps.show('settings'),'native');assert.equal(apps.show('house'),'native');
+ const panel=new apps.ShinobiPanel('learn');await panel._snsAction('settings',{},fields({}));await panel._snsAction('house',{},fields({}));assert.equal(renders,4);
 });

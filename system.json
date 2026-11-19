@@ -2,7 +2,7 @@
   "id": "shinobi-no-sho",
   "title": "Shinobi no Sho",
   "description": "Sistema Shinobi no Sho para Foundry VTT 14, em português. Resumo calculado, evolução de atributos e condições do Livro Básico.",
-  "version": "0.9.1",
+  "version": "0.9.4",
   "compatibility": {
     "minimum": "14",
     "verified": "14.367",
@@ -21,7 +21,8 @@
     "styles/concept.css",
     "styles/automation.css",
     "styles/character-sheet.css",
-    "styles/extra-resources.css"
+    "styles/extra-resources.css",
+    "styles/shinobi-manga.css"
   ],
   "languages": [
     {
@@ -54,7 +55,7 @@
   "packs": [],
   "url": "https://github.com/darkmonsterpro0-droid/shinobi-no-sho",
   "manifest": "https://github.com/darkmonsterpro0-droid/shinobi-no-sho/releases/latest/download/system.json",
-  "download": "https://github.com/darkmonsterpro0-droid/shinobi-no-sho/releases/download/v0.9.1/shinobi-no-sho-v0.9.1.zip",
+  "download": "https://github.com/darkmonsterpro0-droid/shinobi-no-sho/releases/download/v0.9.4/shinobi-no-sho-v0.9.4.zip",
   "bugs": "https://github.com/darkmonsterpro0-droid/shinobi-no-sho/issues",
   "changelog": "https://github.com/darkmonsterpro0-droid/shinobi-no-sho/blob/main/CHANGELOG.md"
 }

@@ -3,11 +3,48 @@ import {APTITUDES} from './aptitude-data.mjs';
 import {SKILLS} from './config.mjs';
 import {skillBase} from './build-rules.mjs';
 import {restrictedDefinition,restrictedEligibility} from './restricted-aptitudes.mjs';
+import {hachimonProfile} from './hachimon-rules.mjs';
+import {ID} from './config.mjs';
+import {worldProfile} from './world-settings.mjs';
+export const LOTUS_KEY='res-basico-estilo-da-lotus';
+export const lotusChoices=selection=>typeof selection==='string'?selection.split('|').filter(Boolean):[];
+export const lotusManeuvers=()=>APTITUDES.filter(e=>e.book==='basico'&&e.category==='Manobra');
 export const normalize=value=>String(value??'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 const aliases={'apanhar-objeto':'apanhar-objetos','kai-pefeito':'kai-perfeito'};
 export const canonical=key=>aliases[key]??key;
 const banned=['especialista','maestria','reflexos','intuicao'];
-export function aptitudeItems(items=[],rules={}){return items.filter(i=>i.type==='aptitude'&&i.system?.catalogKey&&!(rules.banCombatAptitudes&&banned.includes(i.system.catalogKey)));}
+export function aptitudeItems(items=[],rules={}){
+ const owned=items.filter(i=>i.type==='aptitude'&&i.system?.catalogKey&&!(rules.banCombatAptitudes&&banned.includes(i.system.catalogKey)));
+ const granted=owned.filter(i=>i.system.catalogKey===LOTUS_KEY).flatMap(source=>{
+  const actor=source.parent??source.actor,books=worldProfile()?.books??['basico'],ledger=actor?.getFlag?.(ID,'capabilities');
+  // Serialized actor views carry only already-resolved, non-persistent grants.
+  if(!actor)return (source.lotusGrants??[]).filter(i=>i.lotusSource===source.id&&lotusManeuvers().some(e=>e.key===i.system?.catalogKey));
+  if(!books.includes('basico')||ledger?.schemaVersion!=null&&ledger.schemaVersion!==1||ledger?.suspensions?.[source.id]||!rules.lotusAcquisition&&!hachimonProfile(actor.system))return [];
+  if(restrictedEligibility(restrictedDefinition(LOTUS_KEY),actor.system,items.filter(i=>i!==source),{rules,books,accessOrigin:source.system.capabilityData?.accessOrigin}).allowed===false)return [];
+  const choices=lotusChoices(source.system.selection);
+  if(choices.length!==2||new Set(choices).size!==2)return [];
+  return choices.flatMap(key=>{
+   const entry=lotusManeuvers().find(e=>e.key===key);if(!entry)return [];
+   return [{id:source.id+':'+key,name:entry.name,type:'aptitude',parent:actor,lotusSource:source.id,
+    system:{catalogKey:key,catalogBook:entry.book,level:1,acquisition:'Concedida',selection:''}}];
+  });
+ });
+ return [...owned,...granted];
+}
+export function lotusPurchaseErrors(system,items,selection,rules={}){
+ const choices=lotusChoices(selection),others=items.filter(i=>i.system?.catalogKey===LOTUS_KEY),errors=[];
+ if(others.length>=3)errors.push('Estilo da Lótus permite no máximo três compras.');
+ if(choices.length!==2||new Set(choices).size!==2)errors.push('Escolha duas aptidões de manobra diferentes.');
+ const selected=new Set(others.flatMap(i=>lotusChoices(i.system.selection)));
+ for(const key of choices){
+  const entry=lotusManeuvers().find(e=>e.key===key);
+  if(!entry){errors.push('Manobra da Lótus inválida.');continue;}
+  if(selected.has(key))errors.push('Esta manobra já foi escolhida em outra compra da Lótus.');
+  const status=prerequisiteStatus(entry,system,items,{...rules,lotusAcquisition:true});
+  if(status.allowed!==true||status.review)errors.push('Pré-requisitos de '+entry.name+' não atendidos: '+entry.requirements);
+ }
+ return [...new Set(errors)];
+}
 export function aptitudeOwned(items,key,selection='',rules={}){return aptitudeItems(items,rules).find(i=>canonical(i.system.catalogKey)===canonical(key)&&(!selection||normalize(i.system.selection)===normalize(selection)));}
 export function aptitudeCatalog(books=['basico','avancado'],rules={}){
  const rows=APTITUDES.filter(a=>books.includes(a.book)&&!a.key.endsWith('-nivel-2')&&!(rules.banCombatAptitudes&&banned.includes(a.key))&&(rules.aptitudeRevision!=='basico'||a.book!=='avancado'));
@@ -61,7 +98,7 @@ export function prerequisiteStatus(entry,system,items=[],rules={},selection=''){
  const stat=(key,n)=>Number(a[key]??0)>=n;
  const has=key=>!!aptitudeOwned(items,key,'',rules)||(rules.banCombatAptitudes&&banned.includes(key));
  const skill=(key,n)=>skillBase({...system,attributes:a},key)>=n&&(!['medicina','veneficio','mecanismos','ocultismo','lidar'].includes(key)||Number(system.skills?.[key]?.points??0)>0);
- const power=(name,n)=>items.some(i=>i.type==='power'&&normalize(i.name)===normalize(name)&&Number(i.system.level??0)>=n);
+ const power=(name,n)=>items.some(i=>i.type==='power'&&[i.name,i.system?.powerData?.family].some(value=>(normalize(value)===normalize(name)||normalize(name)==='hachimon-tonkou'&&normalize(value)==='hachimon'))&&Number(i.system.level??0)>=n);
  const known={acuidade:stat('des',3),ambidestria:cc>=12||(entry.book==='avancado'&&selection==='firearm'&&cd>=12),'ataque-em-movimento':stat('agi',4),atirador:stat('des',12),'bloqueio-ambidestro':has('ambidestria'),'combate-defensivo':cc>=9,'critico-aprimorado':has('especialista')&&Math.max(cc,cd)>=13,'dano-extra':Math.max(cc,cd)>=18,guerreiro:Math.max(a.for??0,a.des??0)>=(entry.book==='avancado'&&selection==='light'?8:10),'mira-apurada':stat('des',12)&&has('tiro-longo'),mobilidade:stat('agi',3)&&has('reflexos'),'ponto-cego':stat('agi',6)||skill('prestidigitacao',6),'punho-de-ferro':stat('for',2),'retirada-rapida':stat('agi',entry.book==='avancado'?9:10),rolamento:skill('acrobacia',2)&&has('de-pe'),'tiro-longo':stat('des',entry.book==='avancado'?11:12),'tiro-preciso':stat('des',9),trespassar:cc>=7,'usar-armaduras-pesadas':stat('for',10)||stat('vig',15),'ninja-medico':skill('medicina',7),quimico:stat('int',entry.book==='avancado'?6:8),sensor:skill('rastrear',10),shunjutsu:Math.max(a.des??0,a.int??0)>=10&&has('diligente')&&has('velocista'),'burro-de-carga':stat('for',4),'metabolismo-rapido':stat('vig',1)&&stat('esp',1),'furtividade-agil':skill('furtividade',9),'usar-polvora':skill('mecanismos',2)&&stat('des',2)};
  Object.assign(known,{
  'diligente-nivel-2':has('diligente')&&Number(a.agi??0)+skillBase(system,'prontidao')>=21,

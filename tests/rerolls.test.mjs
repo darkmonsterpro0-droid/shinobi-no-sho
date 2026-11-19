@@ -15,7 +15,7 @@ test('reroll aptitudes match their chosen stat and reject initial automatic fail
 let serial=0,naturals=[],messages=[],actors=[];
 globalThis.game={user:{id:'gm',isGM:true},settings:{get:(_id,key)=>key==='houseRules'?{}:0},actors:{get:id=>actors.find(a=>a.id===id)},combat:null};
 globalThis.fromUuid=async uuid=>actors.find(a=>a.uuid===uuid);
-globalThis.foundry={utils:{deepClone:structuredClone},dice:{Roll:class{constructor(formula){this.formula=formula;}async evaluate(){const precision=Number(/\((-?\d+)\)/.exec(this.formula)?.[1]??0);this.total=precision+naturals.shift();return this;}async toMessage(data){const m=message(data.flags?.[ID],data);messages.push(m);return m;}}}};
+globalThis.foundry={utils:{deepClone:structuredClone},dice:{Roll:class{constructor(formula){this.formula=formula;}async evaluate(){const precision=Number(/\((-?\d+)\)/.exec(this.formula)?.[1]??0);this.total=precision+naturals.shift();return this;}async toMessage(data,{messageMode='public'}={}){data=structuredClone(data);if(messageMode==='public')data.whisper=[];data.blind=messageMode==='blind';const m=message(data.flags?.[ID],data);messages.push(m);return m;}}}};
 globalThis.ChatMessage={getSpeaker:({actor})=>({actor:actor.id}),create:async()=>{}};
 function actor(items=[]){const a={id:String(++serial),uuid:'Actor.'+serial,isOwner:true,type:'character',items,effects:[],flags:{},system:{campaign:{level:8},attributes:{for:4,des:4,agi:4,per:4,int:4,vig:8,esp:4},automation:{enabled:true,bases:{cc:3,cd:3,esq:3,lm:3}},skills:{},movement:{distance:12},combat:{},conditions:[{id:'condition',key:'tonto',name:'Tonto',difficulty:18}],resources:{vitality:{value:70,max:74},chakra:{value:22,max:22}}},getFlag(ns,k){return this.flags[ns]?.[k];},toObject(){return {system:structuredClone(this.system)};},async update(p){for(const[k,v]of Object.entries(p))set(this,k,structuredClone(v));}};a.effects.get=id=>a.effects.find(e=>e.id===id);actors.push(a);return a;}
 function message(flags,data={}){return {id:String(++serial),uuid:'ChatMessage.'+serial,isOwner:true,flags:{[ID]:flags??{},...data.flags},speaker:data.speaker,whisper:data.whisper??[],blind:data.blind??false,flavor:data.flavor,getFlag(ns,k){return this.flags[ns]?.[k];},async setFlag(ns,k,v){this.flags[ns]??={};this.flags[ns][k]=v;}};}
@@ -40,4 +40,11 @@ test('Diligente repeats native initiative once per scene and updates the combat 
  game.combat={combatants:[{id:'combatant',actor:a}],async rollInitiative(ids,options){calls++;params={ids,options};}};
  const first=message({},{speaker:{actor:a.id},flags:{core:{initiativeRoll:true}}});await rerollMessage(first);assert.equal(calls,1);assert.deepEqual(params.ids,['combatant']);assert.equal(params.options.updateTurn,false);assert.equal(params.options.messageOptions.flags[ID].rerollOf,first.uuid);
  const second=message({},{speaker:{actor:a.id},flags:{core:{initiativeRoll:true}}});await assert.rejects(()=>rerollMessage(second),/Limite/);assert.equal(calls,1);game.combat=null;
+});
+test('a repeated test preserves public, private and blind visibility even when the client default is public',async()=>{
+ for(const [whisper,blind]of [[[],false],[['gm','owner'],false],[['gm'],true]]){
+  const a=actor([aptitude('resistencia-maior','vig')]);naturals=[8];messages=[];
+  const first=message({kind:'resistance',stat:'vig',natural:8,precision:8,difficulty:18,actorUuid:a.uuid},{speaker:{actor:a.id},whisper,blind});
+  await rerollMessage(first);assert.deepEqual(messages[0].whisper,whisper);assert.equal(messages[0].blind,blind);
+ }
 });

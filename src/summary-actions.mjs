@@ -1,23 +1,29 @@
+import {clanCapabilities} from './clan-capabilities.mjs';
+import {worldProfile} from './world-settings.mjs';
+import {claimUsage,mutateRuntime} from './aptitude-runtime.mjs';
+import {saveWorldRules} from './world-settings.mjs';
 import {clearInventoryRestEffects} from './inventory-rules.mjs';
 import {rerollOption} from './reroll-options.mjs';
 import {ID,ATTRIBUTES,COMBAT,SKILLS} from './config.mjs';
 import {esc,set} from './ui.mjs';
 import {readFields} from './interactions.mjs';
-import {combatBaseStatus} from './progression.mjs';
+import {combatBaseStatus,combatTotals} from './progression.mjs';
 import {CONDITIONS} from './conditions.mjs';
 import {houseRules,allocationProposal,saveAllocation,grantAttributeXP,conditionRecords,saveCondition,derivedSummary,statPrecision,damageActor,processConditionPhase,restRecovery,toggleCondition} from './automation.mjs';
 const fields=(root,prefix)=>Object.fromEntries(Object.entries(readFields(root,prefix)).map(([k,v])=>[k.slice(prefix.length),v]));
 const owner=actor=>{if(!actor?.isOwner)throw Error('Você não tem permissão para alterar este personagem.');};
 const gm=()=>{if(!game.user.isGM)throw Error('Somente o mestre pode alterar esta configuração.');};
-export const SUMMARY_ACTIONS=new Set(['rest','toggle-condition','allocation','save-allocation','xp','grant-xp','house','save-house','roll-stat','execute-summary-roll','resist-condition','resolve-confusion','remove-condition','condition-event','manual-turn','recovery','apply-resource']);
+export const SUMMARY_ACTIONS=new Set(['rest','condition-surprise','toggle-condition','allocation','save-allocation','save-sheet-allocation','xp','grant-xp','house','save-house','roll-stat','execute-summary-roll','resist-condition','resolve-confusion','remove-condition','condition-event','manual-turn','recovery','apply-resource']);
 function allocationValues(root,prior={}){const v=structuredClone(prior);for(const[k,value]of Object.entries(fields(root,'allocation.')))set(v,k,value);return v;}
 export function refreshBudget(root) {
   const budget=root?.querySelector('.sns-allocation');if(!budget)return;
   const granted=Number(budget.dataset.budgetGranted),spent=[...budget.querySelectorAll('[data-attribute-point]')].reduce((s,i)=>s+Number(i.value||0),0),remaining=Math.round((granted-spent)*1000)/1000;
   budget.querySelector('[data-allocation-spent]').textContent=String(spent);budget.querySelector('[data-allocation-remaining]').textContent=String(remaining);
   const minimum=Number(budget.dataset.allocationMinimum),nc=Number(budget.dataset.allocationNc),pending=[];
+  const attributes={};
   for(const input of budget.querySelectorAll('[data-attribute-point]')) {
     const key=input.dataset.attributePoint,value=Number(input.value||0),missing=Math.max(0,minimum-value),hint=budget.querySelector(`[data-attribute-minimum="${key}"]`);
+    attributes[key]=value;
     input.closest('.sns-allocation-entry').dataset.minimumPending=String(missing>0);
     hint.textContent=missing?`Mínimo ${minimum} · faltam ${missing} ponto(s)`:`Mínimo ${minimum} · atingido`;
     if(missing)pending.push({key,value,missing});
@@ -25,8 +31,10 @@ export function refreshBudget(root) {
   const notice=budget.querySelector('[data-minimum-notice]'),needed=pending.reduce((sum,p)=>sum+p.missing,0);
   notice.dataset.pending=String(needed>0);
   notice.textContent=needed?`Mínimo pendente no NC ${nc}: ${pending.map(p=>`${ATTRIBUTES[p.key]} ${p.value} → ${minimum}`).join('; ')}. Faltam ${needed} ponto(s) para atingir os mínimos. Priorize esses atributos antes de investir acima do mínimo.`:'Todos os atributos atingem o mínimo deste NC.';
-  const bases=Object.fromEntries([...budget.querySelectorAll('[data-combat-base]')].map(input=>[input.dataset.combatBase,input.value])),baseStatus=combatBaseStatus(bases),baseNotice=budget.querySelector('[data-combat-base-status]');
+  const bases=Object.fromEntries([...root.querySelectorAll('[data-combat-base]')].map(input=>[input.dataset.combatBase,input.value])),baseStatus=combatBaseStatus(bases),baseNotice=root.querySelector('[data-combat-base-status]');
   baseNotice.textContent=baseStatus.message;baseNotice.dataset.pending=String(!baseStatus.valid);
+  const combat=combatTotals(attributes,bases);
+  for(const output of root.querySelectorAll('[data-combat-total]'))output.textContent=String(combat[output.dataset.combatTotal]);
   const status=budget.querySelector('[data-allocation-status]');status.textContent=remaining<0?`Atributos: ${Math.abs(remaining)} ponto(s) acima do total concedido.`:remaining===0?'Todos os pontos de atributos foram distribuídos.':`Restam ${remaining} ponto(s) de atributos para distribuir. Confira também os mínimos e máximos antes de salvar.`;
 }
 async function emit(actor,title,body,flags={}) {return ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:`<div class="sns-app"><article class="sns-record"><header><strong>${esc(title)}</strong></header>${body}</article></div>`,flags:{[ID]:flags}});}
@@ -72,11 +80,24 @@ export async function settleResistance(actor,record,success) {
 }
 export async function automationAction(app,op,data,root,{actor,show}) {
   if(op==='house'){gm();return show('house',{actor});}
-  if(op==='save-house'){gm();const rule=fields(root,'house.');if(!['level','xp'].includes(rule.advancement))throw Error('Regra de avanço inválida.');await game.settings.set(ID,'houseRules',{...houseRules(),...rule});await app.close();return;}
+  if(op==='save-house'){gm();const rule=fields(root,'house.');if(!['level','xp'].includes(rule.advancement))throw Error('Regra de avanço inválida.');await saveWorldRules({...houseRules(),...rule});await app.close();return;}
   if(op==='allocation'){owner(actor);if(actor.system.automation?.enabled&&!actor.system.campaign.draft)gm();return show('allocation',{actor,values:allocationProposal(actor)});}
+  if(op==='save-sheet-allocation'){
+    owner(actor);
+    if(actor.type!=='character'||!actor.system.campaign.draft)throw Error('Esta ficha já concluiu a criação.');
+    await saveAllocation(actor,allocationValues(root),{initializeResources:true,keepDraft:data.draft==='true'});
+    app._snsAllocation={};
+    return app.render({force:true});
+  }
   if(op==='save-allocation'){owner(actor);await saveAllocation(actor,allocationValues(root,app.values),{initializeResources:app.panelConfig?.newActor});await app.close();return;}
   if(op==='xp'){gm();owner(actor);if(houseRules().advancement!=='xp')throw Error('Escolha EXP em Regras da casa para conceder pontos separadamente.');return show('xp',{actor});}
   if(op==='grant-xp'){gm();owner(actor);const v=fields(root,'xp.');await grantAttributeXP(actor,v.amount);await app.close();return show('allocation',{actor,values:allocationProposal(actor)});}
+  if(op==='condition-surprise'){
+   owner(actor);
+   if(!conditionRecords(actor).some(r=>r.key==='desprevenido'&&r.cause==='surprise'&&!r.disabled))
+    await saveCondition(actor,{key:'desprevenido',cause:'surprise',source:'Rodada surpresa · Básico p. 254'});
+   await app.render({force:true});return;
+  }
   if(op==='toggle-condition'){owner(actor);await toggleCondition(actor,data.key,data.id);await app.render({force:true});return;}
   if(op==='rest'){owner(actor);return show('recovery',{actor,values:{operation:'rest'}});}
   if(op==='recovery'){owner(actor);return show('recovery',{actor});}
@@ -87,20 +108,31 @@ export async function automationAction(app,op,data,root,{actor,show}) {
     if(v.operation==='damage')await damageActor(actor,n);
     else if(v.operation==='rest') {
       if(!v.fullRest)throw Error('Confirme as oito horas de descanso completo sem interrupção significativa.');
-      update['system.inventoryState']=clearInventoryRestEffects(actor.system.inventoryState??{});
-      const rest=restRecovery(actor);update['system.resources.vitality.value']=rest.vitality;update['system.resources.chakra.value']=rest.chakra;
+      await mutateRuntime(actor,state=>{
+        const rest=restRecovery(actor);
+        update['system.inventoryState']=clearInventoryRestEffects(actor.system.inventoryState??{});
+        update['system.resources.vitality.value']=rest.vitality;
+        update['system.resources.chakra.value']=rest.chakra;
+        if(state.sealedChakra)state.sealedChakra=0;
+        return {changes:update};
+      });
     }else if(v.operation==='heal'){if(vit===null)throw Error('Preencha a vitalidade atual.');update['system.resources.vitality.value']=Math.min(d.vitality,vit+n);}
     else if(v.operation==='chakra'){if(chakra===null)throw Error('Preencha o chakra atual.');update['system.resources.chakra.value']=Math.min(d.chakra,chakra+n);}
     else if(v.operation==='spend'){if(chakra===null||chakra<n)throw Error('Chakra insuficiente: gasto normal não pode extrair chakra abaixo de zero.');update['system.resources.chakra.value']=chakra-n;}
     else if(v.operation==='drain'){if(chakra===null)throw Error('Preencha o chakra atual.');update['system.resources.chakra.value']=chakra-n;update['system.automation.forcedDrain']=true;}
     else if(v.operation!=='damage')throw Error('Operação desconhecida.');
-    if(Object.keys(update).length)await actor.update(update);
+    if(v.operation!=='rest'&&Object.keys(update).length)await actor.update(update);
     if(v.operation==='rest')for(const r of conditionRecords(actor).filter(r=>!r.automatic&&['fatigado','exausto'].includes(r.key)&&!r.remaining&&!r.duration))await saveCondition(actor,r,{remove:true});
     await emit(actor,'Recursos atualizados',`<p>${esc({heal:'Vitalidade recuperada',damage:'Dano letal',chakra:'Chakra recuperado',spend:'Gasto de chakra',drain:'Drenagem forçada',rest:'Descanso completo'}[v.operation])}: ${v.operation==='rest'?`8 horas sem interrupção significativa. Vitalidade ${vit} → ${update['system.resources.vitality.value']}; chakra ${chakra} → ${update['system.resources.chakra.value']}. Básico pp. 259–260`:n}.</p>`);await app.close();return;
   }
   if(op==='roll-stat'){owner(actor);const stat=data.stat;return show('roll',{actor,values:{stat,kind:stat in ATTRIBUTES?'attribute':stat==='esq'||stat==='lm'?'defense':'attack'}});}
   if(op==='resist-condition') {
     owner(actor);const r=conditionRecords(actor,{includeAutomatic:true}).find(r=>r.id===data.id);if(!r)throw Error('Condição não encontrada.');
+    if(r.fascinarRequest){
+      const {retryFascinar}=await import('./aptitude-use.mjs');
+      await retryFascinar(actor,r);
+      return app.render({force:true});
+    }
     let difficulty=r.key==='sangrando'?18:r.key==='sufocamento'?(r.difficulty==null?null:Number(r.difficulty)+Math.max(0,Number(r.elapsed??0)-1)):r.difficulty;
     return show('roll',{actor,values:{stat:r.key==='sangrando'||r.key==='sufocamento'?'vig':r.resistStat||'vig',kind:'attribute',conditionId:r.id,difficulty,reaction:r.key==='sangrando',vision:false}});
   }
@@ -115,7 +147,7 @@ export async function automationAction(app,op,data,root,{actor,show}) {
       if(v.stat==='vig'&&performer.uuid!==actor.uuid)throw Error('O teste de Vigor deve ser feito pelo personagem que está sangrando.');
       v.kind=v.stat==='medicina'?'skill':'attribute';v.reaction=v.stat==='vig';
     }else if(record?.key==='sufocamento'){v.stat='vig';v.kind='attribute';v.reaction=false;}
-    const context={...v,manualContext:true,vision:false,unseenOpponent:false,reaction:record?v.reaction:v.kind==='defense',resistingId:performer.uuid===actor.uuid?record?.id:undefined,stabilizing:record?.key==='sangrando'&&v.stat==='vig'&&derivedSummary(actor).state.keys.includes('morrendo')},check=statPrecision(performer,v.stat,context);
+    const context={...v,manualContext:true,vision:v.byakuganSimulation===true,unseenOpponent:false,reaction:record?v.reaction:v.kind==='defense',resistingId:performer.uuid===actor.uuid?record?.id:undefined,stabilizing:record?.key==='sangrando'&&v.stat==='vig'&&derivedSummary(actor).state.keys.includes('morrendo')},check=statPrecision(performer,v.stat,context);
     if(!check.allowed)throw Error(check.reasons.join(' '));
     let extraBonus=bonus;if(v.stat==='esq'&&check.loseDodgeBonus&&extraBonus>0)extraBonus=0;
     const precision=check.precision+extraBonus,label=ATTRIBUTES[v.stat]??COMBAT[v.stat]??SKILLS[v.stat]?.[0];
@@ -125,6 +157,17 @@ export async function automationAction(app,op,data,root,{actor,show}) {
     if(record&&record.difficulty==null&&!['sangrando'].includes(record.key)&&v.difficulty==null)throw Error('A fonte ou o mestre deve informar a dificuldade de resistência.');
     if(record?.key==='sufocamento'&&record.resolvedFor===currentTurnKey(actor))throw Error('Sufocamento já resolvido neste turno.');
     const difficulty=record?.key==='sangrando'?(v.stat==='medicina'?16:18):v.difficulty;
+    if(v.byakuganSimulation===true){
+      if(record||!['per','procurar','prontidao','rastrear'].includes(v.stat)||!['attribute','skill'].includes(v.kind))throw Error('A simulação do Byakugan exige um teste visual de Percepção, Procurar, Prontidão ou Rastrear.');
+      await mutateRuntime(performer,state=>{
+        if(!clanCapabilities(performer,{books:worldProfile()?.books,rules:houseRules()}).byakugan)throw Error('Ative o Byakugan para simular os dados.');
+        claimUsage(state,performer,'byakugan-visual-simulation','scene',1);
+      });
+      const total=precision+16;
+      await emit(performer,'Byakugan · Simular 2 dados',`<p>${esc(label)}: precisão ${precision} + 16 = <strong>${total}</strong>.${difficulty!=null?(total>=Number(difficulty)?' Sucesso.':' Falha.') :''}</p><p>Ação livre, uma vez por cena. Livro Básico, pp. 158 e 251.</p>`);
+      await app.close();
+      return;
+    }
     if(record?.key==='sangrando'&&v.stat==='vig')await claimBleedingAttempt(actor);
     const roll=await new foundry.dice.Roll(`2d8 + (${precision})`).evaluate(),natural=roll.total-precision,success=natural>=15||natural>3&&(difficulty==null||roll.total>=Number(difficulty));
     const testKind=record&&v.stat!=='medicina'?'resistance':v.kind,repeat=rerollOption([...performer.items??[]],{kind:testKind,stat:v.stat,natural},houseRules()),pendingResistance=record&&repeat?{actorUuid:actor.uuid,conditionId:record.id}:null;
@@ -144,6 +187,7 @@ export async function announceTurn(actor,result) {
   if(!result)return;
   const prompts=[];
   for(const p of result.prompts) {
+    if(p.key==='rinka-damage'){prompts.push(`<p>Rinkaichuu: ${p.amount} de dano fixo por destruição celular, limitado a zero de Vitalidade.</p>`);continue;}
     const record=conditionRecords(actor).find(r=>r.id===p.id);if(!record)continue;
     if(p.key==='confuso')await resolveConfusion(actor,record);
     else prompts.push(`<p>${esc(CONDITIONS[p.key].name)}: teste de Vigor ${p.difficulty===null?'com dificuldade a definir pelo mestre':'contra '+p.difficulty}. <button type="button" data-sns-resist="${esc(p.id)}" data-actor-uuid="${esc(actor.uuid)}">Resolver resistência</button></p>`);

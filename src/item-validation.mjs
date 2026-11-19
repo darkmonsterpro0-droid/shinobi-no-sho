@@ -1,7 +1,8 @@
+import {worldProfile,worldRules} from './world-settings.mjs';
 import {validatePowerPurchase} from './power-rules.mjs';
 import {ID} from './config.mjs';
 import {pointBudgets} from './build-rules.mjs';
-import {aptitudeEntry,aptitudeChoices,canonical,prerequisiteStatus,evolutionStatus} from './aptitudes.mjs';
+import {aptitudeEntry,aptitudeChoices,canonical,prerequisiteStatus,evolutionStatus,LOTUS_KEY,lotusPurchaseErrors} from './aptitudes.mjs';
 import {WEAPONS} from './weapons.mjs';
 import {isRestricted,restrictedPurchaseErrors} from './restricted-aptitudes.mjs';
 const same=(a,b)=>Object.is(a,b)||!!a&&!!b&&typeof a==='object'&&typeof b==='object'&&Array.isArray(a)===Array.isArray(b)&&Object.keys(a).length===Object.keys(b).length&&Object.keys(a).every(k=>Object.hasOwn(b,k)&&same(a[k],b[k]));
@@ -38,7 +39,8 @@ export function validatePurchase(actor,item,{previous=null,rules={},books,isGM=f
  if(item.type==='power'&&s.level!==null&&(!Number.isInteger(s.level)||s.level<0||s.level>after.powers.limit))errors.push(`Poderes: nível entre 0 e ${after.powers.limit}.`);
  if(item.type==='power')errors.push(...validatePowerPurchase(actor,item,{previous,rules,books,isGM}));
  if(item.type!=='aptitude'||!s.catalogKey)return errors;
- if(isRestricted(item))return [...errors,...restrictedPurchaseErrors(actor,item,{previous,rules,books,isGM})];
+ if(isRestricted(item))return [...errors,...restrictedPurchaseErrors(actor,item,{previous,rules,books,isGM}),
+  ...(s.catalogKey===LOTUS_KEY?lotusPurchaseErrors(actor.system,items,s.selection,rules):[])];
  const entry=aptitudeEntry(s.catalogKey,s.catalogBook);if(!entry)return [...errors,'Aptidão ou fonte desconhecida.'];
  if(rules.banCombatAptitudes&&['especialista','maestria','reflexos','intuicao'].includes(s.catalogKey))errors.push('Esta aptidão está banida nas regras da mesa.');
  const level=Number(s.level??1),limit=evolutionStatus(item,actor.system,items,rules).max;
@@ -66,5 +68,5 @@ export function validatePurchase(actor,item,{previous=null,rules={},books,isGM=f
 export function createItemClass(Base){return class ShinobiItem extends Base{
  async _preCreate(data,options,user){if(await super._preCreate(data,options,user)===false)return false;if(this.parent?.constructor.documentName!=='Actor')return;this._validateSNS(this.toObject());}
  async _preUpdate(data,options,user){if(await super._preUpdate(data,options,user)===false)return false;const previous=this.toObject(),embedded=this.parent?.constructor.documentName==='Actor',locked=validateAutomatedAptitudeEdit(previous,data,{allowEvolution:embedded});if(locked.length)throw Error(locked.join(' '));if(!embedded)return;const expanded=foundry.utils.expandObject(data);if(!expanded.system||!['level','selection','acquisition','catalogKey','catalogBook','powerData'].some(k=>Object.hasOwn(expanded.system,k)))return;const next=foundry.utils.mergeObject(previous,expanded,{inplace:false});this._validateSNS(next,previous);}
- _validateSNS(item,previous=null){if(!previous&&this.parent.getFlag?.(ID,'clone')&&item.flags?.[ID]?.replicaOf)return;const rules={...game.settings.get(ID,'houseRules'),senjutsu:game.settings.get(ID,'profile')?.senjutsu},errors=validatePurchase(this.parent,item,{previous,rules,books:game.settings.get(ID,'profile')?.books,isGM:game.user.isGM});if(errors.length)throw Error(errors.join(' '));}
+ _validateSNS(item,previous=null){if(!previous&&this.parent.getFlag?.(ID,'clone')&&item.flags?.[ID]?.replicaOf)return;const rules={...worldRules(),senjutsu:worldProfile()?.senjutsu},errors=validatePurchase(this.parent,item,{previous,rules,books:worldProfile()?.books,isGM:game.user.isGM});if(errors.length)throw Error(errors.join(' '));}
 };}

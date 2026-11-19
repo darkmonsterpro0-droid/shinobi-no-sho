@@ -1,10 +1,14 @@
-import {ID,ICONS,SOURCES} from './config.mjs';
+import {equipmentArt} from './equipment-art.mjs';
+import {immuneToSound} from './sound-effects.mjs';
+import {worldProfile} from './world-settings.mjs';
+import {ID,SOURCES} from './config.mjs';
 import {inventoryCatalog,inventoryEntry,POISONS} from './inventory-data.mjs';
 import {armorSummary,inventoryBonuses,canEquipArmor,poisonTraining,poisonCraftPlan,createPoisonExposure,applyPoisonExposure,poisonResistance,poisonPhase,soldierPillPlan,resetPillCounter,utilityPlan} from './inventory-rules.mjs';
 import {houseRules,statPrecision} from './automation.mjs';
 import {aptitudeOwned} from './aptitudes.mjs';
 import {readFields} from './interactions.mjs';
-import {periodKey} from './aptitude-runtime.mjs';
+import {periodKey,mutateRuntime} from './aptitude-runtime.mjs';
+import {recordMindDamage,settleMindDamage,settlePendingMindDamage} from './yamanaka-damage.mjs';
 import {damageDegree,WEAPONS,weaponAttack} from './weapons.mjs';
 import {lethalDamage} from './conditions.mjs';
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -13,10 +17,19 @@ const fields=(root,prefix='inventory.')=>Object.fromEntries(Object.entries(readF
 const owner=actor=>{if(!actor?.isOwner)throw Error('Você não tem permissão para alterar esta ficha.');};
 const itemOf=(actor,id)=>actor.items.get?.(id)??[...actor.items].find(i=>i.id===id);
 const queues=new Map();
-async function updateState(actor,fn){const key=actor.uuid??actor.id,prior=queues.get(key)??Promise.resolve(),job=prior.catch(()=>{}).then(async()=>{owner(actor);const state=copy(actor.system.inventoryState),result=await fn(state)??{};await actor.update({'system.inventoryState':result.state??state,...result.changes});return result;});queues.set(key,job);try{return await job;}finally{if(queues.get(key)===job)queues.delete(key);}}
+async function updateState(actor,fn){
+ const key=actor.uuid??actor.id,prior=queues.get(key)??Promise.resolve(),job=prior.catch(()=>{}).then(async()=>{
+  owner(actor);const state=copy(actor.system.inventoryState),result=await fn(state)??{},changes={'system.inventoryState':result.state??state,...result.changes};
+  if(result.mindDamage){
+   await mutateRuntime(actor,runtime=>{recordMindDamage(runtime,actor,result.mindDamage.sourceId,result.mindDamage.amount,{after:changes['system.resources.vitality.value']});return {changes};});
+   await settleMindDamage(actor,result.mindDamage.sourceId);
+  }else await actor.update(changes);
+  return result;
+ });queues.set(key,job);try{return await job;}finally{if(queues.get(key)===job)queues.delete(key);}
+}
 async function targetActor(actor,value){if(!value||value===actor.uuid||value===actor.id)return actor;const target=(game.actors?.contents??[]).find(a=>a.uuid===value||a.id===value)??await fromUuid(value);owner(target);return target;}
 async function note(actor,title,text,flags={}){return ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:`<div class="sns-app"><article class="sns-record"><header><strong>${escape(title)}</strong></header><p>${escape(text)}</p></article></div>`,flags:{[ID]:flags}});}
-function entryData(entry,extra={}){return {name:entry.name,type:'equipment',img:ICONS.equipment,system:{catalogKey:entry.key,catalogBook:entry.book,source:{book:entry.book,page:String(entry.page)},active:true,quantity:1,compartments:entry.slots?`${entry.capacity} item(ns) / ${entry.slots} compartimento(s)`:'',inventoryData:{key:entry.key,book:entry.book,kind:entry.kind,...extra},selection:entry.weight==='heavy'?'heavy-armor':'',...(entry.kind==='armor'?{hardness:null,absorption:{value:entry.absorption,max:entry.absorption}}:{}),...(entry.uses?{uses:{value:entry.uses,max:entry.uses}}:{})}};}
+function entryData(entry,extra={}){return {name:entry.name,type:'equipment',img:equipmentArt(entry.kind==='antidote'?'antidote':entry.key),system:{catalogKey:entry.key,catalogBook:entry.book,source:{book:entry.book,page:String(entry.page)},active:true,quantity:1,compartments:entry.slots?`${entry.capacity} item(ns) / ${entry.slots} compartimento(s)`:'',inventoryData:{key:entry.key,book:entry.book,kind:entry.kind,...extra},selection:entry.weight==='heavy'?'heavy-armor':'',...(entry.kind==='armor'?{hardness:null,absorption:{value:entry.absorption,max:entry.absorption}}:{}),...(entry.uses?{uses:{value:entry.uses,max:entry.uses}}:{})}};}
 export const INVENTORY_ACTIONS=new Set(['inventory-catalog','inventory-add','inventory-use','inventory-execute','inventory-equip','inventory-craft','inventory-expose','inventory-antidote','inventory-coat','inventory-uncoat','inventory-poison-roll','inventory-poison-accept','inventory-poison-repeat','inventory-treat','inventory-unmark','reset-pill-count']);
 export async function exposePoisonFromPower(target,itemSnapshot,{sourceId,attackerUuid,route,damageGrade,damage=1,hit=true,guaranteedInjection=false,ingestionMinutes=1,usingPower=false}={}){
  owner(target);if(!sourceId)throw Error('A aplicação por poder precisa identificar a execução para evitar duplicação.');const receipt=`power:${attackerUuid??''}:${sourceId}`;
@@ -26,9 +39,10 @@ export async function exposePoisonFromPower(target,itemSnapshot,{sourceId,attack
  if(!result)return {duplicate:true};if(result.reExposure)await rollPoisonResistance(target,result.reExposure,{reExposure:true});else if(!result.ignored&&record.delay===0&&record.startAt<=now())await rollPoisonResistance(target,record.id);return result;
 }
 export async function inventoryAction(app,op,data,root,{actor,show}){
- owner(actor);const rules=houseRules(),profile=game.settings.get(ID,'profile')??{},books=profile.books??['basico','avancado'];
+ owner(actor);const rules=houseRules(),profile=worldProfile()??{},books=profile.books??['basico','avancado'];
  if(op==='inventory-catalog')return show('inventory-catalog',{actor,inventoryKind:data.kind??'utility'});
  if(op==='inventory-use')return show('inventory-use',{actor,itemId:data.id,inventoryKey:data.key,inventoryBook:data.book,inventoryKind:data.kind});
+ if((await import('./body-state.mjs')).joinedBody(actor))throw Error('Este participante integra o corpo unido. Use os recursos e itens do Inuzuka.');
  if(op==='reset-pill-count'){if(!game.user.isGM)throw Error('Somente o mestre pode zerar a contagem das pílulas.');await updateState(actor,state=>({state:resetPillCounter(state)}));await note(actor,'Contagem de pílulas zerada','Os efeitos já aplicados preservam sua duração.');return app.render({force:true});}
  if(op==='inventory-unmark'){await updateState(actor,state=>{delete state.marked;return {state};});return app.render({force:true});}
  if(op==='inventory-add'){
@@ -45,6 +59,7 @@ export async function inventoryAction(app,op,data,root,{actor,show}){
  if(op==='inventory-poison-roll'){await rollPoisonResistance(actor,data.poison);return app.render({force:true});}
  if(op==='inventory-poison-accept'||op==='inventory-poison-repeat'){await resolvePendingPoison(actor,data.poison,{repeat:op==='inventory-poison-repeat'});return app.render({force:true});}
  const item=itemOf(actor,data.id),entry=inventoryEntry(item);if(!['inventory-craft','inventory-treat'].includes(op)&&(!item||!entry))throw Error('Item de inventário não encontrado ou réplica sem propriedades originais.');
+ if(item?.getFlag?.(ID,'juujinReplica')?.blocked)throw Error('Juujin Bunshin não permite usar explosivos, efeitos especiais ou itens dependentes de chakra copiados.');
  const values=fields(root);app.values??={};Object.assign(app.values,readFields(root,'inventory.'));
  if(op==='inventory-equip'){
   if(entry.kind==='armor'&&!item.system.equipped){const check=canEquipArmor(item,actor.system,[...actor.items],rules);if(!check.allowed)throw Error(check.errors.join(' '));}
@@ -93,7 +108,7 @@ export async function inventoryAction(app,op,data,root,{actor,show}){
   if(entry.uses){const uses=Number(item.system.uses?.value??0);if(uses<1)throw Error('Kit sem usos.');await item.update({'system.uses.value':uses-1});await note(actor,entry.name,'Um uso consumido. Faça o teste correspondente à tarefa.');return app.render({force:true});}
   if(entry.key==='explosive-tag'&&plan.mode==='remote')await updateState(actor,state=>{state.explosives??=[];state.explosives.push({id:foundry.utils.randomID(),quantity:plan.quantity,remaining:3,base:plan.base,dc:plan.dc,diameter:plan.area.diameter});return {state};});
   if(entry.key==='explosive-tag'&&plan.mode==='detonate'){
-   const chosen=String(values.prepared??''),prepared=(actor.system.inventoryState.explosives??[]).find(e=>e.id===chosen);if(!prepared)throw Error('Escolha um conjunto de tarjas preparado.');if(Number(values.distance??0)>15)throw Error('Ativação remota limitada a 15 m.');await explodeTags(actor,prepared);await updateState(actor,state=>{state.explosives=state.explosives.filter(e=>e.id!==chosen);return {state};});return app.render({force:true});
+   const chosen=String(values.prepared??''),prepared=(actor.system.inventoryState.explosives??[]).find(e=>e.id===chosen);if(!prepared)throw Error('Escolha um conjunto de tarjas preparado.');if(values.distance!=null&&Number(values.distance)>15)throw Error('Ativação remota limitada a 15 m.');await explodeTags(actor,prepared);await updateState(actor,state=>{state.explosives=state.explosives.filter(e=>e.id!==chosen);return {state};});return app.render({force:true});
   }
   if(entry.key==='kousen'){
    const projectile=itemOf(actor,values.weapon),allowed=['kunai','shuriken',...(plan.projectiles===1?['fuuma-giant','fuuma-straight','fuuma-shadow']:[])];if(!projectile||!allowed.includes(projectile.system.catalogKey))throw Error('Escolha um projétil compatível com Kousen.');
@@ -109,7 +124,7 @@ export async function inventoryAction(app,op,data,root,{actor,show}){
  throw Error('Ação de inventário desconhecida.');
 }
 async function applyUtilityTarget(source,target,entry,plan,{natural,total,hit,resistStat}={}){
- if(entry.key==='thunder-bomb'&&target.system.inventoryState?.earplugs)return;
+ if(entry.key==='thunder-bomb'&&(target.system.inventoryState?.earplugs||immuneToSound(target)))return;
  if(plan.attack&&!hit)return;
  let success=false;if(plan.dc){const stat=plan.resist.includes(resistStat)?resistStat:plan.resist[0],check=statPrecision(target,stat,{kind:'resistance',bodyResistance:stat==='vig',reaction:true,manualContext:true}),roll=await new foundry.dice.Roll(`2d8 + (${check.precision})`).evaluate(),value=roll.total-check.precision;success=value>=15||value>3&&roll.total>=plan.dc;await roll.toMessage({speaker:ChatMessage.getSpeaker({actor:target}),flavor:`${escape(entry.name)}: resistência ${success?'bem-sucedida':'falhou'} (dif ${plan.dc}).`});}
  if(success)return;
@@ -124,7 +139,7 @@ export function inventoryAttack(actor,entry,plan,{natural,total,precision,itemId
  if(entry.key==='smoke-bomb')attack.plan.inventorySmoke=true;
  return attack;
 }
-async function commitPoisonResistance(actor,id,result){return updateState(actor,state=>{const index=(state.poisons??[]).findIndex(p=>p.id===id);if(index<0)throw Error('Veneno já encerrado.');const p=state.poisons[index],outcome=poisonResistance(p,result);delete outcome.record.pending;delete outcome.record.medicalBonus;state.poisons[index]=outcome.record;const vit=Number(actor.system.resources.vitality.value??0),changes=outcome.damage?{'system.resources.vitality.value':lethalDamage(vit,outcome.damage)}:{};return {state,changes,outcome};});}
+async function commitPoisonResistance(actor,id,result){return updateState(actor,state=>{const index=(state.poisons??[]).findIndex(p=>p.id===id);if(index<0)throw Error('Veneno já encerrado.');const p=state.poisons[index],outcome=poisonResistance(p,result);delete outcome.record.pending;delete outcome.record.medicalBonus;outcome.record.resistanceSerial=Number(p.resistanceSerial??0)+1;state.poisons[index]=outcome.record;const vit=Number(actor.system.resources.vitality.value??0),changes=outcome.damage?{'system.resources.vitality.value':lethalDamage(vit,outcome.damage)}:{};return {state,changes,outcome,...(outcome.damage?{mindDamage:{sourceId:'poison:'+id+':resistance:'+outcome.record.resistanceSerial,amount:outcome.damage}}:{})};});}
 export async function rollPoisonResistance(actor,id,{reExposure=false}={}){
  owner(actor);const record=(actor.system.inventoryState?.poisons??[]).find(p=>p.id===id);if(!record||record.treated)throw Error('Veneno não encontrado.');if(record.pending)throw Error('Aceite ou repita a resistência anterior primeiro.');
  const check=statPrecision(actor,'vig',{kind:'resistance',bodyResistance:true,poisonResistance:true,reaction:true,manualContext:true}),precision=check.precision+Number(record.medicalBonus??0),roll=await new foundry.dice.Roll(`2d8 + (${precision})`).evaluate(),natural=roll.total-precision,result={natural,total:roll.total,precision,now:now(),scene:scene(actor),reExposure};
@@ -139,7 +154,7 @@ export async function resolvePendingPoison(actor,id,{repeat=false}={}){
  return commitPoisonResistance(actor,id,result);
 }
 export async function advanceInventoryPhase(actor,key,phase='start'){
- owner(actor);if((actor.system.inventoryState?.processedPhases??[]).includes(key))return null;
+ owner(actor);await settlePendingMindDamage(actor);if((actor.system.inventoryState?.processedPhases??[]).includes(key))return null;
  if(phase==='start')for(const p of actor.system.inventoryState?.poisons??[])if(p.pending)await resolvePendingPoison(actor,p.id);
  const result=await updateState(actor,state=>{
   state.processedPhases??=[];if(state.processedPhases.includes(key))return {state,duplicate:true};
@@ -147,7 +162,7 @@ export async function advanceInventoryPhase(actor,key,phase='start'){
   if(phase==='start')for(const antidote of s.antidotes??[])antidote.remaining-=1;
   if(phase==='end'){s.conditions=(s.conditions??[]).flatMap(c=>c.remaining===null||c.remaining===undefined?[c]:c.remaining<=1?[]:[{...c,remaining:c.remaining-1}]);for(const e of s.explosives??[])e.remaining-=1;}
   const vit=Number(actor.system.resources.vitality.value??0),changes=r.zeroVitality?{'system.resources.vitality.value':0}:r.damage?{'system.resources.vitality.value':lethalDamage(vit,r.damage)}:{};
-  return {state:s,changes,...r,state:s};
+  return {state:s,changes,...r,...(r.damage?{mindDamage:{sourceId:'inventory-phase:'+key,amount:r.damage}}:{})};
  });
  if(result.duplicate)return null;
  for(const a of actor.system.inventoryState?.antidotes??[])if(a.remaining<=0){const target=await targetActor(actor,a.target);await updateState(target,state=>{state.poisons=(state.poisons??[]).filter(p=>!(p.key===a.key&&p.book===a.book));state.conditions??=[];state.conditions.push({id:`antidote-${a.id}`,key:'fatigado',name:'Fatigado',source:'Efeito colateral do antídoto',untilRest:true,...(a.book==='avancado'?{sceneAfter:a.scene}:{})});return {state};});await updateState(actor,state=>{state.antidotes=state.antidotes.filter(v=>v.id!==a.id);return {state};});}
@@ -165,6 +180,6 @@ export async function checkInventoryAttack(actor){
 export async function exposePoisonFromWeapon(target,coating,{sourceId,attackerUuid,damageGrade,damage,hit}={}){
  if(!hit||damage<=0)return {ignored:true};
  const entry=POISONS.find(e=>e.key===coating.key&&e.book===coating.book);if(!entry)throw Error('Aplicação venenosa desconhecida.');
- if(coating.route==='blood'&&damageGrade<(entry.book==='avancado'&&coating.dokujutsu?2:3))return {ignored:true};
- return exposePoisonFromPower(target,{type:'equipment',system:{catalogKey:coating.key,catalogBook:coating.book,inventoryData:{...coating,kind:'poison'}}},{sourceId,attackerUuid,route:coating.route,damageGrade,damage,hit,usingPower:false});
+ if(!coating.powerBound&&coating.route==='blood'&&damageGrade<(entry.book==='avancado'&&coating.dokujutsu?2:3))return {ignored:true};
+ return exposePoisonFromPower(target,{type:'equipment',system:{catalogKey:coating.key,catalogBook:coating.book,inventoryData:{...coating,kind:'poison'}}},{sourceId,attackerUuid,route:coating.route,damageGrade,damage,hit,usingPower:!!coating.powerBound,guaranteedInjection:!!coating.powerBound});
 }

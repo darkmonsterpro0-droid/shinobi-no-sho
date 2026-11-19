@@ -14,7 +14,7 @@ import {createApplications} from '../src/apps.mjs';
 const record={schemaVersion:1,id:'poderoso',name:'Kunai — Poderoso',definition:'shinobi.weaponAttack',source:{itemId:'kunai'},defaults:{maneuver:'ataque-poderoso'},favorite:true};
 function patch(doc,changes){for(const[path,value]of Object.entries(changes)){const parts=path.split('.'),last=parts.pop();let target=doc;for(const k of parts)target=target[k]??={};if(last.startsWith('-='))delete target[last.slice(2)];else target[last]=structuredClone(value);}}
 function actor(uuid='Actor.a'){
- return {uuid,id:uuid,name:'Shinobi',isOwner:true,flags:{[ID]:{savedActions:{poderoso:structuredClone(record)}}},system:{resources:{vitality:{value:20,max:30},chakra:{value:8,max:10}},actions:{standard:true,movement:false,partial:true}},async update(p){patch(this,p);},getFlag(ns,k){return this.flags[ns]?.[k];}};
+ return {uuid,id:uuid,name:'Shinobi',type:'character',isOwner:true,flags:{[ID]:{savedActions:{poderoso:structuredClone(record)}}},system:{resources:{vitality:{value:20,max:30},chakra:{value:8,max:10}},actions:{standard:true,movement:false,partial:true}},async update(p){patch(this,p);},getFlag(ns,k){return this.flags[ns]?.[k];}};
 }
 function setup(){
  const a=actor(),b=actor('Actor.b');b.isOwner=false;let count=0;
@@ -64,11 +64,11 @@ test('Generic execution storage keeps state and rendered card in one document up
 });
 test('HUD follows a single controlled owned token and never guesses among several',()=>{
  const {a,b}=setup();assert.equal(selectedHUDActor(),a);canvas.tokens.controlled=[{actor:b}];assert.equal(selectedHUDActor(),null);canvas.tokens.controlled=[{actor:a},{actor:b}];assert.equal(selectedHUDActor(),null);
- const synthetic=actor('Scene.s.Token.t.Actor.a');canvas.tokens.controlled=[{actor:synthetic}];canvas.tokens.placeables=canvas.tokens.controlled;assert.equal(selectedHUDActor(),synthetic);assert.deepEqual(hudActors().map(a=>a.uuid),[synthetic.uuid,a.uuid]);
+ const synthetic=actor('Scene.s.Token.t.Actor.a');canvas.tokens.controlled=[{actor:synthetic}];canvas.tokens.placeables=canvas.tokens.controlled;assert.equal(selectedHUDActor(),synthetic);game.actors.contents.push({...actor('Actor.creature'),type:'creature'});assert.deepEqual(hudActors().map(a=>a.uuid),[a.uuid]);
 });
 test('HUD and generic controls escape content and expose only authorized resources',()=>{
  const {a,b}=setup();a.name='<script>name</script>';a.flags[ID].savedActions.poderoso.name='<img onerror=x>';
- const before=structuredClone(a.system),html=combatHUDView(a);assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<script>|<img onerror/);assert.match(html,/20 \/ 30/);assert.match(html,/data-sns="action-use"/);assert.match(html,/name="system.actions.standard" checked/);assert.equal(a.system.actions.standard,true);assert.deepEqual(a.system,before);
+ const before=structuredClone(a.system),html=combatHUDView(a);assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<script>|<img onerror/);assert.match(html,/20 \/ 30/);assert.match(html,/data-sns="action-use"/);assert.doesNotMatch(html,/system[.]actions|Marcação manual/);assert.deepEqual(a.system,before);
  b.name='SECRET';assert.doesNotMatch(combatHUDView(b),/SECRET|20 \/ 30/);
  assert.match(actionRows([{id:'x',name:'A&B'}],{prefix:'other'}),/data-other="action-use"/);assert.match(resourceReadouts([{label:'<hp>',value:1,max:2}]),/&lt;hp&gt;/);assert.match(manualMarkers([{label:'<A>',path:'x',checked:false}]),/&lt;A&gt;/);
 });
@@ -99,13 +99,67 @@ test('Native hotbar hook blocks default handling synchronously only for No Sho a
  const errors=[];ui.notifications.error=e=>errors.push(e);assert.equal(drop({},{...actionDragData(a,record.id),systemId:'wrong'},8),false);await new Promise(r=>setImmediate(r));assert.match(errors[0],/outro sistema/);assert.equal(game.user.hotbar[8],undefined);
 });
 test('Native scene control uses v14 keyed controls without replacing other tools',()=>{
- const {hooks}=setup(),calls=[];game.noSho={hud:{toggle:()=>calls.push('toggle'),follow:()=>calls.push('follow'),refresh:()=>calls.push('refresh')}};registerCombatHUD();const controls={tokens:{tools:{target:{name:'target'}}}};
- hooks.get('getSceneControlButtons')(controls);assert.equal(controls.tokens.tools.target.name,'target');assert.equal(controls.tokens.tools.noShoCombat.button,true);controls.tokens.tools.noShoCombat.onChange();hooks.get('controlToken')();hooks.get('updateActor')();assert.deepEqual(calls,['toggle','follow','refresh']);
+ const {hooks}=setup(),calls=[];game.noSho={hud:{toggle:()=>calls.push('toggle'),follow:()=>calls.push('follow'),activate:()=>calls.push('activate'),refresh:()=>calls.push('refresh')}};registerCombatHUD();const controls={tokens:{tools:{target:{name:'target'}}}};
+ hooks.get('getSceneControlButtons')(controls);assert.equal(controls.tokens.tools.target.name,'target');assert.equal(controls.tokens.tools.noShoCombat.button,true);controls.tokens.tools.noShoCombat.onChange();hooks.get('controlToken')();hooks.get('updateActor')();hooks.get('canvasReady')();assert.deepEqual(calls,['toggle','follow','refresh','activate']);
 });
-test('HUD manual markers update only explicit fields and reject revoked ownership',async()=>{
+test('HUD hides resources when ownership is revoked',async()=>{
  const {a}=setup();class Base{constructor(options){this.options=options;this.rendered=false;}async render(){this.rendered=true;return this;}async close(){this.rendered=false;}async _prepareContext(){return {};}}
  foundry.applications={api:{ApplicationV2:Base,HandlebarsApplicationMixin:B=>B},sheets:{ActorSheetV2:Base,ItemSheetV2:Base}};
- const apps=createApplications(),hud=new apps.ShinobiPanel('combat-hud',{actor:a}),before=structuredClone(a.system);
- await hud._snsChange('system.actions.movement',true);assert.equal(a.system.actions.movement,true);assert.deepEqual(a.system.resources,before.resources);assert.equal(a.system.actions.standard,before.actions.standard);
- a.isOwner=false;await assert.rejects(hud._snsChange('system.actions.partial',false),/permissão/);const view=await hud._prepareContext({});assert.doesNotMatch(view.body,/20 \/ 30/);
+ const apps=createApplications(),hud=new apps.ShinobiPanel('combat-hud',{actor:a});
+ a.isOwner=false;const view=await hud._prepareContext({});assert.doesNotMatch(view.body,/20 \/ 30/);
+});
+
+test('HUD retains its intended bottom gap across render clamps and respects a deliberate manual move',async()=>{
+ setup();let height=300,top=500;
+ class Base{
+  constructor(options){this.options=options;}
+  async _preRender(){}async _onRender(){} _onPosition(){}
+  setPosition(p){top=Math.max(0,p.top);this.position={...p,top};this._onPosition(this.position);}
+  _refit(){this.setPosition({top:0});}
+ }
+ foundry.applications={api:{ApplicationV2:Base,HandlebarsApplicationMixin:B=>B},sheets:{ActorSheetV2:Base,ItemSheetV2:Base}};
+ const {ShinobiPanel}=createApplications(),hud=new ShinobiPanel('combat-hud');
+ hud.element={ownerDocument:{documentElement:{clientHeight:900}},querySelector:()=>null,
+  getBoundingClientRect:()=>({top,height,bottom:top+height})};
+ await hud._preRender({},{});await hud._onRender({},{});assert.equal(top,530);
+ await hud._preRender({},{});height=850;hud.setPosition({top:0});await hud._onRender({},{});
+ assert.equal(hud._hudBottomGap,70);
+ await hud._preRender({},{});height=300;await hud._onRender({},{});assert.equal(top,530);
+ hud.setPosition({top:200});assert.equal(hud._hudBottomGap,400);
+ await hud._preRender({},{});height=700;hud.setPosition({top:0});await hud._onRender({},{});
+ await hud._preRender({},{});height=300;await hud._onRender({},{});assert.equal(top,200);
+ // Foundry's ResizeObserver refits after rendering; that automatic move must
+ // not be mistaken for a user drag, including during the opening transform.
+ hud.element.getBoundingClientRect=()=>({top,height:height*0.95,bottom:top+height*0.95});
+ Object.defineProperty(hud.element,'offsetHeight',{get:()=>height});
+ height=850;hud._refit();assert.equal(hud._hudBottomGap,400);
+ height=300;hud._refit();assert.equal(top,200);assert.equal(hud._hudBottomGap,400);
+});
+
+test('HUD does not fit against minimized bounds and restores its usable width and natural height',async()=>{
+ setup();let refits=0;
+ class Base{
+  constructor(options){this.options=options;this.position={width:900,height:'auto',top:530};this.minimized=true;}
+  _onPosition(){}
+  setPosition(p){Object.assign(this.position,p);this._onPosition(this.position);}
+  _refit(p){refits++;this.setPosition(p);}
+  async maximize(){this.minimized=false;this.setPosition({width:200,height:52});}
+ }
+ foundry.applications={api:{ApplicationV2:Base,HandlebarsApplicationMixin:B=>B},sheets:{ActorSheetV2:Base,ItemSheetV2:Base}};
+ const {ShinobiPanel}=createApplications(),hud=new ShinobiPanel('combat-hud');hud._hudBottomGap=70;
+ hud.element={ownerDocument:{documentElement:{clientHeight:900}},classList:{contains:()=>false},get offsetHeight(){return hud.position.width===900?300:52;}};
+ hud._anchorHUD();hud._refit();assert.equal(refits,0);assert.equal(hud.position.width,900);assert.equal(hud._hudBottomGap,70);
+ await hud.maximize();assert.equal(hud.position.width,900);assert.equal(hud.position.height,'auto');assert.equal(hud.position.top,530);assert.equal(hud._hudBottomGap,70);
+});
+
+test('controlled technique forms accept choices only while the user controls the linked mind, without enabling the body sheet',async()=>{
+ const {a,b}=setup();a.testUserPermission=user=>user.id==='u';a.system.powerState={active:[{id:'mind-root',mentalControl:{mode:'transfer'}}]};
+ b.system.powerState={active:[{linkedTo:'mind-root',sourceUuid:a.uuid,mentalControlLink:{mode:'transfer'}}]};
+ class Base{constructor(options){this.options=options;}async _onRender(){}}
+ foundry.applications={api:{ApplicationV2:Base,HandlebarsApplicationMixin:B=>B},sheets:{ActorSheetV2:Base,ItemSheetV2:Base}};
+ const {ShinobiPanel}=createApplications(),panel=new ShinobiPanel('power-use',{actor:b,mindControl:{sourceUuid:a.uuid,rootId:'mind-root'}}),field={disabled:false};
+ const root={dataset:{},addEventListener(){},querySelector:()=>null,querySelectorAll:selector=>selector==='[name]'?[field]:[]};
+ panel.element={querySelector:()=>root};await panel._onRender({},{});assert.equal(field.disabled,false);assert.equal(b.isOwner,false);
+ panel.kind='power-editor';await panel._onRender({},{});assert.equal(field.disabled,true);
+ panel.kind='power-use';field.disabled=false;a.system.powerState.active=[];await panel._onRender({},{});assert.equal(field.disabled,true);
 });

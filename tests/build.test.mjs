@@ -64,7 +64,8 @@ test('social action uses the visible attribute choice and rolls exactly once wit
 test('sheet omits removed tabs, shows budgets and puts social choices beside direct roll buttons',()=>{
  const a={type:'character',system:s,items:[]},p=defaultProfile();
  const html=actorView(a,'social',{isGM:false,profile:p});assert.match(html,/ui.social.acalmar.attribute/);assert.match(html,/data-sns="roll-social"/);assert.doesNotMatch(html,/data-tab="combat"|data-tab="advancement"|system.social.notes/);
- assert.match(actorView(a,'techniques',{profile:p}),/Poderes e Aptidões/);
+ assert.match(actorView(a,'techniques',{profile:p}),/<h2>Poderes<\/h2>/);
+ assert.match(actorView(a,'aptitudes',{profile:p}),/<h2>Aptidões<\/h2>/);
  assert.doesNotMatch(actorView(a,'summary',{profile:p,isGM:false}),/data-sns="xp"|Favoritos rápidos|Recuperação e chakra/);
 });
 test('aptitude passive bonuses remain derived, with Perito never stacking for the same skill',()=>{

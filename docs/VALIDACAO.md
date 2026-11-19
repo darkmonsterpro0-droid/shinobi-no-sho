@@ -1,4 +1,20 @@
+# Validação da atualização 0.9.4 — 19/11/2026
+
+Suíte completa: 515 aprovados, zero falhas. Inclui custos/recibos, permissões, estados e turnos, áreas, regressões e integração Yamanaka com documentos simulados. Os modelos dos testes foram ajustados após falhas reais de campos vazios, coleções não configuráveis e controles HTML com nome item.
+
+Mundo real: Foundry 14.370, contas Player2 mestre e Player4 jogador, personagens sintéticos do cenário de teste. Akimichi, Inuzuka, Nara e Hachimon foram exercitados em rodadas anteriores, conforme documentos de cada família. Yamanaka: rede R38–41, Desordem R48–51, Troca/Múltipla R52–53. Defesa antes dos dados, custo por origem correta, retomada após recarregar e controle sem conceder propriedade da vítima foram observados. Em R53, 20 de dano efetivo no corpo A refletiram 20 na origem; Doton comum3 custou3 do corpo; Múltipla liberou só A após reação e manteve B; nova ativação controlou ambos, com A causando10 por base9/grau2 e B causando10 por base10/grau1.
+
+O HUD restaurou largura900 após minimizar, marcar alvo e reabrir. As capturas e fichas privadas permanecem fora da distribuição. Player4 recebeu propriedade permanente apenas das fichas de teste autorizadas; vítimas não receberam permissão permanente.
+
+Não constitui validação universal do mundo nem teste com jogadores humanos. Permanecem casos nativos listados por família e na fila. Compatibilidade declarada preservada em14.367; não elevar verified somente pelo total de testes ou conferência de arquivos.
+
+Retomada pelo novo túnel: cliente0.9.4 carregado, morte do corpo A preparada pela edição normal de Vitalidade e confirmada como Morto. Origem de risco passou automaticamente de150 para−21, Chakra50 preservado e sem controle residual. A edição do ensaio anterior não havia sido salva; não era evidência de falha da regra. Captura yamanaka-morte-conjunta-094.jpg fora do pacote. Este ensaio usa estado fatal manual, não um novo ataque fatal.
+
+Os relatos abaixo são históricos e conservam seus respectivos limites temporais.
+
 # RES-001 — evidência de 05/11/2026
+
+Evidência posterior: [validação nativa parcial do HUD em 14/11/2026](VALIDACAO-HUD-2026-11-14.md), com dois confrontos básicos no Foundry 14.370 e correção de legibilidade. Os registros abaixo são históricos; a validação nativa integral continua pendente.
 
 Suíte final executada: `node --test --test-reporter=tap tests/*.test.mjs`: **207 testes aprovados, 0 falhas, 0 ignorados**. Inclui 31 novos e 176 recuperados/reeexecutados da base 0.8.0. Testes de código e documentos simulados; nenhum teste nativo Foundry, visual completo ou com jogadores foi concluído nesta etapa. Registro detalhado e proveniência em [RES-001](RES-001.md). A compatibilidade declarada continua 14.367, sem ampliar o escopo da verificação nativa anterior.
 

@@ -53,6 +53,14 @@ test('unarmed maneuvers open a working weapon panel and keep the chosen maneuver
  const actor={system:s,items:[apt('chute-duplo')]};assert.equal(weaponDocument(actor,'unarmed').system.catalogKey,'unarmed');const html=weaponUseView({actor,itemId:'unarmed',maneuver:'chute-duplo'});assert.match(html,/value="chute-duplo" selected/);assert.match(html,/data-id="unarmed"/);
  assert.doesNotThrow(()=>weaponAttack(WEAPONS.find(w=>w.key==='unarmed'),s,[]));
 });
+
+test('equipped weapon panels open without an unrelated Juuken power',()=>{
+ for(const key of ['kunai','staff','short-bow']){
+  const entry=WEAPONS.find(w=>w.key===key),item={id:key,name:entry.name,type:'equipment',system:{catalogKey:key,catalogBook:entry.book}};
+  const html=weaponUseView({actor:{system:s,items:[item]},itemId:key,hudInline:true});
+  assert.ok(html.includes(entry.name));assert.match(html,/weapon\.maneuver/);
+ }
+});
 test('Meta aptitudes charge movements separately and do not double area height',()=>{
  const items=[apt('potencializar'),apt('tecnica-poderosa'),apt('tecnica-elevada')];const area=modifyTechnique(frame,['potencializar'],s,items,{potencializar:'area'});assert.deepEqual([area.width,area.length,area.height],[8,16,3]);assert.equal(area.extraMovement,1);
  const both=modifyTechnique(frame,['potencializar','tecnica-poderosa'],s,items);assert.equal(both.extraMovement,2);assert.equal(both.damage,6);assert.equal(both.degreeBonus,.5);

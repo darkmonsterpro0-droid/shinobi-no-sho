@@ -1,4 +1,14 @@
+# Estado e autorização mais recentes — 19/11/2026
+
+O usuário autorizou continuar as automações, instalar localmente e executar combates no mundo de teste. Depois delimitou esta entrega: terminar Yamanaka, encerrar a atualização e publicar o produzido. Commit, tag e release 0.9.4 estão autorizados; as proibições antigas abaixo são históricas. Preserve alterações e histórico. Não apresente todos os clãs/livros como concluídos. Consulte RELEASE-NOTES.md, docs/YAMANAKA-0.9.3.md, docs/FILA-AUTOMACOES.md e docs/VALIDACAO.md para o estado atual.
+
+Decisões Yamanaka: Múltipla libera só o corpo que resiste inicialmente; corpo possuído morto implica morte do Yamanaka; condições internas refletidas terminam com conexão; Atordoado termina no fim do próximo turno próprio e encerra concentração/Desordem; dividir dano base como Parceiros. Kage Nui soma as agulhas por alvo e aplica proteções uma vez.
+
 # Regras permanentes deste projeto
+
+- RES-002 autorizada nesta conversa em 05/11/2026: pilotos Hyuuga → Uchiha → Aburame. Reutilizar serviços, manter origem dos benefícios, suspensão reversível e reservas por ID. Validação no Foundry e Cartographer foram adiados expressamente pelo usuário. Publicação continua não autorizada. Primeiro piloto em docs/RES-002.md; não confundir efeitos assistidos com automação completa.
+
+- Correção 0.9.2 autorizada: configurações de livros e regras devem ser campos nativos na própria tela de Configurações de Jogo, sem botão/submenu que abra outra aplicação. Preservar escolhas antigas e manter leituras comuns para fichas, HUD e validações; não iniciar a RES-002. Ver docs/CONFIGURACOES-0.9.2.md.
 
 - Revisão 0.9.1 autorizada pelo usuário: reorganizar a ficha conforme referências aprovadas, retirar a aba Mestre e centralizar opções globais nas Configurações de Jogo. A ficha de cada jogador segue os settings de mundo existentes. Adquirir/evoluir Bakuton com fonte e requisitos é permitido; execução, técnicas e concessões continuam manuais. Preservar dados e não publicar release. Ver docs/FICHA-0.9.1.md.
 

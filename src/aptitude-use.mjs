@@ -1,21 +1,35 @@
+import {mindBinding} from './yamanaka-state.mjs';
+import {recordKey,readKeyedRecord} from './core/record-key.mjs';
+import {WEAPONS} from './weapons.mjs';
+import {hachimonProfile} from './hachimon-rules.mjs';
+import {clanCapabilities,corpulenciaPayment} from './clan-capabilities.mjs';
+import {worldProfile} from './world-settings.mjs';
 import {ID,SKILLS} from './config.mjs';
-import {aptitudeOwned} from './aptitudes.mjs';
+import {aptitudeOwned,normalize} from './aptitudes.mjs';
 import {skillBase} from './build-rules.mjs';
 import {claimUsage,mutateRuntime,periodKey,activeAptitudes} from './aptitude-runtime.mjs';
 import {houseRules,derivedSummary,conditionRecords,saveCondition,statPrecision,damageActor} from './automation.mjs';
 import {readFields} from './interactions.mjs';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-export const APTITUDE_USE_ACTIONS=new Set(['aptitude-use','execute-aptitude','end-aptitude','new-aptitude-scene','new-aptitude-day']);
+export const APTITUDE_USE_ACTIONS=new Set(['aptitude-use','execute-aptitude','end-aptitude','new-aptitude-scene','new-aptitude-day','end-mirage']);
+export async function endAptitudeRuntime(actor,key){await mutateRuntime(actor,state=>{delete state.active[key];if(key==='estilo-zui-quan')state.cooldowns[key]=2;});}
 export function aptitudeUsePlan(item,s,items=[],values={},rules={}){
- const key=item.system.catalogKey,level=Number(item.system.level??1),a=s.attributes??{},p={key,level,cost:0,action:'Livre',notes:[]},skill=k=>skillBase(s,k),has=k=>!!aptitudeOwned(items,k,'',rules),power=name=>Number(items.find(i=>i.type==='power'&&i.name.toLowerCase()===name)?.system.level??0);
+ const key=item.system.catalogKey,level=Number(item.system.level??1),a=s.attributes??{},p={key,level,cost:0,action:'Livre',notes:[]},skill=k=>skillBase(s,k),has=k=>!!aptitudeOwned(items,k,'',rules),power=name=>Number(items.find(i=>i.type==='power'&&normalize(i.name)===normalize(name))?.system.level??0);
  switch(key){
-  case 'trabalho-duro':{const choice=values.choice??'movement';if(!['movement','attack','defense','damage','difficulty'].includes(choice))throw Error('Benefício inválido.');if(s.identity?.clan==='Hachimon Tonkou'&&['damage','difficulty'].includes(choice))throw Error('Com Hachimon Tonkou, Trabalho Duro permite somente as três primeiras opções.');if(items.some(i=>i.type==='power'&&/hachimon/i.test(i.name)&&i.system.active))throw Error('Trabalho Duro não acumula com Hachimon Tonkou ativo.');p.active={choice,turn:true};p.limit=1;p.period='turn';break;}
+  case 'trabalho-duro':{const choice=values.choice??'movement';if(!['movement','attack','defense','damage','difficulty'].includes(choice))throw Error('Benefício inválido.');if(s.identity?.clan==='Hachimon Tonkou'&&['damage','difficulty'].includes(choice))throw Error('Com Hachimon Tonkou, Trabalho Duro permite somente as três primeiras opções.');if(hachimonProfile(s)||items.some(i=>i.type==='power'&&/hachimon/i.test(i.name)&&i.system.active))throw Error('Trabalho Duro não acumula com Hachimon Tonkou ativo.');p.active={choice,turn:true};p.limit=1;p.period='turn';break;}
   case 'dominio-simples':{const choice=values.choice??'damage';if(!['damage','hardness','difficulty','range'].includes(choice))throw Error('Benefício inválido.');p.active={choice,scene:true};p.limit=1;p.period='scene';break;}
-  case 'sensor':p.cost=item.system.selection==='chakra'||!item.system.selection?5:3;p.action=values.mode==='concentration'?'Padrão; concentração':'Movimento';p.active={turn:values.mode!=='concentration',concentration:values.mode==='concentration'};p.notes.push(`Alcance ${10+2*skill('rastrear')} m. ${item.system.selection==='solo'?'Exige contato com o solo; detecta criaturas em contato com ele.':'O mestre informa as criaturas detectadas.'}`);if(item.system.selection==='olfato')p.roll={stat:'rastrear',difficulty:values.environment==='adverse'?30:20};break;
+  case 'sensor':p.cost=item.system.selection==='chakra'||!item.system.selection?5:3;p.action=values.mode==='concentration'?'Padrão; concentração':'Movimento';p.active={turn:values.mode!=='concentration',concentration:values.mode==='concentration',sense:item.system.selection||'chakra',range:10+2*skill('rastrear')};p.notes.push(`Alcance ${10+2*skill('rastrear')} m. ${item.system.selection==='solo'?'Exige contato com o solo; detecta criaturas em contato com ele.':'O mestre informa as criaturas detectadas.'}`);if(item.system.selection==='olfato')p.roll={stat:'rastrear',difficulty:values.environment==='adverse'?30:20};break;
   case 'kyoudo-kyouka':if(values.mode==='movement'&&level<2)throw Error('Preparação com movimento exige Kyoudo Kyouka 2.');p.cost=Math.ceil(Number(a.esp??0)/2);p.action=values.mode==='movement'?'Movimento':'Parcial';p.active={base:(values.mode==='movement'?Number(a.esp??0):Math.ceil(Number(a.esp??0)/2))+power('iryou ninjutsu'),difficulty:9+Number(a.esp??0)};p.notes.push(`Próximo ataque desarmado: dano base ${p.active.base}; Acrobacia ${p.active.difficulty} evita Caído. Não soma dano de arma ou outros bônus de dano. Bloqueio comum não permitido.`);break;
   case 'replica-enganadora':if(!Number.isFinite(Number(values.margin))||Number(values.margin)<1||Number(values.margin)>2)throw Error('A defesa deve ter falhado por 1 ou 2 pontos.');p.cost=4;p.action='Movimento';p.limit=level>=2?2:1;p.period='scene';p.notes.push('Somente contra ataque corporal ou projétil; não pode seguir falha em técnica defensiva. Troca pelo clone e afasta-se sem ataque oportuno.');if(level>=2)p.notes.push('Pode tentar Furtividade ao fugir; deslocamento pela metade.');break;
   case 'miragem':{const sizes=['small','medium','large','huge'],index=sizes.indexOf(values.size??'small'),max=Number(a.int??0)>=16?3:Number(a.int??0)>=12?2:Number(a.int??0)>=8?1:0;if(index<0||index>max)throw Error('Tamanho acima do permitido por Inteligência.');p.cost=index+1;p.action='Padrão';p.notes.push(`Criar a até 5 m. Imagem ${values.mode==='mobile'?'móvel, sustentada':'imóvel, contínua'}, sem sair do ponto de criação. Interagir revela a ilusão.`);break;}
-  case 'fascinar':p.cost=3;p.action='Padrão';p.notes.push(`Alvo a até 5 m: Inteligência ${6+Number(a.int??0)+(has('ilusao-profunda')?1:0)} evita Fascinado. A partir do segundo turno, nova tentativa livre, dificuldade cumulativamente −1; dano ou ameaça quebra fascínio. Uma vez por alvo na cena.`);break;
+  case 'fascinar':
+   p.cost=3;p.action='Padrão';
+   if(values.mode==='hypnotic'){
+    const difficulty=7+Number(a.int??0)+(has('ilusao-profunda')?1:0);
+    p.notes.push(`Olhar Hipnótico: contato visual a até 9 m, sem selos ou teste de Concentração. Inteligência Dif ${difficulty} evita Fascinado. Pode repetir na cena; o alvo fica imune por 1 turno após se libertar.`);
+    break;
+   }
+   p.notes.push(`Alvo a até 5 m: Inteligência ${6+Number(a.int??0)+(has('ilusao-profunda')?1:0)} evita Fascinado. A partir do segundo turno, nova tentativa livre, dificuldade cumulativamente −1; dano ou ameaça quebra fascínio. Uma vez por alvo na cena.`);break;
   case 'encantar':{const nv=Number(values.level??1),magen=power('magen');p.action='Padrão';if(values.mode==='magen'){if(!Number.isInteger(nv)||nv<1||nv>magen)throw Error('Nível de Magen inválido.');p.cost=nv;p.notes.push(`Inteligência ${9+nv+Math.ceil(Number(a.int??0)/2)} evita a mudança de atitude (Ilusão Profunda já incluída).`);}else{p.cost=3;p.notes.push(`Inteligência ${6+Number(a.int??0)} evita a mudança de atitude.`);}p.notes.push(`Alcance ${5+Number(a.int??0)} m. Muda um estágio de atitude; duração contínua até o fim da cena.`);break;}
   case 'de-pe':p.action=values.mode==='reaction'?'Reação':'Livre';if(values.mode==='reaction'){p.limit=1;p.period='scene';}p.clearProne=true;break;
   case 'rolamento':p.action='Reação';p.clearProne=true;p.notes.push('Dobra a redução de altura dos testes para amortecer queda.');break;
@@ -23,7 +37,12 @@ export function aptitudeUsePlan(item,s,items=[],values={},rules={}){
   case 'duro-de-matar':{const amount=Number(values.amount),vit=Number(s.resources?.vitality?.value);if(!Number.isFinite(amount)||amount<=0||vit<=0||vit-amount>0)throw Error('Informe dano de ataque não crítico que levaria a vitalidade atual de positiva a 0 ou menos.');p.limit=1;p.period='day';p.survival=Math.max(1,vit>Number(a.vig??0)?Number(a.vig??0):1);p.notes.push(`Vitalidade após o ataque: ${p.survival}. Não funciona contra crítico.`);break;}
   case 'shunjutsu':p.cost=1;p.active={turn:true};p.notes.push(`Espírito ${a.esp??0} substitui atributos/perícias no deslocamento e seus testes. Concede +1 Kawarimi por cena.${level>=2?' Finta pode usar Destreza ou Inteligência.':''}${level>=3?' Acelerado enquanto se move; na defesa, anula a finta acelerada adversária.':''}`);break;
   case 'mira-apurada':if(!String(values.target??'').trim())throw Error('Informe o alvo da mira.');p.action='Movimento';p.active={round:true,target:String(values.target).trim()};p.notes.push('+1 CD com arma de disparo contra o alvo durante esta rodada.');break;
-  case 'instancia-de-falange':p.action='Parcial';if(!items.some(i=>i.type==='equipment'&&i.system.equipped&&['staff','pike','scythe','fan','otsuchi','yari'].includes(i.system.catalogKey)))throw Error('Empunhe uma arma longa.');p.active={};p.notes.push(`Inimigos que entram a 1 m geram oportunidade; Cambalhota ${2+Number(a.for??0)+Number(s.automation?.bases?.cc??3)} evita. Não aumenta o limite de ataques oportunos. Encerra ao mover-se, cair, deixar de empunhar ou perder a capacidade de reagir.`);break;
+  case 'instancia-de-falange':{
+   p.action='Parcial';
+   const weapon=items.find(i=>i.type==='equipment'&&i.system.equipped&&!i.system.destroyed&&
+    WEAPONS.some(w=>w.category==='long'&&w.key===i.system.catalogKey&&w.book===i.system.catalogBook));
+   if(!weapon)throw Error('Empunhe uma arma longa.');
+   p.active={weaponId:weapon.id??weapon._id};p.notes.push(`Inimigos que entram a 1 m geram oportunidade; Cambalhota ${2+Number(a.for??0)+Number(s.automation?.bases?.cc??3)} evita. Não aumenta o limite de ataques oportunos. Encerra ao mover-se, cair, deixar de empunhar ou perder a capacidade de reagir.`);break;}
   case 'estilo-zui-quan':p.action=level>=2?'Livre':'Parcial';p.active={...(level>=2?{}:{remaining:5})};p.notes.push('Ataques contra o usuário têm 25% de falha, inclusive com sensores. Golpear desarmado inclui finta livre. Não pode usar técnicas, mas pode sustentar Energizar. Após encerrar, aguardar 2 turnos.');if(level<2)p.consume='strong-drink';break;
   case 'henge-perfeito':p.action='Parcial';p.notes.push(`Henge contínuo. Prontidão/Procurar ${9+skill('disfarce')+(aptitudeOwned(items,'perito','disfarce',rules)||aptitudeOwned(items,'pericia-inata','disfarce',rules)?1:0)} para notar. Cancelado se sofrer dano maior que ${2*skill('disfarce')}. Custos e demais regras do Henge continuam aplicáveis.`);break;
   case 'kai-perfeito':p.action='Parcial';p.roll={stat:'esp',bonus:2};p.notes.push('Kai pode desfazer as próprias técnicas fora de seu turno. Custos e demais regras de Kai continuam aplicáveis.');break;
@@ -39,12 +58,86 @@ export function aptitudeUsePlan(item,s,items=[],values={},rules={}){
  }
  return p;
 }
+const succeeded=(total,precision,difficulty)=>total-precision>=15||total-precision>3&&total>=difficulty;
+
+export async function resolveFascinar(actor,target,item,requestId,distance,{hypnotic=false,eyeContact=false,convertedChakra=0}={}){
+ // Básico p. 80. O mestre coordenador valida o alvo, paga o custo e guarda a resistência.
+ if(!target||target.uuid===actor.uuid||item?.type!=='aptitude'||item.system.catalogKey!=='fascinar')throw Error('Fascinar exige um alvo e a aptidão.');
+ const range=hypnotic?9:5;
+ if(distance!=null&&(!Number.isFinite(distance)||distance<0||distance>range))throw Error(`O alvo de Fascinar precisa estar a até ${range} m.`);
+ if(hypnotic&&(!eyeContact||!clanCapabilities(actor,{books:worldProfile()?.books,rules:houseRules()}).nidan))
+  throw Error('Olhar Hipnótico exige contato visual e Nidan com Sharingan ativo.');
+ const check=statPrecision(actor,'esp',{kind:'attribute',manualContext:true});
+ if(!check.allowed)throw Error(check.reasons.join(' '));
+ const scene=periodKey(target,'scene'),targetRuntime=target.getFlag(ID,'aptitudes');
+ const existing=targetRuntime?.fascinarScene;
+ if(!hypnotic&&existing?.scene===scene&&existing.id!==requestId)throw Error('Este alvo já foi fascinado nesta cena.');
+ if(hypnotic&&targetRuntime?.hypnoticImmunity?.scene===scene&&targetRuntime.hypnoticImmunity.turn===periodKey(target,'turn'))
+  throw Error('O alvo está imune ao Olhar Hipnótico até o próximo turno dele.');
+ if(hypnotic&&conditionRecords(target).some(record=>record.fascinarRequest&&record.fascinarRequest!==requestId))
+  throw Error('O alvo já está sob Fascinar.');
+ const plan=aptitudeUsePlan(item,actor.system,[...actor.items]);
+ const baseDifficulty=(hypnotic?7:6)+Number(actor.system.attributes.int??0)+(aptitudeOwned([...actor.items],'ilusao-profunda','',houseRules())?1:0),
+  difficulty=Math.max(0,baseDifficulty-Number(hachimonProfile(target.system)?.genjutsuReduction??0));
+ const pending=await mutateRuntime(actor,async state=>{
+  state.fascinarReceipts??={};
+  if(state.fascinarReceipts[requestId])return state.fascinarReceipts[requestId];
+  const payment=corpulenciaPayment(actor,plan.cost,convertedChakra,{books:worldProfile().books,rules:houseRules()});
+  const precision=statPrecision(target,'int',{kind:'resistance',reaction:true,manualContext:true,ocularGenjutsu:hypnotic}).precision;
+  const roll=await new foundry.dice.Roll(`2d8 + (${precision})`).evaluate();
+  const receipt={total:roll.total,precision,baseDifficulty,difficulty,success:succeeded(roll.total,precision,difficulty),json:JSON.stringify(roll.toJSON())};
+  state.fascinarReceipts[requestId]=receipt;
+  return {...receipt,changes:payment};
+ });
+ if(!pending.success){
+  if(!conditionRecords(target).some(record=>record.fascinarRequest===requestId))
+   await saveCondition(target,{key:'fascinado',source:(hypnotic?'Olhar Hipnótico':'Fascinar')+' · '+actor.name,expiresScene:scene,fascinarRequest:requestId,hypnotic,
+    difficulty:pending.baseDifficulty??pending.difficulty,resistStat:'int',elapsed:0,notes:'Uma tentativa por turno a partir do segundo. Sofrer dano encerra Fascinar.'});
+  if(!hypnotic)await mutateRuntime(target,state=>{state.fascinarScene={scene,id:requestId};});
+ }
+ if(!game.messages.contents?.some(message=>message.getFlag(ID,'fascinarResult')===requestId))
+  await foundry.dice.Roll.fromJSON(pending.json).toMessage({speaker:ChatMessage.getSpeaker({actor:target}),
+   flavor:`<strong>${hypnotic?'Olhar Hipnótico':'Fascinar'} · ${esc(target.name)}</strong><p>Inteligência ${pending.difficulty} · ${pending.success?'resistiu':'Fascinado'}</p>`,
+   flags:{[ID]:{fascinarResult:requestId}}});
+}
+
+export async function retryFascinar(actor,record){
+ if(record.elapsed<2)throw Error('A tentativa começa no segundo turno sob Fascinar.');
+ const turn=periodKey(actor,'turn');
+ if(record.resolvedFor===turn)throw Error('Fascinar já foi testado neste turno.');
+ const difficulty=Math.max(0,record.difficulty-1-Number(record.fascinarAttempts??0)-Number(hachimonProfile(actor.system)?.genjutsuReduction??0));
+ const check=statPrecision(actor,'int',{kind:'resistance',reaction:true,resistingId:record.id,manualContext:true,ocularGenjutsu:record.hypnotic});
+ if(!check.allowed)throw Error(check.reasons.join(' '));
+ const roll=await new foundry.dice.Roll(`2d8 + (${check.precision})`).evaluate();
+ const success=succeeded(roll.total,check.precision,difficulty);
+ if(success)await saveCondition(actor,record,{remove:true});
+ else await saveCondition(actor,{...record,resolvedFor:turn,fascinarAttempts:Number(record.fascinarAttempts??0)+1});
+ await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:`<strong>Notar Genjutsu · Fascinar</strong><p>Inteligência ${difficulty} · ${success?'libertou-se':'continua fascinado'}</p>`});
+}
+
 export async function aptitudeUseAction(app,op,data,root,{actor,show}){
+ if(mindBinding(actor)&&mindBinding(actor).root.mentalControl.mode!=='disorder'&&['end-aptitude','end-mirage'].includes(op)&&!app._mindCoordinated){
+  const {requestControlledEffect}=await import('./yamanaka-actions.mjs');return requestControlledEffect(actor,app,op,data,root);
+ }
+ if(mindBinding(actor)&&mindBinding(actor).root.mentalControl.mode!=='disorder'&&op==='execute-aptitude'&&!app._mindCoordinated){
+  const {requestControlledAbility}=await import('./yamanaka-actions.mjs');return requestControlledAbility(actor,app,'aptitude',root);
+ }
  if(op==='new-aptitude-scene'||op==='new-aptitude-day'){if(!game.user.isGM)throw Error('Somente o mestre avança cena/dia.');const key=op==='new-aptitude-scene'?'sceneEpoch':'dayEpoch';await game.settings.set(ID,key,Number(game.settings.get(ID,key)??0)+1);return app.render({force:true});}
  if(!actor?.isOwner)throw Error('Você não pode usar esta ficha.');
  const item=actor.items.get(data.id??app.panelConfig?.itemId);if(!item||!aptitudeOwned([...actor.items],item.system.catalogKey,item.system.selection,houseRules()))throw Error('Aptidão não disponível.');
  if(op==='aptitude-use')return show('aptitude-use',{actor,itemId:item.id});
- if(op==='end-aptitude'){await mutateRuntime(actor,state=>{delete state.active[item.system.catalogKey];if(item.system.catalogKey==='estilo-zui-quan')state.cooldowns[item.system.catalogKey]=2;});return app.render({force:true});}
+ if((await import('./body-state.mjs')).joinedBody(actor))throw Error('Este participante integra o corpo unido. Use a ficha do Inuzuka.');
+ if(op==='end-mirage'){
+  if(item.system.catalogKey!=='miragem')throw Error('Aptidão inválida para esta ilusão.');
+  await mutateRuntime(actor,state=>{
+   const mirage=state.mirages?.[data.mirage];
+   if(!mirage||mirage.itemId!==item.id)throw Error('Miragem indisponível.');
+   delete state.mirages[data.mirage];
+  });
+  return app.render({force:true});
+ }
+ if(op==='end-aptitude'){await endAptitudeRuntime(actor,item.system.catalogKey);return app.render({force:true});}
+ if(mindBinding(actor)?.root.mentalControl.mode==='disorder')throw Error('Desordem Mental permite somente ataques comuns e reações básicas pelo controlador.');
  const stateCheck=derivedSummary(actor).state;if(stateCheck.noActions&&stateCheck.noReactions)throw Error('A condição atual impede usar aptidões.');
  const values=Object.fromEntries(Object.entries(readFields(root,'aptitude.')).map(([k,v])=>[k.slice(9),v])),plan=aptitudeUsePlan(item,actor.system,[...actor.items],values,houseRules());Object.assign(app.values,values);
  const actionCheck=statPrecision(actor,'esp',{kind:'attribute',manualContext:true,reaction:plan.action.startsWith('Reação')});if(!actionCheck.allowed)throw Error(actionCheck.reasons.join(' '));
@@ -53,21 +146,69 @@ export async function aptitudeUseAction(app,op,data,root,{actor,show}){
  const rollKind=plan.roll?.stat in SKILLS?'skill':plan.roll?.stat==='cc'?'defense':'attribute';
  const rollCheck=plan.roll?statPrecision(actor,plan.roll.stat,{kind:rollKind,manualContext:true}):null;
  if(rollCheck&&!rollCheck.allowed)throw Error(rollCheck.reasons.join(' '));
- await mutateRuntime(actor,state=>{
+ if(plan.key==='fascinar'){
+  const {selectedTargets,tokenDistance}=await import('./saved-actions.mjs');
+  const targets=app._mindTargets?.map(t=>t.actor.uuid)??selectedTargets();
+  if(targets.length!==1||targets[0]===actor.uuid)throw Error('Marque um único alvo no mapa.');
+  const hypnotic=values.mode==='hypnotic';
+  const eyeContact=!hypnotic||await foundry.applications.api.DialogV2.confirm({
+   window:{title:'Olhar Hipnótico'},content:'<p>Confirme o contato visual. O alvo pode evitá-lo olhando para longe do rosto do atacante.</p>'
+  });
+  if(!eyeContact)return;
+  const {requestAction}=await import('./action-executions.mjs');
+  const declaration={op:'shinobi-fascinar',actorUuid:actor.uuid,itemId:item.id,targetUuid:targets[0],distance:tokenDistance(actor,targets[0]),hypnotic,eyeContact,convertedChakra:Number(values.convertedChakra??0)};
+  if(app._deferDeclaration)await app._deferDeclaration(declaration);else await requestAction(declaration);
+  return app.close();
+ }
+ let mirage=null;
+ if(plan.key==='miragem'){
+  const point=String(values.point??'').trim().slice(0,200),image=String(values.image??'').trim().slice(0,300);
+  const marked=app._mindTargets??[...(game.user.targets??[])].filter(token=>token.actor);
+  if(marked.length>1)throw Error('Marque no máximo um token como referência do ponto.');
+  if(!image||!point&&!marked.length)throw Error('Descreva a imagem e indique seu ponto fixo.');
+  const token=marked[0];
+  if(token){
+   const {tokenDistance}=await import('./saved-actions.mjs');
+   const distance=tokenDistance(actor,token.actor.uuid);
+   if(distance!=null&&distance>5)throw Error('O ponto de Miragem precisa estar a até 5 m.');
+  }
+  mirage={itemId:item.id,image,point:point||token.name||token.actor.name,
+   ...(app._mindControl?{mindControl:app._mindControl}:{}),
+   scene:periodKey(actor,'scene'),sceneId:globalThis.canvas?.scene?.id??null,
+   x:token?.center?.x??null,y:token?.center?.y??null,size:values.size??'small',mobile:values.mode==='mobile'};
+ }
+ const rollOnce=(formula,suffix)=>app._rollOnce?app._rollOnce(formula,suffix):new foundry.dice.Roll(formula).evaluate();
+ const senseRoll=plan.key==='sensor'&&plan.roll?await rollOnce(`2d8 + (${rollCheck.precision})`,'sense'):null;
+ const scentFound=senseRoll&&succeeded(senseRoll.total,rollCheck.precision,plan.roll.difficulty);
+ const committed=await mutateRuntime(actor,state=>{
+  if(app._mindRequestId){const prior=readKeyedRecord(state.controlledAbilityUses,app._mindRequestId);if(prior)return prior;}
   if(state.cooldowns[plan.key])throw Error(`Aguarde ${state.cooldowns[plan.key]} turno(s) para reutilizar.`);
   if(plan.limit)claimUsage(state,actor,plan.key,plan.period,plan.limit);
-  const changes={},chakra=actor.system.resources.chakra.value;
-  if(plan.cost){if(chakra==null||chakra<plan.cost)throw Error('Chakra insuficiente.');changes['system.resources.chakra.value']=chakra-plan.cost;}
+  const changes=corpulenciaPayment(actor,plan.cost,Number(values.convertedChakra??0),{books:worldProfile().books,rules:houseRules()});
+  if(mirage){
+   state.mirages??={};
+   for(const [id,record] of Object.entries(state.mirages))if(record.scene!==mirage.scene)delete state.mirages[id];
+   state.mirages[foundry.utils.randomID()]=mirage;
+  }
   if(plan.survival!==undefined)changes['system.resources.vitality.value']=plan.survival;
-  if(plan.active)state.active[plan.key]={...plan.active,...(plan.active.turn?{turn:periodKey(actor,'turn')}:{turn:undefined}),...(plan.active.scene?{scene:periodKey(actor,'scene')}:{scene:undefined}),...(plan.active.round?{round:periodKey(actor,'round')}:{round:undefined})};
+  if(plan.active&&(!senseRoll||scentFound))state.active[plan.key]={...plan.active,...(app._mindControl?{mindControl:app._mindControl}:{}),...(plan.key==='kyoudo-kyouka'?{id:foundry.utils.randomID()}:{}),...(plan.active.turn?{turn:periodKey(actor,'turn')}:{turn:undefined}),...(plan.active.scene?{scene:periodKey(actor,'scene')}:{scene:undefined}),...(plan.active.round?{round:periodKey(actor,'round')}:{round:undefined})};
   if(plan.consume){const supply=[...actor.items].find(i=>i.system.catalogKey===plan.consume&&Number(i.system.quantity??0)>0);if(!supply)throw Error('Falta o consumível necessário na ficha.');plan.supply=supply;}
-  return {changes};
+  const receipt={...(plan.supply?{supplyId:plan.supply.id}:{})};
+  if(app._mindRequestId){state.controlledAbilityUses??={};state.controlledAbilityUses[recordKey(app._mindRequestId)]=receipt;}
+  return {...receipt,changes};
  });
- if(plan.supply)await plan.supply.update({'system.quantity':Number(plan.supply.system.quantity)-1});
+ if(committed.supplyId)plan.supply=actor.items.get(committed.supplyId);
+ if(plan.supply){const supply=plan.supply,key=app._mindRequestId&&recordKey(app._mindRequestId);
+  if(!key||!readKeyedRecord(supply.getFlag?.(ID,'controlledUses'),app._mindRequestId))await supply.update({'system.quantity':Number(supply.system.quantity)-1,...(key?{[`flags.${ID}.controlledUses.${key}`]:true}:{})});
+ }
  if(plan.clearProne)for(const c of conditionRecords(actor).filter(c=>c.key==='caido'))await saveCondition(actor,c,{remove:true});
- const flavor=`<strong>${esc(item.name)}</strong><p>Ação: ${esc(plan.action)}${plan.cost?' · Chakra: '+plan.cost:''}.</p><ul>${plan.notes.map(n=>'<li>'+esc(n)+'</li>').join('')}</ul>`;
- if(plan.roll){const check=rollCheck;const precision=check.precision+Number(plan.roll.bonus??0),roll=await new foundry.dice.Roll(`2d8 + (${precision})`).evaluate();await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor,flags:{[ID]:{kind:'aptitude-test',actorUuid:actor.uuid,stat:plan.roll.stat,precision,natural:roll.total-precision,difficulty:plan.roll.difficulty}}});}
- else await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:flavor});
- if(plan.key==='estilo-zui-quan'&&plan.level===1){const roll=await new foundry.dice.Roll('1d8').evaluate();await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:`Zui Quan: ${roll.total<=2?'Não faz nada.':roll.total<=4?'Ataca o alvo mais próximo.':'Age normalmente.'}`});}
+ const flavor=`<strong>${esc(item.name)}</strong>${senseRoll?`<p>Olfato: ${scentFound?'sucesso':'falha'} · dificuldade ${plan.roll.difficulty}.</p>`:''}<p>Ação: ${esc(plan.action)}${plan.cost?' · Chakra: '+plan.cost:''}.</p><ul>${plan.notes.map(n=>'<li>'+esc(n)+'</li>').join('')}</ul>`;
+ const alreadyPosted=app._mindRequestId&&(game.messages.contents??[...game.messages]).some(m=>m.getFlag(ID,'controlledAbilityId')===app._mindRequestId);
+ if(!alreadyPosted&&plan.roll){const check=rollCheck;const precision=check.precision+Number(plan.roll.bonus??0),roll=senseRoll??await rollOnce(`2d8 + (${precision})`,'test');await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor,flags:{[ID]:{kind:'aptitude-test',actorUuid:actor.uuid,stat:plan.roll.stat,precision,natural:roll.total-precision,difficulty:plan.roll.difficulty,...(app._mindRequestId?{controlledAbilityId:app._mindRequestId}:{})}}});}
+ else if(!alreadyPosted)await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:flavor,flags:{[ID]:{...(app._mindRequestId?{controlledAbilityId:app._mindRequestId}:{})}},
+  ...(mirage?{whisper:[...new Set([game.user.id,...(game.users.contents??[...game.users]).filter(user=>user.isGM).map(user=>user.id)])]}:{})});
+ if(plan.key==='estilo-zui-quan'&&plan.level===1){const key=app._mindRequestId+':zui',posted=app._mindRequestId&&(game.messages.contents??[...game.messages]).some(m=>m.getFlag(ID,'controlledAbilityId')===key);
+  if(!posted){const roll=await rollOnce('1d8','zui');await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:`Zui Quan: ${roll.total<=2?'Não faz nada.':roll.total<=4?'Ataca o alvo mais próximo.':'Age normalmente.'}`,flags:{[ID]:{...(app._mindRequestId?{controlledAbilityId:key}:{})}}});}
+ }
  return app.render({force:true});
 }
